@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GlassCard, SectionHeader, ModeHeroCard, PlanCard, Mascot } from '../../design'
 import { getTodaySummary } from '../../data/services/dailyScoreService'
-import type { TodaySummary, FactorTier } from '../../engine'
+import { getRecoveryRecommendations } from '../../data/services/patternAnalysisService'
+import type { TodaySummary, FactorTier, RecoveryActionInsight } from '../../engine'
 import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import './today.css'
 
@@ -40,13 +41,15 @@ export function TodayScreen() {
   const navigate = useNavigate()
   const now = new Date()
   const [summary, setSummary] = useState<TodaySummary | null>(null)
+  const [recs, setRecs] = useState<RecoveryActionInsight[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    void getTodaySummary(getTodayISODate()).then((s) => {
+    void Promise.all([getTodaySummary(getTodayISODate()), getRecoveryRecommendations()]).then(([s, r]) => {
       if (cancelled) return
       setSummary(s)
+      setRecs(r)
       setLoading(false)
     })
     return () => {
@@ -76,7 +79,7 @@ export function TodayScreen() {
       ) : !summary ? (
         <EmptyToday onRecord={() => navigate('/log')} />
       ) : (
-        <FilledToday summary={summary} onRecord={() => navigate('/log')} />
+        <FilledToday summary={summary} recs={recs} onRecord={() => navigate('/log')} />
       )}
     </>
   )
@@ -97,7 +100,7 @@ function EmptyToday({ onRecord }: { onRecord: () => void }) {
   )
 }
 
-function FilledToday({ summary, onRecord }: { summary: TodaySummary; onRecord: () => void }) {
+function FilledToday({ summary, recs, onRecord }: { summary: TodaySummary; recs: RecoveryActionInsight[]; onRecord: () => void }) {
   const { classification, scores, factorCandidates, plan, recordedRecovery } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
 
@@ -154,13 +157,29 @@ function FilledToday({ summary, onRecord }: { summary: TodaySummary; onRecord: (
         ]}
       />
 
-      {/* 오늘 기록된 회복 행동 (분석 추천 아님) */}
+      {/* 오늘 도움이 될 수 있는 것 (효과 후보 기반) */}
+      <GlassCard tint="mint">
+        <SectionHeader title="오늘 도움이 될 수 있는 것" subtitle="최근 기록상 비슷한 날에 도움이 된 편이에요" star />
+        {recs.length > 0 ? (
+          <div className="recovery-rec">
+            {recs.map((r) => (
+              <span className="recovery-rec__chip" key={r.actionCode}>
+                {r.actionLabel}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="today-rec-empty">회복 행동 기록이 쌓이면 오늘 도움이 될 수 있는 행동을 추천해볼게요.</p>
+        )}
+      </GlassCard>
+
+      {/* 오늘 기록된 회복 행동 (있을 때만, 추천과 별개) */}
       {recordedRecovery.length > 0 && (
-        <GlassCard tint="mint">
+        <GlassCard>
           <SectionHeader title="오늘 기록된 회복 행동" subtitle="오늘 남긴 기록이에요" />
           <div className="recovery-rec">
             {recordedRecovery.map((r) => (
-              <span className="recovery-rec__chip" key={r}>
+              <span className="recovery-rec__chip recovery-rec__chip--plain" key={r}>
                 {r}
               </span>
             ))}

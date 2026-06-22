@@ -30,6 +30,7 @@ export {
 export {
   recalculatePatternInsights,
   getAnalysisViewModel,
+  getRecoveryRecommendations,
   type AnalysisViewModel,
   type AnalysisOptions,
   type RecoveryFrequencyItem,

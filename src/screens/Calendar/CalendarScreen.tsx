@@ -120,11 +120,17 @@ export function CalendarScreen() {
 
       <HeatmapCalendar cells={cells} lens={lens} onSelect={setSelectedDate} />
 
-      <p className="callegend">
-        색이 진할수록 해당 렌즈의 부하가 높게 기록된 날이에요. 기록이 없는 날은 색을 표시하지 않아요.
-      </p>
-      {lens === 'recovery' && (
-        <p className="callegend callegend--soft">회복 렌즈는 회복 점수 기록이 쌓이면 더 의미 있게 보여요.</p>
+      {lens === 'recovery' ? (
+        <>
+          <p className="callegend">
+            회복 렌즈는 회복 행동을 기록한 날과 자기보고 회복 점수를 보여줘요. 색이 진할수록 회복 기록이 강하게 남은 날이에요.
+          </p>
+          <p className="callegend callegend--soft">여기서 진함은 부하가 아니라 회복 기록이 높음을 뜻해요.</p>
+        </>
+      ) : (
+        <p className="callegend">
+          색이 진할수록 해당 렌즈의 부하가 높게 기록된 날이에요. 기록이 없는 날은 색을 표시하지 않아요.
+        </p>
       )}
 
       {detail && <DayDetailSheet detail={detail} onClose={() => setSelectedDate(null)} onRecord={(date) => navigate(`/log?date=${date}`)} />}

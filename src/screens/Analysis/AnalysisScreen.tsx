@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { GlassCard, SectionHeader } from '../../design'
 import { getAnalysisViewModel, type AnalysisViewModel } from '../../data/services/patternAnalysisService'
-import { CONFIDENCE_TIER_LABEL, ANALYSIS_METRIC_LABEL } from '../../engine'
+import { CONFIDENCE_TIER_LABEL, ANALYSIS_METRIC_LABEL, RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
 import './analysis.css'
 
@@ -118,19 +118,43 @@ export function AnalysisScreen() {
             </GlassCard>
           )}
 
-          {/* 기록된 회복 행동 (효과 분석 아님) */}
+          {/* 나를 살린 것들 (효과 후보 기반) */}
           <GlassCard tint="mint">
-            <SectionHeader title="기록된 회복 행동" subtitle="아직 효과 분석 전이에요. 지금은 자주 기록된 행동만 보여줘요" star />
-            {vm.recoveryFrequency.length === 0 ? (
-              <p className="analysis-empty">아직 기록된 회복 행동이 없어요.</p>
-            ) : (
-              <div className="recfreq">
-                {vm.recoveryFrequency.map((r) => (
-                  <span className="recfreq__chip" key={r.label}>
-                    {r.label} {r.count}회
-                  </span>
+            <SectionHeader title="나를 살린 것들" subtitle="전후 기록과 다음날 흐름을 함께 보고, 도움이 됐던 행동 후보를 보여줘요" star />
+            {vm.recoveryEffects.length > 0 ? (
+              <ul className="pattern-list">
+                {vm.recoveryEffects.map((r) => (
+                  <li className="pattern" key={r.actionCode}>
+                    <div className="pattern__top">
+                      <span className="pattern__name">{r.actionLabel}</span>
+                      <span className={`pattern__tier rectier--${r.confidenceTier}`}>{RECOVERY_TIER_LABEL[r.confidenceTier]}</span>
+                    </div>
+                    <p className="pattern__msg">{r.message}</p>
+                    <div className="pattern__meta">
+                      <span>회복 후보 {r.combinedScore}</span>
+                      <span>·</span>
+                      <span>{r.supportCount}회 기록</span>
+                    </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
+            ) : vm.recoveryFrequency.length > 0 ? (
+              <>
+                <p className="analysis-empty">
+                  아직 회복 행동 효과를 보기엔 기록이 조금 부족해요. 뭐 했더니 나아졌는지 몇 번 더 기록하면 개인 회복템을 찾을 수 있어요.
+                </p>
+                <div className="recfreq">
+                  {vm.recoveryFrequency.map((r) => (
+                    <span className="recfreq__chip" key={r.label}>
+                      {r.label} {r.count}회
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="analysis-empty">
+                아직 회복 행동 기록이 없어요. 뭐 했더니 나아졌는지 기록하면 개인 회복템을 찾아볼게요.
+              </p>
             )}
           </GlassCard>
 

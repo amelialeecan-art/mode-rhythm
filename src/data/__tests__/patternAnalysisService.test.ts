@@ -60,12 +60,29 @@ describe('recalculatePatternInsights', () => {
     expect(second.length).toBe(first.length) // 중복 누적 안 됨
   })
 
-  it('단정 금지 문구가 message에 들어가지 않는다', async () => {
+  it('단정 금지 문구가 message에 들어가지 않는다 (회복 insight 포함)', async () => {
     await seedTwelveDays()
     await recalculatePatternInsights({ endDate: END })
     const all = await patternInsightRepository.listRecent(200)
     for (const insight of all) {
       for (const w of FORBIDDEN) expect(insight.message.includes(w)).toBe(false)
     }
+  })
+})
+
+describe('recovery insights', () => {
+  it('recovery insight가 patternInsights에 저장되고 VM에 효과 후보가 담긴다', async () => {
+    await seedTwelveDays() // 매일 산책 기록
+    const vm = await getAnalysisViewModel({ endDate: END })
+    expect(vm.recoveryEffects.some((r) => r.actionLabel === '산책')).toBe(true)
+    const saved = await patternInsightRepository.listByType('recovery')
+    expect(saved.length).toBeGreaterThan(0)
+    expect(saved.some((i) => i.factorCodes.includes('walk'))).toBe(true)
+  })
+
+  it('회복 데이터가 부족하면 recoveryEffects가 비어 있다', async () => {
+    await saveDailyEntry(draft('2026-06-10', { recoveryCodes: ['walk'], recoveryEffect: 'much_better' }))
+    const vm = await getAnalysisViewModel({ endDate: END })
+    expect(vm.recoveryEffects).toHaveLength(0) // 1회 기록(support<2, nextDay 없음)
   })
 })

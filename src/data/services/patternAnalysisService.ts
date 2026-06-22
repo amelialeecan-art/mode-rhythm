@@ -20,12 +20,15 @@ import {
   accompliceEffect,
   detectUnexplained,
   buildCycleContext,
+  analyzeRecoveryActions,
   type AnalysisDataset,
   type AnalysisMetric,
   type EffectWindow,
   type FactorEffectResult,
   type AccompliceEffectResult,
   type UnexplainedDayResult,
+  type RecoveryDataset,
+  type RecoveryActionInsight,
 } from '../../engine'
 import { assertGuard } from '../../copy/tone'
 import { getTodayISODate } from '../../lib/date'
@@ -65,6 +68,9 @@ export interface AnalysisViewModel {
   timeWindowHighlight: { message: string } | null
   combos: AccompliceEffectResult[]
   unexplained: UnexplainedDayResult[]
+  /** 효과 기반 회복 행동 후보 ("나를 살린 것들"). */
+  recoveryEffects: RecoveryActionInsight[]
+  /** 회복 행동 단순 빈도 (효과 데이터 부족 시 보조). */
   recoveryFrequency: RecoveryFrequencyItem[]
 }
 
@@ -223,6 +229,23 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     .sort((a, b) => b.count - a.count)
     .slice(0, 6)
 
+  // ---- 회복 행동 효과 후보 (전후 + 다음날) ----
+  const rhythmByDate = new Map<ISODate, number>()
+  for (const [d, v] of scoreByDate) rhythmByDate.set(d, v.rhythm)
+  const actionsByDate = new Map<ISODate, Set<string>>()
+  for (const r of recoveryLogs) {
+    let set = actionsByDate.get(r.date)
+    if (!set) {
+      set = new Set()
+      actionsByDate.set(r.date, set)
+    }
+    set.add(r.actionCode)
+  }
+  const rhythmValues = resultDates.map((d) => rhythmByDate.get(d) ?? 0)
+  const baselineRhythm = rhythmValues.length > 0 ? rhythmValues.reduce((a, b) => a + b, 0) / rhythmValues.length : 0
+  const recoveryDataset: RecoveryDataset = { dates: resultDates, rhythmByDate, actionsByDate, baselineRhythm, endDate }
+  const recoveryEffects = analyzeRecoveryActions(recoveryDataset, recoveryLogs).slice(0, 6)
+
   // ---- 시간창 하이라이트 (지연 효과 후보) ----
   const delayed = factorPatterns.find((f) => f.window !== 'same_day')
   const timeWindowHighlight = delayed ? { message: delayed.message } : null
@@ -262,6 +285,17 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       message: assertGuard('일부 고부하 날짜는 현재 기록만으로 충분히 설명되지 않았어요. 이유가 없는 날도 데이터로 보관해요.'),
     })
   }
+  for (const r of recoveryEffects) {
+    insights.push({
+      insightType: 'recovery',
+      targetMetric: 'recovery',
+      factorCodes: [r.actionCode],
+      effectSize: r.combinedScore,
+      confidence: r.confidence,
+      supportCount: r.supportCount,
+      message: assertGuard(r.message),
+    })
+  }
 
   const vm: AnalysisViewModel = {
     endDate,
@@ -271,6 +305,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     timeWindowHighlight,
     combos: topCombos,
     unexplained,
+    recoveryEffects,
     recoveryFrequency,
   }
 
@@ -294,4 +329,13 @@ export async function getAnalysisViewModel(opts: AnalysisOptions = {}): Promise<
   const { vm, insights } = await computeAnalysis(opts)
   await persist(insights)
   return vm
+}
+
+/**
+ * Today 화면용: 효과 신뢰도 높은 회복 행동 후보 top N (기본 3).
+ * 부수효과 없음(저장 안 함). 비슷한 날 매칭 강화는 8단계 예보와 함께.
+ */
+export async function getRecoveryRecommendations(opts: AnalysisOptions = {}, limit = 3): Promise<RecoveryActionInsight[]> {
+  const { vm } = await computeAnalysis(opts)
+  return vm.recoveryEffects.slice(0, limit)
 }

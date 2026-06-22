@@ -130,6 +130,47 @@
   color: var(--coral-ink);
   background: var(--coral-s);
 }
+/* 회복 효과 tier */
+.rectier--checking {
+  color: var(--sky-ink);
+  background: var(--sky-s);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: var(--pill);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.rectier--some_help {
+  color: var(--teal-ink);
+  background: var(--teal-s);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: var(--pill);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.rectier--personal_helper {
+  color: var(--mint-ink);
+  background: var(--mint-s);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: var(--pill);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.rectier--strong_helper {
+  color: var(--coral-ink);
+  background: var(--coral-s);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: var(--pill);
+  margin-left: auto;
+  white-space: nowrap;
+}
 .pattern__msg {
   font-size: 13.5px;
   line-height: 1.5;

@@ -243,3 +243,14 @@
   background: rgba(77, 199, 161, 0.18);
   color: var(--mint-ink);
 }
+.recovery-rec__chip--plain {
+  background: rgba(120, 90, 180, 0.1);
+  color: var(--deep-2);
+}
+.today-rec-empty {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  font-weight: 500;
+  line-height: 1.5;
+  margin-top: 12px;
+}

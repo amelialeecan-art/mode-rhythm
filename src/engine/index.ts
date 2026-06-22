@@ -59,3 +59,19 @@ export {
   type UnexplainedDayInput,
   type UnexplainedDayResult,
 } from './patterns'
+export {
+  recoveryDelta,
+  calcRecoveryScore,
+  immediateRecoveryScore,
+  dailyRecoveryScore,
+  nextDayRecoveryEffect,
+  analyzeRecoveryActions,
+  recoveryTier,
+  EFFECT_SCORE,
+  RECOVERY_TIER_LABEL,
+  type RecoveryDelta,
+  type RecoveryDataset,
+  type NextDayRecoveryEffect,
+  type RecoveryActionInsight,
+  type RecoveryTier,
+} from './recovery'

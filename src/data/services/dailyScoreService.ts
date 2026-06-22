@@ -11,7 +11,7 @@ import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { recoveryLogRepository } from '../repositories/recoveryLogRepository'
 import { dailyScoreRepository } from '../repositories/dailyScoreRepository'
 import { userSettingsRepository } from '../repositories/userSettingsRepository'
-import { buildTodaySummary, type TodaySummary } from '../../engine'
+import { buildTodaySummary, dailyRecoveryScore, type TodaySummary } from '../../engine'
 import type { DailyScore, DailyScoreInput, ISODate } from '../models'
 
 /** 주기 context 계산을 위해 과거 cycle 로그까지 포함해 불러올 하한 날짜. */
@@ -50,7 +50,10 @@ export async function recalculateDailyScore(date: ISODate): Promise<DailyScore |
   const summary = await buildSummaryFromDb(date)
   if (!summary) return null
 
-  const events = await eventLogRepository.listByDate(date)
+  const [events, recoveryLogs] = await Promise.all([
+    eventLogRepository.listByDate(date),
+    recoveryLogRepository.listByDate(date),
+  ])
   const input: DailyScoreInput = {
     date,
     emotionalLoad: summary.scores.emotionalLoad,
@@ -60,7 +63,8 @@ export async function recalculateDailyScore(date: ISODate): Promise<DailyScore |
     cycleLoad: summary.scores.cycleLoad,
     eventLoad: summary.scores.eventLoad,
     rhythmLoad: summary.scores.rhythmLoad,
-    recoveryScore: 0, // 회복 효과 분석은 후속 단계
+    // 그날 회복 행동의 자기보고 기반 점수 (장기 효과 분석과는 별개)
+    recoveryScore: dailyRecoveryScore(recoveryLogs),
     dayType: summary.classification.dayType,
     dayTypeSubLabel: summary.classification.subLabel,
     confidence: computeConfidence(summary, events.length > 0),

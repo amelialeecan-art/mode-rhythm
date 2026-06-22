@@ -36,6 +36,27 @@ describe('recalculateDailyScore', () => {
   })
 })
 
+describe('recoveryScore', () => {
+  it('회복 행동 기록이 있으면 recoveryScore가 0보다 크다', async () => {
+    await saveDailyEntry(draftWith({ recoveryCodes: ['walk'], recoveryEffect: 'much_better' }))
+    const score = await dailyScoreRepository.getByDate(DATE)
+    expect(score!.recoveryScore).toBeGreaterThan(0)
+  })
+
+  it('회복 행동 기록이 없으면 recoveryScore가 0', async () => {
+    await saveDailyEntry(draftWith({ stateCodes: ['anxious'] }))
+    const score = await dailyScoreRepository.getByDate(DATE)
+    expect(score!.recoveryScore).toBe(0)
+  })
+
+  it('재저장 시 recoveryScore도 갱신된다', async () => {
+    await saveDailyEntry(draftWith({ recoveryCodes: ['walk'], recoveryEffect: 'much_better' }))
+    expect((await dailyScoreRepository.getByDate(DATE))!.recoveryScore).toBeGreaterThan(0)
+    await saveDailyEntry(draftWith({ stateCodes: ['calm'] })) // 회복 기록 제거
+    expect((await dailyScoreRepository.getByDate(DATE))!.recoveryScore).toBe(0)
+  })
+})
+
 describe('getTodaySummary', () => {
   it('기록 없음이면 null', async () => {
     expect(await getTodaySummary('2026-01-01')).toBeNull()
