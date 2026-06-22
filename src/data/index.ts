@@ -7,6 +7,16 @@ export { seedDemoData } from './seed'
 export { resetDatabase } from './reset'
 export * from './models'
 export {
+  saveDailyEntry,
+  loadDailyEntry,
+  emptyDraft,
+  emptyCycleDraft,
+  type DailyEntryDraft,
+  type EventDraft,
+  type CycleDraft,
+  type IntensityCode,
+} from './services/dailyEntryService'
+export {
   dailyLogRepository,
   eventLogRepository,
   cycleLogRepository,

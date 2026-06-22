@@ -23,6 +23,11 @@ export const cycleLogRepository = {
     await db.cycleLogs.delete(id)
   },
 
+  /** 같은 날짜 기록 일괄 삭제 (quick log 저장 시 replace 용). */
+  async deleteByDate(date: ISODate): Promise<void> {
+    await db.cycleLogs.where('date').equals(date).delete()
+  },
+
   /** 최근 생리 시작일(periodStart=true) N개 — 주기 추정의 입력으로 쓰일 자료. */
   async listRecentPeriodStarts(limit: number): Promise<CycleLog[]> {
     const starts = await db.cycleLogs.filter((c) => c.periodStart === true).toArray()

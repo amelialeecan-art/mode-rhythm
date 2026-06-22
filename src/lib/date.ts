@@ -12,6 +12,20 @@ export function toISODate(d: Date): ISODate {
   return `${y}-${m}-${day}`
 }
 
+/** toISODate 별칭 (로컬 날짜 기준임을 이름으로 명시). */
+export const toISODateLocal = toISODate
+
+/** 오늘(로컬) ISODate. UTC slice 대신 로컬 자정 기준을 보장. */
+export function getTodayISODate(): ISODate {
+  return toISODate(new Date())
+}
+
+/** 'YYYY-MM-DD' → 로컬 Date (자정). */
+export function parseISODate(iso: ISODate): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, (m ?? 1) - 1, d ?? 1)
+}
+
 const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토']
 
 /** '6월 21일' 형태. */

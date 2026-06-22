@@ -1,4 +1,5 @@
-import type { RecoveryCategory, RecoveryEffect } from '../types'
+import type { RecoveryCategory } from '../types'
+import type { RecoveryEffectValue, RecoveryLogCategory } from '../models'
 
 /**
  * 회복 행동 카탈로그. "뭐 했더니 좀 나아졌어?"의 선택지.
@@ -34,15 +35,34 @@ export const RECOVERY_ACTIONS: RecoveryActionItem[] = [
   { code: 'none', label: '없었음', category: 'unknown' },
 ]
 
-/** 효과 선택지. */
+/** 효과 선택지 (저장값은 recoveryLogs.effect = RecoveryEffectValue). */
 export interface RecoveryEffectOption {
-  code: RecoveryEffect
+  code: RecoveryEffectValue
   label: string
 }
 
 export const RECOVERY_EFFECTS: RecoveryEffectOption[] = [
   { code: 'much_better', label: '많이 나아짐' },
-  { code: 'a_bit_better', label: '조금 나아짐' },
+  { code: 'little_better', label: '조금 나아짐' },
   { code: 'same', label: '그대로' },
   { code: 'worse', label: '더 나빠짐' },
+  { code: 'unknown', label: '아직 모름' },
 ]
+
+/**
+ * 회복 행동 카탈로그 카테고리(UI 그룹) → recoveryLogs.category(저장 모델) 매핑.
+ * null이면 저장하지 않는 sentinel(아직 모름/없었음).
+ */
+export const RECOVERY_CATEGORY_TO_MODEL: Record<RecoveryCategory, RecoveryLogCategory | null> = {
+  movement: 'body',
+  food: 'body',
+  care: 'body',
+  rest: 'body',
+  solo: 'reality',
+  social: 'relationship',
+  expression: 'emotional',
+  unknown: null,
+}
+
+/** 회복 행동이 아니라 "행동 없음/모름" sentinel — recoveryLogs로 저장하지 않는다. */
+export const NON_SAVED_RECOVERY_CODES = new Set(['none', 'not_yet'])

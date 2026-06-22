@@ -22,6 +22,11 @@ export const recoveryLogRepository = {
     await db.recoveryLogs.delete(id)
   },
 
+  /** 같은 날짜 기록 일괄 삭제 (quick log 저장 시 replace 용). */
+  async deleteByDate(date: ISODate): Promise<void> {
+    await db.recoveryLogs.where('date').equals(date).delete()
+  },
+
   async listByDateRange(start: ISODate, end: ISODate): Promise<RecoveryLog[]> {
     return db.recoveryLogs.where('date').between(start, end, true, true).sortBy('date')
   },
