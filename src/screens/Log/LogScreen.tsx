@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { GlassCard, SectionHeader, Chip, ChipGroup } from '../../design'
 import { STATE_CHIPS } from '../../data/catalog/modes'
 import { EVENT_CATALOG, EVENT_CATEGORY_LABEL, type EventCatalogItem } from '../../data/catalog/events'
@@ -53,10 +53,18 @@ const PAIN_OPTIONS: { value: number; label: string }[] = [
 
 type SaveStatus = 'idle' | 'saving' | 'success' | 'error'
 
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
+
 export function LogScreen() {
   const navigate = useNavigate()
-  const [date, setDate] = useState<string>(getTodayISODate())
-  const [draft, setDraft] = useState<DailyEntryDraft>(() => emptyDraft(getTodayISODate()))
+  const [searchParams] = useSearchParams()
+  // 캘린더의 "이 날짜 기록하기"에서 넘어오면 해당 날짜로 시작 (없으면 오늘)
+  const initialDate = (() => {
+    const q = searchParams.get('date')
+    return q && ISO_RE.test(q) ? q : getTodayISODate()
+  })()
+  const [date, setDate] = useState<string>(initialDate)
+  const [draft, setDraft] = useState<DailyEntryDraft>(() => emptyDraft(initialDate))
   const [symptomsText, setSymptomsText] = useState('')
   const [hasSaved, setHasSaved] = useState(false)
   const [status, setStatus] = useState<SaveStatus>('idle')

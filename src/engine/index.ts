@@ -22,6 +22,7 @@ export {
   classifyDay,
   buildSubLabel,
   DAY_TYPE_LABEL,
+  DAY_TYPE_SHORT_LABEL,
   type DayClassification,
   type DayScores,
   type ClassifyInput,

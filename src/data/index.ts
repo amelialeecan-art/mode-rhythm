@@ -18,6 +18,16 @@ export {
 } from './services/dailyEntryService'
 export { recalculateDailyScore, getTodaySummary } from './services/dailyScoreService'
 export {
+  getCalendarMonth,
+  getCalendarDayDetail,
+  shiftMonthISO,
+  type CalendarLens,
+  type CalendarMonthDay,
+  type CalendarMonthViewModel,
+  type CalendarDayDetail,
+  type LensScores,
+} from './services/calendarService'
+export {
   dailyLogRepository,
   eventLogRepository,
   cycleLogRepository,

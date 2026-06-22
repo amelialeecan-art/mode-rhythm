@@ -44,6 +44,20 @@ export const DAY_TYPE_LABEL: Record<DayTypeCode, string> = {
   mixed_load: '복합 흔들림일',
 }
 
+/** 캘린더 칸용 짧은 라벨 (아이콘 대신 텍스트만). */
+export const DAY_TYPE_SHORT_LABEL: Record<DayTypeCode, string> = {
+  stable: '안정',
+  focus: '집중',
+  emotion_sensitive: '예민',
+  appetite_shift: '식욕',
+  body_load: '몸',
+  social_fatigue: '사회',
+  impulse_caution: '충동',
+  recovery_priority: '회복',
+  unknown_cause: '미제',
+  mixed_load: '복합',
+}
+
 // 설명 문구 — 단정하지 않는 톤.
 const DAY_TYPE_DESC: Record<DayTypeCode, string> = {
   stable: '오늘은 비교적 안정적인 흐름으로 기록됐어요.',

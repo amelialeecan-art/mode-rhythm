@@ -1,43 +1,9 @@
 /* =====================================================================
-   MODE · Phase 1 mock 데이터 (화면 표시용 — 실제 계산 아님)
+   MODE · mock 데이터 (Analysis/Forecast 화면 표시용 — 실제 계산 아님)
    후속 단계에서 엔진/DB 결과로 대체된다. 절대 영구 데이터 아님.
+   (Calendar는 5단계에서 실제 dailyScores 기반으로 전환됨)
    ===================================================================== */
-import type { HeatmapDay } from '../design'
 import type { GraphSlide } from '../design'
-
-/** 6월 캘린더 mock (1일이 일요일 가정, 앞 빈칸 없음). 색 단계 0~4. */
-export const MOCK_CALENDAR_DAYS: HeatmapDay[] = [
-  { day: 1, intensity: 0, label: '안정' },
-  { day: 2, intensity: 1, label: '안정' },
-  { day: 3, intensity: 1, label: '집중' },
-  { day: 4, intensity: 3, label: '예민' },
-  { day: 5, intensity: 3, label: '식욕' },
-  { day: 6, intensity: 2, label: '회복' },
-  { day: 7, intensity: 2, label: '회복' },
-  { day: 8, intensity: 0, label: '안정' },
-  { day: 9, intensity: 2, label: '미제' },
-  { day: 10, intensity: 1, label: '집중' },
-  { day: 11, intensity: 1, label: '집중' },
-  { day: 12, intensity: 4, label: '예민' },
-  { day: 13, intensity: 3, label: '식욕' },
-  { day: 14, intensity: 1, label: '안정' },
-  { day: 15, intensity: 3, label: '예민' },
-  { day: 16, intensity: 2, label: '미제' },
-  { day: 17, intensity: 3, label: '식욕' },
-  { day: 18, intensity: 2, label: '회복' },
-  { day: 19, intensity: 0, label: '안정' },
-  { day: 20, intensity: 4, label: '예민' },
-  { day: 21, intensity: 4, label: '예민', today: true },
-  { day: 22 },
-  { day: 23 },
-  { day: 24 },
-  { day: 25 },
-  { day: 26 },
-  { day: 27 },
-  { day: 28 },
-  { day: 29 },
-  { day: 30 },
-]
 
 /** 분석 화면 슬라이드 그래프 mock (0~1 값). */
 export const MOCK_GRAPH_SLIDES: GraphSlide[] = [
