@@ -1,0 +1,50 @@
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-back {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--deep-2);
+  cursor: pointer;
+  border-radius: 10px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+  padding: 2px 0;
+}
+.setting-row__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.setting-row__value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mint-ink);
+}
+.setting-row--disabled .setting-row__value {
+  color: var(--ink-3);
+}
+.setting-hint {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-weight: 500;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+.settings-foot {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-top: 22px;
+}

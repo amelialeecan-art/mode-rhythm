@@ -1,0 +1,26 @@
+.weekrow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 13px;
+}
+.wd {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.wd__day {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.wd__dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+}
+.wd__w {
+  font-size: 11px;
+  font-weight: 700;
+}

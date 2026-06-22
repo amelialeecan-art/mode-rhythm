@@ -1,0 +1,111 @@
+/* =====================================================================
+   MODE · 디자인 토큰
+   디자인 컨셉 시안(mode-design-concept.html)의 :root 값을 추출/정리.
+   둥글둥글 · 귀엽지만 촌스럽지 않게 · 넉넉한 여백 · 밝고 부드러운 배경.
+   ===================================================================== */
+:root {
+  /* ---- 기본 종이/잉크 ---- */
+  --paper: #faf6fe;
+  --ink: #352b4c;
+  --ink-2: #6e6685;
+  --ink-3: #a9a1bc;
+  --line: rgba(120, 90, 180, 0.12);
+
+  /* ---- 모드 컬러: 라벤더(감정) ---- */
+  --lav: #a985e8;
+  --lav-s: #ebe4fb;
+  --lav-2: #cbb9f4;
+  --lav-ink: #6a4fb6;
+
+  /* ---- 코랄(식욕) ---- */
+  --coral: #ff9576;
+  --coral-s: #ffe2da;
+  --coral-2: #ffbcaa;
+  --coral-ink: #d55e45;
+
+  /* ---- 민트(회복) ---- */
+  --mint: #5bc79e;
+  --mint-s: #dbf3eb;
+  --mint-2: #a2e2cb;
+  --mint-ink: #2a9b77;
+
+  /* ---- 틸 ---- */
+  --teal: #46bbb0;
+  --teal-s: #d6f0ed;
+  --teal-ink: #2a9389;
+
+  /* ---- 스카이(집중/수면) ---- */
+  --sky: #74a8ec;
+  --sky-s: #e2edfb;
+  --sky-2: #aeccf5;
+  --sky-ink: #4577c2;
+
+  /* ---- 로즈(주기) ---- */
+  --rose: #e58bbe;
+  --rose-s: #fbe6f1;
+  --rose-ink: #be5e96;
+
+  /* ---- 버터(미제/포인트) ---- */
+  --butter: #ffd06f;
+  --butter-s: #fff1ce;
+
+  /* ---- 딥 퍼플 ---- */
+  --deep: #43317a;
+  --deep-2: #5b4699;
+
+  /* ---- 전역 배경 그라데이션 ---- */
+  --bg-app:
+    radial-gradient(58% 48% at 17% 14%, #e6dafb 0%, transparent 56%),
+    radial-gradient(54% 44% at 84% 11%, #fbd7ec 0%, transparent 52%),
+    radial-gradient(60% 54% at 86% 84%, #ffe0ce 0%, transparent 56%),
+    radial-gradient(56% 50% at 13% 87%, #cff0e6 0%, transparent 56%),
+    radial-gradient(72% 62% at 50% 50%, #efe7fc 0%, transparent 66%), #ebe3fa;
+
+  /* ---- 반경 ---- */
+  --r-sm: 12px;
+  --r-card: 24px;
+  --r-lg: 30px;
+  --pill: 999px;
+
+  /* ---- 그림자 ---- */
+  --sh-card: 0 1px 2px rgba(90, 60, 150, 0.04), 0 14px 32px rgba(110, 80, 170, 0.09);
+  --sh-soft: 0 14px 34px rgba(150, 100, 190, 0.18);
+  --sh-btn: 0 12px 26px rgba(80, 55, 150, 0.3);
+
+  /* ---- 여백 스케일 ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 13px;
+  --sp-4: 18px;
+  --sp-5: 26px;
+  --sp-6: 36px;
+
+  /* ---- z-index ---- */
+  --z-base: 1;
+  --z-sticky: 50;
+  --z-tabbar: 100;
+  --z-sheet: 200;
+  --z-modal: 300;
+
+  /* ---- 모션 ---- */
+  --dur-fast: 0.12s;
+  --dur-mid: 0.4s;
+  --dur-slow: 0.7s;
+  --dur-graph: 1.5s;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- 폰트 ---- */
+  --font:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Segoe UI', 'Malgun Gothic', 'Noto Sans KR', system-ui, sans-serif;
+}
+
+/* reduced-motion 전역 토글: 컴포넌트들이 var(--motion)로 분기 */
+:root {
+  --motion: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion: 0;
+  }
+}

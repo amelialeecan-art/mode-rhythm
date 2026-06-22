@@ -1,0 +1,67 @@
+.rep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 13px;
+}
+.rep-row__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.rep-row__d {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.bar {
+  height: 9px;
+  border-radius: 9px;
+  background: rgba(120, 90, 180, 0.1);
+  overflow: hidden;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  border-radius: 9px;
+}
+
+/* 공범 구조 두 원 */
+.overlap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72px;
+  margin: 8px 0 13px;
+}
+.overlap__c {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.25;
+}
+.overlap__c--a {
+  background: rgba(159, 132, 232, 0.32);
+  color: var(--lav-ink);
+  margin-right: -24px;
+}
+.overlap__c--b {
+  background: rgba(255, 142, 118, 0.3);
+  color: var(--coral-ink);
+}
+.overlap__body {
+  font-size: 14.5px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
