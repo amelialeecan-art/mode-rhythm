@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GlassCard, SectionHeader, Chip, ChipGroup } from '../../design'
+import { seedDemoData } from '../../data/seed'
+import { resetDatabase } from '../../data/reset'
 import './settings.css'
+
+const IS_DEV = import.meta.env.DEV
 
 const TONE_OPTIONS = [
   { code: 'soft', label: '차분하게' },
@@ -12,6 +16,35 @@ const TONE_OPTIONS = [
 export function SettingsScreen() {
   const navigate = useNavigate()
   const [tone, setTone] = useState('soft')
+  const [devBusy, setDevBusy] = useState(false)
+  const [devMsg, setDevMsg] = useState('')
+
+  const runSeed = async () => {
+    setDevBusy(true)
+    setDevMsg('')
+    try {
+      const summary = await seedDemoData()
+      const total = Object.values(summary).reduce((a, b) => a + b, 0)
+      setDevMsg(`개발용 demo data ${total}건을 넣었어요.`)
+    } catch (e) {
+      setDevMsg(`실패: ${String(e)}`)
+    } finally {
+      setDevBusy(false)
+    }
+  }
+
+  const runReset = async () => {
+    setDevBusy(true)
+    setDevMsg('')
+    try {
+      await resetDatabase()
+      setDevMsg('로컬 데이터를 모두 비웠어요.')
+    } catch (e) {
+      setDevMsg(`실패: ${String(e)}`)
+    } finally {
+      setDevBusy(false)
+    }
+  }
 
   return (
     <>
@@ -68,7 +101,26 @@ export function SettingsScreen() {
         </div>
       </GlassCard>
 
-      <p className="settings-foot">MODE · v0.1 (Phase 1 · 디자인 시스템)</p>
+      {/* 개발용 전용 — 저장 계층(Phase 2) 확인. 빌드 DEV 모드에서만 노출. */}
+      {IS_DEV && (
+        <GlassCard tint="yellow">
+          <SectionHeader title="개발용 (DEV)" subtitle="저장 계층 확인용 · 위험 동작" />
+          <div className="dev-actions">
+            <button className="dev-btn" disabled={devBusy} onClick={runSeed}>
+              데모 데이터 넣기
+            </button>
+            <button className="dev-btn dev-btn--danger" disabled={devBusy} onClick={runReset}>
+              로컬 데이터 초기화
+            </button>
+          </div>
+          <p className="setting-hint">
+            ⚠️ 초기화는 모든 로컬 기록을 지워요(되돌릴 수 없음). 데모 데이터는 개발용 가짜 기록이에요.
+          </p>
+          {devMsg && <p className="dev-msg">{devMsg}</p>}
+        </GlassCard>
+      )}
+
+      <p className="settings-foot">MODE · v0.2 (Phase 2 · 로컬 저장 계층)</p>
     </>
   )
 }
