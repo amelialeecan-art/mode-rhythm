@@ -1,78 +1,161 @@
-import { GlassCard, SectionHeader, SlideGraphCards, MiniInsightCard } from '../../design'
-import { MOCK_GRAPH_SLIDES } from '../../data/mock'
+import { useEffect, useState } from 'react'
+import { GlassCard, SectionHeader } from '../../design'
+import { getAnalysisViewModel, type AnalysisViewModel } from '../../data/services/patternAnalysisService'
+import { CONFIDENCE_TIER_LABEL, ANALYSIS_METRIC_LABEL } from '../../engine'
+import { formatMonthDay, parseISODate } from '../../lib/date'
 import './analysis.css'
 
-// Phase 1 mock — 후속 단계에서 patternInsights 엔진 결과로 대체.
-const MOCK_HABITUAL = [
-  { name: '수면 부족', days: 12, pct: 80, color: 'linear-gradient(90deg,var(--lav-2),var(--lav))' },
-  { name: '월경 전 구간', days: 6, pct: 45, color: 'linear-gradient(90deg,var(--coral-2),var(--coral))' },
-  { name: '대인 스트레스', days: 5, pct: 36, color: 'linear-gradient(90deg,var(--sky-2),var(--sky))' },
-]
-
 export function AnalysisScreen() {
+  const [vm, setVm] = useState<AnalysisViewModel | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [recalcing, setRecalcing] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    void getAnalysisViewModel().then((v) => {
+      setVm(v)
+      setLoading(false)
+    })
+  }
+
+  // 진입 시 자동 계산. (데이터가 커지면 캐시/증분 계산으로 개선 가능)
+  useEffect(() => {
+    let cancelled = false
+    void getAnalysisViewModel().then((v) => {
+      if (cancelled) return
+      setVm(v)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const recalc = async () => {
+    setRecalcing(true)
+    await new Promise((r) => setTimeout(r, 0))
+    load()
+    setRecalcing(false)
+  }
+
   return (
     <>
       <header className="screen-head">
         <h1 className="screen-head__title">분석</h1>
-        <p className="screen-head__sub">패턴이 잡히는 중이에요</p>
+        <p className="screen-head__sub">반복적으로 함께 나타난 패턴을 봐요</p>
       </header>
 
-      <SlideGraphCards slides={MOCK_GRAPH_SLIDES} />
-
-      {/* 상습 패턴 */}
-      <GlassCard>
-        <SectionHeader title="상습 패턴" subtitle="이번 달 자주 함께 나타난 것들" />
-        <ul className="rep-list">
-          {MOCK_HABITUAL.map((r) => (
-            <li key={r.name}>
-              <div className="rep-row__top">
-                <span>{r.name}</span>
-                <span className="rep-row__d">{r.days}일</span>
-              </div>
-              <div className="bar">
-                <i style={{ width: `${r.pct}%`, background: r.color }} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      </GlassCard>
-
-      {/* 겹쳐 나타나는 패턴 (공범 구조) */}
+      {/* 분석 안내 */}
       <GlassCard tint="lav">
-        <SectionHeader title="겹쳐 나타나는 패턴" />
-        <div className="overlap">
-          <div className="overlap__c overlap__c--a">
-            수면
-            <br />
-            부족
-          </div>
-          <div className="overlap__c overlap__c--b">
-            월경 전
-            <br />
-            구간
-          </div>
-        </div>
-        <p className="overlap__body">
-          수면 부족과 월경 전 구간이 함께 있을 때 식욕 변동이 더 크게 올라간 기록이 있어요.
-          아직은 가능성 단계예요.
+        <p className="analysis-disclaimer">
+          이 분석은 저장된 기록에서 반복적으로 함께 나타난 패턴을 보여줘요. 원인을 확정하거나 진단하지 않아요.
         </p>
       </GlassCard>
 
-      {/* 나를 살린 것들 */}
-      <MiniInsightCard
-        title="나를 살린 것들"
-        subtitle="비슷한 날에 자주 도움이 된 행동이에요"
-        tint="mint"
-        star
-        chips={['산책', '샤워', '혼자 시간', '단백질 식사']}
-      />
+      {loading ? (
+        <GlassCard>
+          <p className="analysis-loading">패턴을 계산하는 중…</p>
+        </GlassCard>
+      ) : !vm || !vm.hasEnoughData ? (
+        <GlassCard>
+          <SectionHeader title="상습 패턴" />
+          <p className="analysis-empty">
+            아직 상습 패턴을 보기엔 기록이 조금 부족해요. 며칠 더 기록하면 반복 경향을 볼 수 있어요.
+            {vm ? ` (현재 ${vm.dayCount}일 기록)` : ''}
+          </p>
+        </GlassCard>
+      ) : (
+        <>
+          {/* 상습 패턴 */}
+          <GlassCard>
+            <SectionHeader title="상습 패턴" subtitle="신뢰도 높은 순으로 보여줘요" />
+            {vm.factorPatterns.length === 0 ? (
+              <p className="analysis-empty">아직 뚜렷한 반복 패턴은 보이지 않아요. 기록이 쌓이면 다시 보여드릴게요.</p>
+            ) : (
+              <ul className="pattern-list">
+                {vm.factorPatterns.map((f, i) => (
+                  <li className="pattern" key={`${f.factorGroup}-${i}`}>
+                    <div className="pattern__top">
+                      <span className="pattern__name">{f.factorLabel}</span>
+                      <span className={`pattern__tier tier--${f.confidenceTier}`}>{CONFIDENCE_TIER_LABEL[f.confidenceTier]}</span>
+                    </div>
+                    <p className="pattern__msg">{f.message}</p>
+                    <div className="pattern__meta">
+                      <span>{ANALYSIS_METRIC_LABEL[f.metric]}</span>
+                      <span>·</span>
+                      <span>효과 +{f.effectSize}</span>
+                      <span>·</span>
+                      <span>{f.supportCount}일 기준</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </GlassCard>
 
-      {/* 설명되지 않은 날 */}
-      <MiniInsightCard
-        title="설명되지 않은 날"
-        tint="yellow"
-        body="현재 기록만으로 충분히 설명되지 않는 날도 있어요. 이유가 없는 날도 데이터예요 — 미제 사건으로 보관해 둘게요."
-      />
+          {/* 시간창 하이라이트 */}
+          {vm.timeWindowHighlight && (
+            <GlassCard tint="sky">
+              <SectionHeader title="시간창별 경향" />
+              <p className="analysis-body">{vm.timeWindowHighlight.message}</p>
+            </GlassCard>
+          )}
+
+          {/* 겹쳐 나타나는 패턴 (공범 구조) */}
+          {vm.combos.length > 0 && (
+            <GlassCard tint="lav">
+              <SectionHeader title="겹쳐 나타나는 패턴" subtitle="공범 구조 후보" />
+              {vm.combos.map((c, i) => (
+                <div className="combo" key={`${c.factorA}-${c.factorB}-${i}`}>
+                  <div className="overlap">
+                    <div className="overlap__c overlap__c--a">{c.factorALabel}</div>
+                    <div className="overlap__c overlap__c--b">{c.factorBLabel}</div>
+                  </div>
+                  <p className="overlap__body">{c.message}</p>
+                  <span className={`pattern__tier tier--${c.confidenceTier}`}>{CONFIDENCE_TIER_LABEL[c.confidenceTier]}</span>
+                </div>
+              ))}
+            </GlassCard>
+          )}
+
+          {/* 기록된 회복 행동 (효과 분석 아님) */}
+          <GlassCard tint="mint">
+            <SectionHeader title="기록된 회복 행동" subtitle="아직 효과 분석 전이에요. 지금은 자주 기록된 행동만 보여줘요" star />
+            {vm.recoveryFrequency.length === 0 ? (
+              <p className="analysis-empty">아직 기록된 회복 행동이 없어요.</p>
+            ) : (
+              <div className="recfreq">
+                {vm.recoveryFrequency.map((r) => (
+                  <span className="recfreq__chip" key={r.label}>
+                    {r.label} {r.count}회
+                  </span>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+
+          {/* 설명되지 않은 날 (미제 사건) */}
+          {vm.unexplained.length > 0 && (
+            <GlassCard tint="yellow">
+              <SectionHeader title="설명되지 않은 날" subtitle="미제 사건" />
+              <p className="analysis-body">
+                현재 기록만으로는 충분히 설명되지 않은 고부하 날짜들이 있어요. 이유가 없는 날도 데이터로 보관해요.
+              </p>
+              <div className="unexplained">
+                {vm.unexplained.map((u) => (
+                  <span className="unexplained__chip" key={u.date}>
+                    {formatMonthDay(parseISODate(u.date))} · 리듬 {u.rhythmLoad}
+                  </span>
+                ))}
+              </div>
+            </GlassCard>
+          )}
+        </>
+      )}
+
+      <button className="analysis-recalc" onClick={recalc} disabled={recalcing || loading}>
+        {recalcing ? '계산 중…' : '패턴 다시 계산'}
+      </button>
     </>
   )
 }

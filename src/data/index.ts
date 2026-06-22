@@ -28,6 +28,13 @@ export {
   type LensScores,
 } from './services/calendarService'
 export {
+  recalculatePatternInsights,
+  getAnalysisViewModel,
+  type AnalysisViewModel,
+  type AnalysisOptions,
+  type RecoveryFrequencyItem,
+} from './services/patternAnalysisService'
+export {
   dailyLogRepository,
   eventLogRepository,
   cycleLogRepository,

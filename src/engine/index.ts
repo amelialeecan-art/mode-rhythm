@@ -35,3 +35,27 @@ export {
   type FactorCandidate,
   type FactorTier,
 } from './todaySummary'
+export {
+  calcBaseline,
+  factorEffect,
+  calcConfidence,
+  confidenceTier,
+  computeOverlapPenalty,
+  addDaysISO,
+  CONFIDENCE_TIER_LABEL,
+  ANALYSIS_METRIC_LABEL,
+  type AnalysisMetric,
+  type AnalysisDataset,
+  type EffectWindow,
+  type ConfidenceTier,
+  type MetricBaseline,
+  type FactorEffectResult,
+  type ConfidenceInput,
+} from './correlation'
+export {
+  accompliceEffect,
+  detectUnexplained,
+  type AccompliceEffectResult,
+  type UnexplainedDayInput,
+  type UnexplainedDayResult,
+} from './patterns'
