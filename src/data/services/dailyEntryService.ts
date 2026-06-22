@@ -24,6 +24,7 @@ import {
 } from '../catalog/recoveryActions'
 import { intensityValue } from '../catalog/intensity'
 import { buildStateNumericFields } from '../catalog/statePresets'
+import { recalculateDailyScore } from './dailyScoreService'
 import type {
   CycleLogInput,
   DailyLogInput,
@@ -225,6 +226,10 @@ export async function saveDailyEntry(draft: DailyEntryDraft): Promise<void> {
     await cycleLogRepository.deleteByDate(draft.date)
     if (cycleInput) await cycleLogRepository.add(cycleInput)
   })
+
+  // 저장(커밋) 후 해당 날짜 점수를 다시 계산해 dailyScores upsert.
+  // (engine은 DB를 모르므로 service가 트랜잭션 밖에서 모아 계산한다)
+  await recalculateDailyScore(draft.date)
 }
 
 /** 해당 날짜의 저장 기록을 폼 draft로 복원한다. 기록이 전혀 없으면 null. */

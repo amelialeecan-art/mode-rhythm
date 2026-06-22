@@ -16,6 +16,7 @@ export {
   type CycleDraft,
   type IntensityCode,
 } from './services/dailyEntryService'
+export { recalculateDailyScore, getTodaySummary } from './services/dailyScoreService'
 export {
   dailyLogRepository,
   eventLogRepository,

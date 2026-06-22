@@ -1,27 +1,58 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GlassCard, SectionHeader, ConfidenceBadge, ModeHeroCard, PlanCard, type ConfidenceTier } from '../../design'
-import { formatMonthDay, formatWeekday } from '../../lib/date'
+import { GlassCard, SectionHeader, ModeHeroCard, PlanCard, Mascot } from '../../design'
+import { getTodaySummary } from '../../data/services/dailyScoreService'
+import type { TodaySummary, FactorTier } from '../../engine'
+import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import './today.css'
 
-// Phase 1 mock — 후속 단계에서 dailyScores/엔진 결과로 대체.
-const MOCK_FACTORS: { name: string; tier: ConfidenceTier }[] = [
-  { name: '수면 부족', tier: 'strong' },
-  { name: '월경 전 구간', tier: 'possible' },
-  { name: '대인 스트레스', tier: 'reference' },
-]
+// dayType → 모찌 표정 (분류 코드 기준)
+const MASCOT_BY_DAYTYPE: Record<string, 'happy' | 'teary' | 'sleepy' | 'hungry' | 'focus' | 'confused' | 'calm'> = {
+  stable: 'calm',
+  focus: 'focus',
+  emotion_sensitive: 'teary',
+  appetite_shift: 'hungry',
+  body_load: 'sleepy',
+  social_fatigue: 'confused',
+  impulse_caution: 'hungry',
+  recovery_priority: 'sleepy',
+  unknown_cause: 'confused',
+  mixed_load: 'teary',
+}
 
-const MOCK_PLAN = [
-  { tag: '일정', text: '중요한 결정은 미루기' },
-  { tag: '식사', text: '단백질 먼저' },
-  { tag: '운동', text: '산책 20분' },
-  { tag: '관계', text: '대화 속도 조절' },
-]
+const TIER_LABEL: Record<FactorTier, string> = {
+  recorded: '오늘 기록',
+  calculated: '계산 높음',
+  watch: '관찰',
+  not_enough_data: '데이터 부족',
+}
 
-const MOCK_RECOVERY = ['산책', '샤워', '혼자 시간', '단백질 식사']
+const LOAD_ROWS: { key: keyof TodaySummary['scores']; label: string; color: string }[] = [
+  { key: 'emotionalLoad', label: '감정', color: 'var(--lav)' },
+  { key: 'appetiteLoad', label: '식욕', color: 'var(--coral)' },
+  { key: 'sleepLoad', label: '수면', color: 'var(--sky)' },
+  { key: 'bodyLoad', label: '몸', color: 'var(--mint)' },
+  { key: 'cycleLoad', label: '주기', color: 'var(--rose)' },
+  { key: 'eventLoad', label: '사건', color: 'var(--butter)' },
+]
 
 export function TodayScreen() {
   const navigate = useNavigate()
   const now = new Date()
+  const [summary, setSummary] = useState<TodaySummary | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    void getTodaySummary(getTodayISODate()).then((s) => {
+      if (cancelled) return
+      setSummary(s)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <>
@@ -38,49 +69,109 @@ export function TodayScreen() {
         </button>
       </header>
 
-      {/* 오늘의 모드 — subLabel은 후속 단계에서 동적 생성(고정 금지) */}
+      {loading ? (
+        <GlassCard>
+          <p className="today-loading">오늘 기록을 불러오는 중…</p>
+        </GlassCard>
+      ) : !summary ? (
+        <EmptyToday onRecord={() => navigate('/log')} />
+      ) : (
+        <FilledToday summary={summary} onRecord={() => navigate('/log')} />
+      )}
+    </>
+  )
+}
+
+function EmptyToday({ onRecord }: { onRecord: () => void }) {
+  return (
+    <GlassCard>
+      <div className="today-empty">
+        <Mascot mood="calm" size={96} />
+        <p className="today-empty__title">아직 오늘 기록이 없어요</p>
+        <p className="today-empty__sub">30초 기록을 남기면 오늘의 모드를 계산해볼게요.</p>
+        <button className="btn-primary today-empty__btn" onClick={onRecord}>
+          오늘 기록하기
+        </button>
+      </div>
+    </GlassCard>
+  )
+}
+
+function FilledToday({ summary, onRecord }: { summary: TodaySummary; onRecord: () => void }) {
+  const { classification, scores, factorCandidates, plan, recordedRecovery } = summary
+  const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
+
+  return (
+    <>
       <ModeHeroCard
-        modeName="감정 민감일"
-        subLabel="해석 보류 구간"
-        body="작은 일에도 마음이 크게 반응할 수 있는 날이에요. 오늘의 판단은 잠시 보류해도 괜찮아요."
-        mascotMood="teary"
+        modeName={classification.label}
+        subLabel={classification.subLabel}
+        body={classification.description}
+        mascotMood={mascot}
       />
 
-      {/* 오늘의 요인 후보 */}
+      {/* 전체 리듬 부하 + 항목별 요약 */}
       <GlassCard>
-        <SectionHeader title="오늘의 요인 후보" />
-        <ul className="factor-list">
-          {MOCK_FACTORS.map((f, i) => (
-            <li className="factor" key={f.name}>
-              <span className="factor__no">{i + 1}</span>
-              <span className="factor__name">{f.name}</span>
-              <ConfidenceBadge tier={f.tier} />
-            </li>
-          ))}
-        </ul>
-        <p className="factor-note">단정은 아니고, 기록상 함께 나타난 패턴이에요.</p>
-      </GlassCard>
-
-      {/* 오늘의 4줄 설계 */}
-      <PlanCard lines={MOCK_PLAN} />
-
-      {/* 빠른 기록 진입 */}
-      <button className="quick-record" onClick={() => navigate('/log')}>
-        <span className="quick-record__plus">＋</span>
-        <span>오늘 빠르게 기록하기 · 30초</span>
-      </button>
-
-      {/* 오늘 도움이 될 회복 행동 */}
-      <GlassCard tint="mint">
-        <SectionHeader title="오늘 도움이 될 회복 행동" star subtitle="비슷한 날에 자주 도움이 된 행동이에요" />
-        <div className="recovery-rec">
-          {MOCK_RECOVERY.map((r) => (
-            <span className="recovery-rec__chip" key={r}>
-              {r}
-            </span>
+        <SectionHeader title="오늘의 리듬 부하" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
+        <div className="loadbars">
+          {LOAD_ROWS.map((r) => (
+            <div className="loadbar" key={r.key}>
+              <span className="loadbar__label">{r.label}</span>
+              <span className="loadbar__track">
+                <i style={{ width: `${scores[r.key]}%`, background: r.color }} />
+              </span>
+              <span className="loadbar__val">{scores[r.key]}</span>
+            </div>
           ))}
         </div>
       </GlassCard>
+
+      {/* 오늘 기록 기반 요인 후보 */}
+      <GlassCard>
+        <SectionHeader title="오늘 기록 기반 요인 후보" subtitle="원인이 아니라, 오늘 기록에서 함께 관찰된 요소예요" />
+        <ul className="factor-list">
+          {factorCandidates.map((f, i) => (
+            <li className="factor" key={`${f.label}-${i}`}>
+              <span className="factor__no">{i + 1}</span>
+              <div className="factor__body">
+                <span className="factor__name">{f.label}</span>
+                <span className="factor__detail">{f.detail}</span>
+              </div>
+              <span className={`factor-tier factor-tier--${f.tier}`}>{TIER_LABEL[f.tier]}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="factor-note">아직 장기 패턴 분석 전이에요. 단정이 아니라 오늘 기록 기준이에요.</p>
+      </GlassCard>
+
+      {/* 오늘의 4줄 설계 */}
+      <PlanCard
+        lines={[
+          { tag: '일정', text: plan.schedule },
+          { tag: '식사', text: plan.food },
+          { tag: '운동', text: plan.movement },
+          { tag: '관계', text: plan.relationship },
+        ]}
+      />
+
+      {/* 오늘 기록된 회복 행동 (분석 추천 아님) */}
+      {recordedRecovery.length > 0 && (
+        <GlassCard tint="mint">
+          <SectionHeader title="오늘 기록된 회복 행동" subtitle="오늘 남긴 기록이에요" />
+          <div className="recovery-rec">
+            {recordedRecovery.map((r) => (
+              <span className="recovery-rec__chip" key={r}>
+                {r}
+              </span>
+            ))}
+          </div>
+        </GlassCard>
+      )}
+
+      <button className="quick-record" onClick={onRecord}>
+        <span className="quick-record__plus">＋</span>
+        <span>오늘 기록 다시 남기기</span>
+      </button>
     </>
   )
 }

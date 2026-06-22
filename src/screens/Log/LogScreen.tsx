@@ -312,9 +312,9 @@ export function LogScreen() {
 
       {status === 'success' && (
         <div className="log-feedback log-feedback--ok">
-          저장됐어요. 이 날짜 기록은 언제든 다시 불러올 수 있어요.
+          저장됐어요. 오늘 화면에서 모드를 확인할 수 있어요.
           <button className="log-gohome" onClick={() => navigate('/')}>
-            오늘 화면으로 가기
+            오늘 화면 보기
           </button>
         </div>
       )}
