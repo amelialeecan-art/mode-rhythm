@@ -14,3 +14,4 @@ export { HeatmapCalendar, LENS_RAMP, type HeatmapCell } from './components/Heatm
 export { Mascot, MASCOT_GRADIENTS, type MascotMood } from './mascot/Mascot'
 export { SlideGraphCards, type GraphSlide } from './charts/SlideGraphCards'
 export { FlowGraph } from './charts/FlowGraph'
+export { RhythmChart, type RhythmSeries, type RhythmPhase } from './charts/RhythmChart'

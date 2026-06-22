@@ -5,7 +5,7 @@ import { TodayScreen } from '../screens/Today/TodayScreen'
 import { LogScreen } from '../screens/Log/LogScreen'
 import { CalendarScreen } from '../screens/Calendar/CalendarScreen'
 import { AnalysisScreen } from '../screens/Analysis/AnalysisScreen'
-import { ForecastScreen } from '../screens/Forecast/ForecastScreen'
+import { RhythmScreen } from '../screens/Rhythm/RhythmScreen'
 import { SettingsScreen } from '../screens/Settings/SettingsScreen'
 
 /** 하단 탭바가 있는 화면들의 공통 레이아웃. */
@@ -27,7 +27,7 @@ export function App() {
           <Route path="/log" element={<LogScreen />} />
           <Route path="/calendar" element={<CalendarScreen />} />
           <Route path="/analysis" element={<AnalysisScreen />} />
-          <Route path="/forecast" element={<ForecastScreen />} />
+          <Route path="/rhythm" element={<RhythmScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
         </Route>
       </Routes>

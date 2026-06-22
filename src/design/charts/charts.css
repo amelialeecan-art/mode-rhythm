@@ -111,3 +111,11 @@
     display: none;
   }
 }
+
+/* ===== 리듬 다중 선그래프 ===== */
+.rhythm {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 6px;
+}

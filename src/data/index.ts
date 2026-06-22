@@ -36,6 +36,14 @@ export {
   type RecoveryFrequencyItem,
 } from './services/patternAnalysisService'
 export {
+  getRhythmViewModel,
+  type RhythmViewModel,
+  type RhythmDay,
+  type RhythmObservation,
+  type RhythmOptions,
+  type CyclePhase,
+} from './services/rhythmService'
+export {
   dailyLogRepository,
   eventLogRepository,
   cycleLogRepository,

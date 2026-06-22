@@ -35,10 +35,10 @@ const TABS: TabDef[] = [
     icon: 'M4 15.5 C 7 8.5 10 17 13 11 S 18 7 20.2 9.5',
   },
   {
-    to: '/forecast',
-    key: 'forecast',
-    label: '예보',
-    icon: 'M7.4 17.6 a3.9 3.9 0 0 1 -0.5 -7.78 a5.1 5.1 0 0 1 9.7 -0.9 a3.7 3.7 0 0 1 0.3 8.68 Z',
+    to: '/rhythm',
+    key: 'rhythm',
+    label: '리듬',
+    icon: 'M3 12 q2.5 -7 5 0 t5 0 t5 0 t3 0',
   },
 ]
 
