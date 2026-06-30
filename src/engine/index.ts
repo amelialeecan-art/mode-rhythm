@@ -60,6 +60,12 @@ export {
   type UnexplainedDayResult,
 } from './patterns'
 export {
+  forecastRhythmDay,
+  forecastConfidence,
+  type RhythmForecastDay,
+  type ForecastInput,
+} from './forecast'
+export {
   recoveryDelta,
   calcRecoveryScore,
   immediateRecoveryScore,

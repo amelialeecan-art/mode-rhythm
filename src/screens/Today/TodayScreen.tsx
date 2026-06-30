@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { GlassCard, SectionHeader, ModeHeroCard, PlanCard, Mascot } from '../../design'
 import { getTodaySummary } from '../../data/services/dailyScoreService'
 import { getRecoveryRecommendations } from '../../data/services/patternAnalysisService'
-import type { TodaySummary, FactorTier, RecoveryActionInsight } from '../../engine'
+import { getRhythmForecastViewModel } from '../../data/services/rhythmForecastService'
+import type { TodaySummary, FactorTier, RecoveryActionInsight, RhythmForecastDay } from '../../engine'
 import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import './today.css'
 
@@ -42,16 +43,20 @@ export function TodayScreen() {
   const now = new Date()
   const [summary, setSummary] = useState<TodaySummary | null>(null)
   const [recs, setRecs] = useState<RecoveryActionInsight[]>([])
+  const [tomorrow, setTomorrow] = useState<RhythmForecastDay | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([getTodaySummary(getTodayISODate()), getRecoveryRecommendations()]).then(([s, r]) => {
-      if (cancelled) return
-      setSummary(s)
-      setRecs(r)
-      setLoading(false)
-    })
+    void Promise.all([getTodaySummary(getTodayISODate()), getRecoveryRecommendations(), getRhythmForecastViewModel()]).then(
+      ([s, r, f]) => {
+        if (cancelled) return
+        setSummary(s)
+        setRecs(r)
+        setTomorrow(f.tomorrow)
+        setLoading(false)
+      },
+    )
     return () => {
       cancelled = true
     }
@@ -79,7 +84,7 @@ export function TodayScreen() {
       ) : !summary ? (
         <EmptyToday onRecord={() => navigate('/log')} />
       ) : (
-        <FilledToday summary={summary} recs={recs} onRecord={() => navigate('/log')} />
+        <FilledToday summary={summary} recs={recs} tomorrow={tomorrow} onRecord={() => navigate('/log')} />
       )}
     </>
   )
@@ -100,7 +105,17 @@ function EmptyToday({ onRecord }: { onRecord: () => void }) {
   )
 }
 
-function FilledToday({ summary, recs, onRecord }: { summary: TodaySummary; recs: RecoveryActionInsight[]; onRecord: () => void }) {
+function FilledToday({
+  summary,
+  recs,
+  tomorrow,
+  onRecord,
+}: {
+  summary: TodaySummary
+  recs: RecoveryActionInsight[]
+  tomorrow: RhythmForecastDay | null
+  onRecord: () => void
+}) {
   const { classification, scores, factorCandidates, plan, recordedRecovery } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
 
@@ -156,6 +171,18 @@ function FilledToday({ summary, recs, onRecord }: { summary: TodaySummary; recs:
           { tag: '관계', text: plan.relationship },
         ]}
       />
+
+      {/* 내일 참고 (가벼운 참고 — 예측 확정 아님) */}
+      {tomorrow && (
+        <GlassCard tint="sky">
+          <SectionHeader title="내일 참고" subtitle={`참고도 ${tomorrow.confidence}`} />
+          <p className="tmrw-line">
+            내일은 <b>{tomorrow.label}</b> 가능성이 있어요{tomorrow.subLabel ? ` · ${tomorrow.subLabel}` : ''}.
+          </p>
+          <p className="tmrw-hint">{tomorrow.planHint}</p>
+          <p className="tmrw-note">{tomorrow.note}</p>
+        </GlassCard>
+      )}
 
       {/* 오늘 도움이 될 수 있는 것 (효과 후보 기반) */}
       <GlassCard tint="mint">

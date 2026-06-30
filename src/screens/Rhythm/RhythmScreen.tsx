@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { GlassCard, SectionHeader, RhythmChart, type RhythmSeries } from '../../design'
 import { getRhythmViewModel, type RhythmViewModel } from '../../data/services/rhythmService'
+import { getRhythmForecastViewModel, type RhythmForecastViewModel } from '../../data/services/rhythmForecastService'
+import { parseISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import './rhythm.css'
+
+const OFFSET_LABEL: Record<number, string> = { 1: '내일', 2: '모레', 3: '3일 뒤' }
 
 const BASE_LINES = [
   { key: 'emotional', label: '감정', color: '#A985E8' },
@@ -24,15 +28,17 @@ type LineKey = 'emotional' | 'appetite' | 'sleep' | 'body' | 'recovery'
 
 export function RhythmScreen() {
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
+  const [forecast, setForecast] = useState<RhythmForecastViewModel | null>(null)
   const [loading, setLoading] = useState(true)
   const [showBody, setShowBody] = useState(false)
   const [showRecovery, setShowRecovery] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    void getRhythmViewModel({ days: 30 }).then((v) => {
+    void Promise.all([getRhythmViewModel({ days: 30 }), getRhythmForecastViewModel()]).then(([v, f]) => {
       if (cancelled) return
       setVm(v)
+      setForecast(f)
       setLoading(false)
     })
     return () => {
@@ -129,6 +135,29 @@ export function RhythmScreen() {
                   </li>
                 ))}
               </ul>
+            </GlassCard>
+          )}
+
+          {/* 다음 3일 흐름 (참고 — 미래 예측 확정 아님, 그래프엔 넣지 않음) */}
+          {forecast && forecast.hasData && forecast.next3Days.length > 0 && (
+            <GlassCard tint="sky">
+              <SectionHeader title="다음 3일 흐름" subtitle="실제 기록이 아니라, 최근 흐름과 주기 위치를 바탕으로 한 참고예요" />
+              <div className="fc3">
+                {forecast.next3Days.map((d) => {
+                  const date = parseISODate(d.date)
+                  return (
+                    <div className="fc3__card" key={d.date}>
+                      <span className="fc3__day">
+                        {OFFSET_LABEL[d.dayOffset]} · {formatMonthDay(date)} {formatWeekday(date).slice(0, 1)}
+                      </span>
+                      <span className="fc3__mode">{d.label} 가능성</span>
+                      {d.subLabel && <span className="fc3__sub">{d.subLabel}</span>}
+                      <span className="fc3__meta">참고도 {d.confidence} · 리듬 {d.predictedScores.rhythmLoad}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="rhythm-note">기록이 쌓이면 더 개인화돼요. 확정은 아니에요.</p>
             </GlassCard>
           )}
         </>

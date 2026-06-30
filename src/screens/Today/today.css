@@ -254,3 +254,30 @@
   line-height: 1.5;
   margin-top: 12px;
 }
+
+/* 내일 참고 카드 */
+.tmrw-line {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-top: 12px;
+}
+.tmrw-line b {
+  font-weight: 700;
+  color: var(--sky-ink);
+}
+.tmrw-hint {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.tmrw-note {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-top: 8px;
+  line-height: 1.5;
+}

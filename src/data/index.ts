@@ -45,6 +45,11 @@ export {
 } from './services/rhythmService'
 export { exportAllData, downloadExportJson, type ModeExportPayload } from './services/dataExportService'
 export {
+  getRhythmForecastViewModel,
+  type RhythmForecastViewModel,
+  type RhythmForecastOptions,
+} from './services/rhythmForecastService'
+export {
   dailyLogRepository,
   eventLogRepository,
   cycleLogRepository,
