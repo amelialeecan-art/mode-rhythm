@@ -43,6 +43,7 @@ export {
   type RhythmOptions,
   type CyclePhase,
 } from './services/rhythmService'
+export { exportAllData, downloadExportJson, type ModeExportPayload } from './services/dataExportService'
 export {
   dailyLogRepository,
   eventLogRepository,

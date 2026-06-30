@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="MODE">
+  <defs>
+    <linearGradient id="bgm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EBE4FB"/>
+      <stop offset="0.55" stop-color="#FBE6F1"/>
+      <stop offset="1" stop-color="#DBF3EB"/>
+    </linearGradient>
+    <linearGradient id="mochim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#CDA8F2"/>
+      <stop offset="0.52" stop-color="#F0A6CE"/>
+      <stop offset="1" stop-color="#FFBC9E"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bgm)"/>
+  <g transform="translate(256 262) scale(0.78)">
+    <path d="M0 -150 C 95 -150 150 -88 150 0 C 150 92 92 150 0 150 C -92 150 -150 92 -150 0 C -150 -88 -95 -150 0 -150 Z"
+          fill="url(#mochim)"/>
+    <ellipse cx="-58" cy="44" rx="26" ry="15" fill="#F8A6B4" opacity="0.5"/>
+    <ellipse cx="58" cy="44" rx="26" ry="15" fill="#F8A6B4" opacity="0.5"/>
+    <ellipse cx="-46" cy="-2" rx="15" ry="19" fill="#3D3552"/>
+    <circle cx="-41" cy="-12" r="6" fill="#fff"/>
+    <ellipse cx="46" cy="-2" rx="15" ry="19" fill="#3D3552"/>
+    <circle cx="51" cy="-12" r="6" fill="#fff"/>
+    <path d="M-26 40 Q0 60 26 40" stroke="#3D3552" stroke-width="10" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Outlet, useNavigate } from 'react-router-dom'
 import { AppShell } from '../design'
+import { isOnboardingCompleted } from '../lib/onboarding'
 import { OnboardingScreen } from '../screens/Onboarding/OnboardingScreen'
 import { TodayScreen } from '../screens/Today/TodayScreen'
 import { LogScreen } from '../screens/Log/LogScreen'
@@ -8,8 +10,12 @@ import { AnalysisScreen } from '../screens/Analysis/AnalysisScreen'
 import { RhythmScreen } from '../screens/Rhythm/RhythmScreen'
 import { SettingsScreen } from '../screens/Settings/SettingsScreen'
 
-/** 하단 탭바가 있는 화면들의 공통 레이아웃. */
+/** 하단 탭바가 있는 화면들의 공통 레이아웃. 첫 실행이면 온보딩으로 보낸다. */
 function TabbedLayout() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!isOnboardingCompleted()) navigate('/onboarding', { replace: true })
+  }, [navigate])
   return (
     <AppShell>
       <Outlet />

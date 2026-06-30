@@ -5,8 +5,8 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 0 14px;
-  min-height: 80vh;
+  padding: 28px 14px;
+  min-height: 70vh;
 }
 .onb__wm {
   font-size: 29px;
@@ -76,8 +76,34 @@
   font-weight: 600;
   color: var(--ink-2);
 }
+.onb__points {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  text-align: left;
+}
+.onb__point {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.onb__point-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--lav), var(--coral));
+}
 .onb__btn {
-  margin-top: 30px;
+  margin-top: 26px;
   max-width: 320px;
 }
 .onb__foot {

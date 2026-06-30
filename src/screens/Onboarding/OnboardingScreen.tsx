@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { AppShell, Mascot } from '../../design'
+import { setOnboardingCompleted } from '../../lib/onboarding'
 import './onboarding.css'
 
 const FRIENDS: { mood: 'teary' | 'hungry' | 'sleepy' | 'focus' | 'confused'; label: string; delay: string }[] = [
@@ -10,9 +11,21 @@ const FRIENDS: { mood: 'teary' | 'hungry' | 'sleepy' | 'focus' | 'confused'; lab
   { mood: 'confused', label: '미제', delay: '.7s' },
 ]
 
-/** 온보딩: 첫인상 + 모드 친구들 소개. */
+const POINTS = [
+  '원인을 직접 맞히지 않아도 돼요. 오늘 있었던 일만 기록해요.',
+  '생리주기는 날짜만 기록하면 앱이 구간을 계산해요.',
+  '뭐 했더니 좀 나아졌는지(회복 행동)도 함께 기록해요.',
+  '모든 기록은 기본적으로 이 기기에 저장돼요.',
+]
+
+/** 온보딩: 첫인상 + 모드 친구들 + MODE 철학. "시작하기"로 완료 저장. */
 export function OnboardingScreen() {
   const navigate = useNavigate()
+  const start = () => {
+    setOnboardingCompleted()
+    navigate('/', { replace: true })
+  }
+
   return (
     <AppShell showTabBar={false}>
       <div className="onb">
@@ -24,7 +37,7 @@ export function OnboardingScreen() {
         <div className="onb__hero">
           <Mascot
             mood="happy"
-            size={144}
+            size={132}
             gradient="linear-gradient(150deg,#CDA8F2 0%, #F0A6CE 52%, #FFBC9E 100%)"
           />
         </div>
@@ -35,24 +48,33 @@ export function OnboardingScreen() {
           오늘의 모드로 읽기
         </h1>
         <p className="onb__sub">
-          기분 따라 매일 모드가 바뀌어
+          기록은 사실만 남기고,
           <br />
-          오늘의 모드 친구가 마중 나와요
+          패턴 해석은 MODE가 도와줘요.
         </p>
 
         <div className="onb__friends">
           {FRIENDS.map((f) => (
             <div className="onb__friend" key={f.label}>
-              <Mascot mood={f.mood} size={52} delay={f.delay} />
+              <Mascot mood={f.mood} size={48} delay={f.delay} />
               <span className="onb__friend-label">{f.label}</span>
             </div>
           ))}
         </div>
 
-        <button className="btn-primary onb__btn" onClick={() => navigate('/')}>
+        <ul className="onb__points">
+          {POINTS.map((p) => (
+            <li className="onb__point" key={p}>
+              <span className="onb__point-dot" />
+              {p}
+            </li>
+          ))}
+        </ul>
+
+        <button className="btn-primary onb__btn" onClick={start}>
           시작하기
         </button>
-        <p className="onb__foot">기록은 하루 30초</p>
+        <p className="onb__foot">기록은 하루 30초 · 진단이 아니라 기록 기반 해석이에요</p>
       </div>
     </AppShell>
   )

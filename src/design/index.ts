@@ -8,8 +8,6 @@ export { ConfidenceBadge, CONFIDENCE_LABEL, type ConfidenceTier } from './compon
 export { PlanCard, type PlanLine } from './components/PlanCard'
 export { ModeHeroCard } from './components/ModeHeroCard'
 export { LensTabs, type LensOption } from './components/LensTabs'
-export { MiniInsightCard } from './components/MiniInsightCard'
-export { ForecastCard } from './components/ForecastCard'
 export { HeatmapCalendar, LENS_RAMP, type HeatmapCell } from './components/HeatmapCalendar'
 export { Mascot, MASCOT_GRADIENTS, type MascotMood } from './mascot/Mascot'
 export { SlideGraphCards, type GraphSlide } from './charts/SlideGraphCards'
