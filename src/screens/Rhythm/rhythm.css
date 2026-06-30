@@ -1,0 +1,138 @@
+.rhythm-loading,
+.rhythm-empty {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  font-weight: 500;
+  line-height: 1.55;
+  text-align: center;
+  padding: 6px 0;
+}
+
+.rhythm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.rhythm-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  padding: 6px 4px;
+}
+.rhythm-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.rhythm-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1.6px solid var(--line);
+  border-radius: var(--pill);
+  padding: 6px 11px;
+  cursor: pointer;
+}
+.rhythm-toggle--on {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.rhythm-phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 0 2px;
+}
+.rhythm-phases__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.rhythm-phases__band {
+  width: 16px;
+  height: 10px;
+  border-radius: 3px;
+  opacity: 0.4;
+}
+.rhythm-note {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-weight: 500;
+  line-height: 1.5;
+  margin-top: 10px;
+  padding: 0 2px;
+}
+
+.rhythm-obs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 13px;
+}
+.rhythm-obs__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rhythm-obs__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.rhythm-obs__body {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+/* 다음 3일 흐름 카드 */
+.fc3 {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 13px;
+}
+.fc3__card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+  padding: 11px 13px;
+}
+.fc3__day {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.fc3__mode {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sky-ink);
+}
+.fc3__sub {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.fc3__meta {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: 2px;
+}

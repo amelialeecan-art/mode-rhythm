@@ -1,0 +1,251 @@
+.calhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 4px 12px;
+}
+.calnav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.calnav__btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--deep-2);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.calnav__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.calhead__m {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  min-width: 96px;
+  text-align: center;
+}
+.calhead__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.caltoday {
+  border: 1.4px solid var(--lav-2);
+  background: rgba(169, 133, 232, 0.12);
+  color: var(--lav-ink);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: var(--pill);
+  cursor: pointer;
+}
+.calhead__lbl {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.callegend {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 0 4px;
+}
+.callegend--soft {
+  margin-top: 6px;
+  color: var(--ink-3);
+}
+
+/* ---------- 바텀시트 ---------- */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(53, 43, 76, 0.28);
+  z-index: var(--z-sheet);
+}
+.sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  max-height: 86vh;
+  overflow-y: auto;
+  z-index: calc(var(--z-sheet) + 1);
+  background: var(--paper);
+  border-radius: 26px 26px 0 0;
+  padding: 12px 22px calc(26px + env(safe-area-inset-bottom));
+  box-shadow: 0 -14px 40px rgba(70, 46, 120, 0.18);
+}
+.sheet__handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 5px;
+  background: rgba(53, 43, 76, 0.2);
+  margin: 0 auto 16px;
+}
+.sheet__date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.sheet__date small {
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+.sheet__body {
+  margin-top: 6px;
+}
+.sheet__moderow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.sheet__mode {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sheet__paren {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lav-ink);
+  background: var(--lav-s);
+  padding: 5px 11px;
+  border-radius: var(--pill);
+}
+.sheet__rhythm {
+  margin-left: auto;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--deep);
+  font-variant-numeric: tabular-nums;
+}
+.sheet__hint {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  font-weight: 500;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.sheet__note {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 500;
+  line-height: 1.5;
+  margin-top: 16px;
+}
+.sheet__close {
+  margin-top: 18px;
+}
+.sheet__closebtn {
+  width: 100%;
+  margin-top: 16px;
+  border: 1.5px solid var(--line);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink-2);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 13px;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+/* 시트 내부 점수 바 */
+.sheet-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sheet-bar__label {
+  flex: 0 0 30px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.sheet-bar__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 8px;
+  background: rgba(120, 90, 180, 0.1);
+  overflow: hidden;
+}
+.sheet-bar__track i {
+  display: block;
+  height: 100%;
+  border-radius: 8px;
+}
+.sheet-bar__val {
+  flex: 0 0 24px;
+  text-align: right;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 시트 섹션 */
+.sheet-section {
+  margin-top: 16px;
+}
+.sheet-section__title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+.sheet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.sheet-chip {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: var(--pill);
+  background: rgba(255, 149, 118, 0.14);
+  color: var(--coral-ink);
+}
+.sheet-chip--mint {
+  background: rgba(91, 199, 158, 0.16);
+  color: var(--mint-ink);
+}
+.sheet-fact {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(229, 139, 190, 0.14);
+  color: var(--rose-ink);
+}
+.sheet-memo {
+  font-size: 13.5px;
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.55;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 13px;
+}

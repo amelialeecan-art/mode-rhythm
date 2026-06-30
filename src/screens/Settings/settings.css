@@ -1,0 +1,204 @@
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-back {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--deep-2);
+  cursor: pointer;
+  border-radius: 10px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+  padding: 2px 0;
+}
+.setting-row__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.setting-hint {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-weight: 500;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+.setting-hint--soft {
+  color: var(--ink-3);
+}
+
+/* 숫자 입력 */
+.setting-num {
+  width: 76px;
+  text-align: center;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+.setting-num:disabled {
+  opacity: 0.5;
+}
+
+/* 토글 스위치 */
+.toggle {
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(120, 90, 180, 0.18);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+  flex: 0 0 auto;
+}
+.toggle--on {
+  background: var(--mint);
+}
+.toggle__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(70, 46, 120, 0.25);
+  transition: transform var(--dur-fast) ease;
+}
+.toggle--on .toggle__knob {
+  transform: translateX(18px);
+}
+
+/* 데이터 버튼 */
+.data-btn {
+  width: 100%;
+  margin-top: 13px;
+  border: 1.6px solid var(--lav-2);
+  background: rgba(169, 133, 232, 0.1);
+  color: var(--lav-ink);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 13px;
+  border-radius: 14px;
+  cursor: pointer;
+}
+.data-btn--danger {
+  border-color: var(--coral-2);
+  background: rgba(255, 149, 118, 0.12);
+  color: var(--coral-ink);
+}
+.settings-foot {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-top: 22px;
+}
+
+/* 개발용 버튼 */
+.dev-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 13px;
+}
+.dev-btn {
+  flex: 1;
+  border: 1.6px solid var(--butter);
+  background: rgba(255, 201, 108, 0.18);
+  color: var(--deep-2);
+  font-weight: 700;
+  font-size: 13.5px;
+  padding: 12px;
+  border-radius: 14px;
+  cursor: pointer;
+}
+.dev-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dev-btn--danger {
+  border-color: var(--coral-2);
+  background: rgba(255, 149, 118, 0.16);
+  color: var(--coral-ink);
+}
+.dev-msg {
+  margin-top: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--deep-2);
+}
+
+/* 초기화 확인 모달 */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(53, 43, 76, 0.32);
+  z-index: var(--z-sheet);
+}
+.confirm {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 48px);
+  max-width: 360px;
+  z-index: calc(var(--z-sheet) + 1);
+  background: var(--paper);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 20px 50px rgba(70, 46, 120, 0.28);
+}
+.confirm__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.confirm__body {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin-top: 8px;
+}
+.confirm__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.confirm__cancel {
+  flex: 1;
+  border: 1.5px solid var(--line);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink-2);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 12px;
+  border-radius: 13px;
+  cursor: pointer;
+}
+.confirm__danger {
+  flex: 1;
+  border: none;
+  background: linear-gradient(120deg, #d55e45, #e07e4f);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 12px;
+  border-radius: 13px;
+  cursor: pointer;
+}

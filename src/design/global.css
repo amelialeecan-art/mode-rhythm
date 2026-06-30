@@ -1,0 +1,88 @@
+/* =====================================================================
+   MODE · 전역 스타일 (reset + base + 배경)
+   ===================================================================== */
+@import './tokens/tokens.css';
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: -0.006em;
+  line-height: 1.5;
+  background: var(--bg-app);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--lav-2);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* 공용 1차 버튼 */
+.btn-primary {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(120deg, var(--deep), #6a4fb6 70%, #8a5bc0);
+  padding: 17px;
+  border-radius: 18px;
+  letter-spacing: -0.01em;
+  box-shadow: var(--sh-btn);
+  transition: transform var(--dur-fast) ease;
+}
+.btn-primary:active {
+  transform: scale(0.975);
+}
+
+/* reduced-motion: 모든 비필수 애니메이션 정지 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
