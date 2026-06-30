@@ -3,6 +3,8 @@ import { GlassCard, SectionHeader, RhythmChart, type RhythmSeries } from '../../
 import { getRhythmViewModel, type RhythmViewModel } from '../../data/services/rhythmService'
 import { getRhythmForecastViewModel, type RhythmForecastViewModel } from '../../data/services/rhythmForecastService'
 import { parseISODate, formatMonthDay, formatWeekday } from '../../lib/date'
+import { useToneMode } from '../../lib/useToneMode'
+import { getToneCopy } from '../../copy/tone'
 import './rhythm.css'
 
 const OFFSET_LABEL: Record<number, string> = { 1: '내일', 2: '모레', 3: '3일 뒤' }
@@ -27,6 +29,7 @@ const PHASE_LEGEND = [
 type LineKey = 'emotional' | 'appetite' | 'sleep' | 'body' | 'recovery'
 
 export function RhythmScreen() {
+  const tone = useToneMode()
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
   const [forecast, setForecast] = useState<RhythmForecastViewModel | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,7 +65,7 @@ export function RhythmScreen() {
     <>
       <header className="screen-head">
         <h1 className="screen-head__title">리듬</h1>
-        <p className="screen-head__sub">최근 30일, 실제 기록 기준 흐름이에요</p>
+        <p className="screen-head__sub">{getToneCopy(tone, 'rhythmIntro')}</p>
       </header>
 
       {loading ? (

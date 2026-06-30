@@ -3,9 +3,12 @@ import { GlassCard, SectionHeader } from '../../design'
 import { getAnalysisViewModel, type AnalysisViewModel } from '../../data/services/patternAnalysisService'
 import { CONFIDENCE_TIER_LABEL, ANALYSIS_METRIC_LABEL, RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
+import { useToneMode } from '../../lib/useToneMode'
+import { getToneCopy } from '../../copy/tone'
 import './analysis.css'
 
 export function AnalysisScreen() {
+  const tone = useToneMode()
   const [vm, setVm] = useState<AnalysisViewModel | null>(null)
   const [loading, setLoading] = useState(true)
   const [recalcing, setRecalcing] = useState(false)
@@ -45,11 +48,9 @@ export function AnalysisScreen() {
         <p className="screen-head__sub">반복적으로 함께 나타난 패턴을 봐요</p>
       </header>
 
-      {/* 분석 안내 */}
+      {/* 분석 안내 (tone 반영) */}
       <GlassCard tint="lav">
-        <p className="analysis-disclaimer">
-          이 분석은 저장된 기록에서 반복적으로 함께 나타난 패턴을 보여줘요. 원인을 확정하거나 진단하지 않아요.
-        </p>
+        <p className="analysis-disclaimer">{getToneCopy(tone, 'analysisIntro')}</p>
       </GlassCard>
 
       {loading ? (
