@@ -6,6 +6,8 @@ import { getRecoveryRecommendations } from '../../data/services/patternAnalysisS
 import { getRhythmForecastViewModel } from '../../data/services/rhythmForecastService'
 import type { TodaySummary, FactorTier, RecoveryActionInsight, RhythmForecastDay } from '../../engine'
 import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
+import { useToneMode } from '../../lib/useToneMode'
+import { getToneCopy } from '../../copy/tone'
 import './today.css'
 
 // dayType → 모찌 표정 (분류 코드 기준)
@@ -116,6 +118,7 @@ function FilledToday({
   tomorrow: RhythmForecastDay | null
   onRecord: () => void
 }) {
+  const tone = useToneMode()
   const { classification, scores, factorCandidates, plan, recordedRecovery } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
 
@@ -180,7 +183,7 @@ function FilledToday({
             내일은 <b>{tomorrow.label}</b> 가능성이 있어요{tomorrow.subLabel ? ` · ${tomorrow.subLabel}` : ''}.
           </p>
           <p className="tmrw-hint">{tomorrow.planHint}</p>
-          <p className="tmrw-note">{tomorrow.note}</p>
+          <p className="tmrw-note">{getToneCopy(tone, 'reference')}</p>
         </GlassCard>
       )}
 

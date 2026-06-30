@@ -23,9 +23,12 @@ function TabbedLayout() {
   )
 }
 
+// Vite base('/mode-rhythm/' 등)를 라우터 basename으로 — GitHub Pages 프로젝트 경로 대응.
+const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={BASENAME}>
       <Routes>
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route element={<TabbedLayout />}>
