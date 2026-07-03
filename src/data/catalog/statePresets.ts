@@ -57,6 +57,42 @@ const LOAD_FIELDS: (keyof DailyLogInput)[] = [
 
 const clamp10 = (n: number) => Math.max(0, Math.min(10, Math.round(n)))
 
+/** 추론에 쓰는 숫자 필드들 (DailyLog가 구조적으로 할당 가능). */
+type StateNumericFields = {
+  moodLow?: number
+  anxiety?: number
+  irritability?: number
+  sadness?: number
+  heaviness?: number
+  calm?: number
+  energy?: number
+  impulsivity?: number
+  appetite?: number
+  sweetCraving?: number
+  saltyCraving?: number
+  bingeUrge?: number
+  bodyDiscomfort?: number
+  pain?: number
+  bloating?: number
+  fatigue?: number
+}
+
+/** dailyLog 숫자값에서 상태 칩을 역추론한다 (메타데이터가 없는 옛 기록 복원용). */
+export function inferStateCodes(f: StateNumericFields): string[] {
+  const v = (k: keyof StateNumericFields) => (typeof f[k] === 'number' ? (f[k] as number) : 0)
+  const codes: string[] = []
+  if (v('irritability') >= 5) codes.push('irritable')
+  if (v('anxiety') >= 6) codes.push('anxious')
+  if (v('sadness') >= 5 || v('moodLow') >= 6 || v('heaviness') >= 6) codes.push('sad')
+  if (v('appetite') >= 5 || v('sweetCraving') >= 5 || v('saltyCraving') >= 5 || v('bingeUrge') >= 5) codes.push('appetite_swing')
+  if (v('fatigue') >= 6 || (v('energy') <= 2 && v('heaviness') >= 5)) codes.push('drained')
+  if (v('bodyDiscomfort') >= 5 || v('pain') >= 5 || v('bloating') >= 5) codes.push('body_discomfort')
+  if (v('impulsivity') >= 6) codes.push('impulsive')
+  // 부하가 거의 없고 여유가 있으면 안정
+  if (codes.length === 0 && v('calm') >= 5) codes.push('calm')
+  return codes
+}
+
 /** dailyLogs의 모든 숫자 필드를 0으로 초기화한 base. */
 function zeroNumericFields(): Record<string, number> {
   return {

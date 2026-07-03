@@ -102,8 +102,24 @@ export interface DailyLog {
   headache: number
   digestion: number
   memo?: string
+  /**
+   * 폼 복원용 메타데이터 (비인덱스 optional — Dexie 스키마/인덱스 변경 없음).
+   * 저장한 날짜를 다시 열었을 때 "오늘 상태" 칩/식욕 입력을 그대로 복원하기 위함.
+   * 이게 없으면 재저장 시 숫자값이 0으로 덮어써지는 문제가 생긴다.
+   */
+  stateCodes?: string[]
+  overallIntensity?: string
+  appetiteRatings?: AppetiteRatings
   createdAt: string
   updatedAt: string
+}
+
+/** 식욕 상태 섹션 직접 입력값(있으면 state preset보다 우선). 각 0/3/5/7/9. */
+export interface AppetiteRatings {
+  appetite?: number
+  sweetCraving?: number
+  saltyCraving?: number
+  bingeUrge?: number
 }
 
 /* ---------------------------------------------------------------------

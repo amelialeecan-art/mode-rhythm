@@ -249,3 +249,8 @@
   border-radius: 12px;
   padding: 11px 13px;
 }
+
+.sheet-chip--state {
+  background: rgba(169, 133, 232, 0.16);
+  color: var(--lav-ink);
+}

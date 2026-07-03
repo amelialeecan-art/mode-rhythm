@@ -10,6 +10,8 @@ import { eventLogRepository } from '../repositories/eventLogRepository'
 import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { recoveryLogRepository } from '../repositories/recoveryLogRepository'
 import { DAY_TYPE_SHORT_LABEL } from '../../engine'
+import { inferStateCodes } from '../catalog/statePresets'
+import { STATE_CHIPS } from '../catalog/modes'
 import {
   addMonths,
   endOfMonthISO,
@@ -79,6 +81,8 @@ export interface CalendarDayDetail {
   eventLogs: EventLog[]
   cycleLogs: CycleLog[]
   recoveryLogs: RecoveryLog[]
+  /** "오늘 상태" 라벨 (저장 메타데이터 우선, 없으면 숫자값에서 추론). 원인 아님 — 상태 기록. */
+  stateLabels: string[]
 }
 
 function toLensScores(s: DailyScore): LensScores {
@@ -139,7 +143,14 @@ export async function getCalendarDayDetail(date: ISODate): Promise<CalendarDayDe
   const hasEntry =
     dailyLog != null || eventLogs.length > 0 || cycleLogs.length > 0 || recoveryLogs.length > 0
 
-  return { date, hasEntry, dailyScore, dailyLog, eventLogs, cycleLogs, recoveryLogs }
+  return { date, hasEntry, dailyScore, dailyLog, eventLogs, cycleLogs, recoveryLogs, stateLabels: stateLabelsFor(dailyLog) }
+}
+
+/** dailyLog → "오늘 상태" 라벨 목록 (메타데이터 우선, 없으면 숫자값 추론). */
+function stateLabelsFor(dailyLog?: DailyLog): string[] {
+  if (!dailyLog) return []
+  const codes = dailyLog.stateCodes ?? inferStateCodes(dailyLog)
+  return codes.map((c) => STATE_CHIPS.find((s) => s.code === c)?.label).filter((l): l is string => !!l)
 }
 
 /** 월 이동 helper (UI 편의). */
