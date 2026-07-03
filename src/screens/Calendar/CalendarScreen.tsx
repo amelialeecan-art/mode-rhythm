@@ -195,6 +195,21 @@ function DayDetailSheet({
               <p className="sheet__hint">이 날은 점수 계산 기록이 없어요.</p>
             )}
 
+            {/* 오늘 상태 (원인 아님 — 상태 기록) */}
+            <Section title="오늘 상태">
+              {detail.stateLabels.length > 0 ? (
+                <div className="sheet-chips">
+                  {detail.stateLabels.map((l) => (
+                    <span className="sheet-chip sheet-chip--state" key={l}>
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="sheet__hint">저장된 상태 기록이 없어요.</p>
+              )}
+            </Section>
+
             {detail.eventLogs.length > 0 && (
               <Section title="오늘 있었던 일">
                 <div className="sheet-chips">

@@ -23,9 +23,10 @@ import {
   NON_SAVED_RECOVERY_CODES,
 } from '../catalog/recoveryActions'
 import { intensityValue } from '../catalog/intensity'
-import { buildStateNumericFields } from '../catalog/statePresets'
+import { buildStateNumericFields, inferStateCodes } from '../catalog/statePresets'
 import { recalculateDailyScore } from './dailyScoreService'
 import type {
+  AppetiteRatings,
   CycleLogInput,
   DailyLogInput,
   EventLogCategory,
@@ -36,6 +37,8 @@ import type {
   RecoveryEffectValue,
   RecoveryLogInput,
 } from '../models'
+
+export type { AppetiteRatings }
 
 /** 강도 칩 코드 (전체 강도는 '없음'을 쓰지 않는다). */
 export type IntensityCode = 'little' | 'some' | 'much' | 'veryMuch'
@@ -75,11 +78,18 @@ export interface DailyEntryDraft {
   catalogEventCodes: string[]
   /** 커스텀 사건들. */
   customEvents: EventDraft[]
+  /** 식욕 상태 직접 입력값 (있으면 state preset보다 우선). 항목별 0/3/5/7/9. */
+  appetiteRatings: AppetiteRatings
   cycle: CycleDraft
   recoveryCodes: string[]
   /** 회복 효과 (빈 문자열 = 미선택). */
   recoveryEffect: RecoveryEffectValue | ''
   memo: string
+}
+
+/** appetiteRatings에 입력값이 하나라도 있는지. */
+function hasAppetiteRatings(ar: AppetiteRatings): boolean {
+  return ar.appetite != null || ar.sweetCraving != null || ar.saltyCraving != null || ar.bingeUrge != null
 }
 
 export function emptyCycleDraft(): CycleDraft {
@@ -95,6 +105,7 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
     eventIntensity: 'some',
     catalogEventCodes: [],
     customEvents: [],
+    appetiteRatings: {},
     cycle: emptyCycleDraft(),
     recoveryCodes: [],
     recoveryEffect: '',
@@ -109,6 +120,10 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
 function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
   const n = buildStateNumericFields(draft.stateCodes, draft.overallIntensity)
   const memo = draft.memo.trim()
+  const ar = draft.appetiteRatings ?? {}
+  // 식욕 상태 직접 입력값이 있으면 preset보다 우선 (spec 우선순위)
+  const clamp10 = (x: number) => Math.max(0, Math.min(10, Math.round(x)))
+  const pick = (rating: number | undefined, preset: number) => (rating != null ? clamp10(rating) : preset)
   return {
     date: draft.date,
     moodLow: n.moodLow,
@@ -121,10 +136,10 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     focus: n.focus,
     selfCriticism: n.selfCriticism,
     impulsivity: n.impulsivity,
-    appetite: n.appetite,
-    sweetCraving: n.sweetCraving,
-    saltyCraving: n.saltyCraving,
-    bingeUrge: n.bingeUrge,
+    appetite: pick(ar.appetite, n.appetite),
+    sweetCraving: pick(ar.sweetCraving, n.sweetCraving),
+    saltyCraving: pick(ar.saltyCraving, n.saltyCraving),
+    bingeUrge: pick(ar.bingeUrge, n.bingeUrge),
     bodyDiscomfort: n.bodyDiscomfort,
     pain: n.pain,
     bloating: n.bloating,
@@ -132,6 +147,10 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     headache: n.headache,
     digestion: n.digestion,
     memo: memo ? memo : undefined,
+    // 폼 복원용 메타데이터 (비인덱스). 재저장 시 상태값이 0으로 날아가지 않도록 보존.
+    stateCodes: [...draft.stateCodes],
+    overallIntensity: draft.overallIntensity,
+    appetiteRatings: hasAppetiteRatings(ar) ? { ...ar } : undefined,
   }
 }
 
@@ -246,11 +265,14 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
   }
 
   const cycle = cycles[0]
+  // 상태 칩 복원: 저장된 메타데이터 우선, 없으면(옛 기록) 숫자값에서 역추론.
+  const stateCodes = dailyLog?.stateCodes ?? (dailyLog ? inferStateCodes(dailyLog) : [])
+  const overallIntensity = (dailyLog?.overallIntensity as IntensityCode) ?? 'some'
+  const appetiteRatings: AppetiteRatings = dailyLog?.appetiteRatings ? { ...dailyLog.appetiteRatings } : {}
   return {
     date,
-    // 숫자값 → 상태 칩 역추론은 복잡하므로 이번 단계 후순위(빈 선택). dailyLog 값 자체는 저장/복원됨.
-    stateCodes: [],
-    overallIntensity: 'some',
+    stateCodes,
+    overallIntensity,
     eventTiming: events[0]?.timing ?? 'today',
     eventIntensity: 'some',
     catalogEventCodes: events.filter((e) => !e.isCustom).map((e) => e.eventCode),
@@ -266,6 +288,7 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
         customLabel: e.customLabel,
         mappedFactorGroup: e.mappedFactorGroup,
       })),
+    appetiteRatings,
     cycle: cycle
       ? {
           periodStart: cycle.periodStart,

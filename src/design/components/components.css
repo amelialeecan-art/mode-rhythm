@@ -136,6 +136,12 @@
   cursor: pointer;
   transition: transform 0.1s ease;
   user-select: none;
+  /* iOS Safari의 기본 button 렌더링(반쪽 배경) 제거 — 선택 배경이 칩 전체에 균일하게 */
+  -webkit-appearance: none;
+  appearance: none;
+  background-clip: padding-box;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1.2;
 }
 .chip:active {
   transform: scale(0.95);
@@ -332,6 +338,9 @@
   display: none;
 }
 .lens__pill {
+  -webkit-appearance: none;
+  appearance: none;
+  background-clip: padding-box;
   flex: 0 0 auto;
   font-size: 13px;
   font-weight: 600;

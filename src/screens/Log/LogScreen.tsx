@@ -13,6 +13,7 @@ import {
   type DailyEntryDraft,
   type EventDraft,
   type IntensityCode,
+  type AppetiteRatings,
 } from '../../data/services/dailyEntryService'
 import { getTodayISODate } from '../../lib/date'
 import type { EventCategory } from '../../data/types'
@@ -44,6 +45,21 @@ const FLOW_OPTIONS: { code: FlowLevel; label: string }[] = [
 ]
 
 const PAIN_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: '없음' },
+  { value: 3, label: '조금' },
+  { value: 5, label: '보통' },
+  { value: 7, label: '많이' },
+  { value: 9, label: '매우 많이' },
+]
+
+// 식욕 상태 4항목 + 강도 옵션(0/3/5/7/9)
+const APPETITE_ITEMS: { key: keyof AppetiteRatings; label: string }[] = [
+  { key: 'appetite', label: '식욕' },
+  { key: 'sweetCraving', label: '단 음식 욕구' },
+  { key: 'saltyCraving', label: '짠 음식 욕구' },
+  { key: 'bingeUrge', label: '폭식욕' },
+]
+const APPETITE_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: '없음' },
   { value: 3, label: '조금' },
   { value: 5, label: '보통' },
@@ -95,6 +111,12 @@ export function LogScreen() {
   /* ---- draft 업데이트 헬퍼 ---- */
   const toggleInArray = (arr: string[], key: string) =>
     arr.includes(key) ? arr.filter((k) => k !== key) : [...arr, key]
+
+  const setAppetite = (key: keyof AppetiteRatings, value: number) =>
+    setDraft((d) => ({
+      ...d,
+      appetiteRatings: { ...d.appetiteRatings, [key]: d.appetiteRatings[key] === value ? undefined : value },
+    }))
 
   const toggleState = (code: string) => setDraft((d) => ({ ...d, stateCodes: toggleInArray(d.stateCodes, code) }))
   const toggleEvent = (code: string) => setDraft((d) => ({ ...d, catalogEventCodes: toggleInArray(d.catalogEventCodes, code) }))
@@ -185,6 +207,27 @@ export function LogScreen() {
             />
           ))}
         </ChipGroup>
+      </GlassCard>
+
+      {/* 1-2. 식욕 상태 (직접 입력 — state preset보다 우선) */}
+      <GlassCard tint="coral">
+        <SectionHeader title="식욕 상태" subtitle="식욕, 단 음식 욕구, 폭식욕을 따로 남겨요" />
+        {APPETITE_ITEMS.map((item) => (
+          <div className="event-group" key={item.key}>
+            <p className="event-group__label">{item.label}</p>
+            <ChipGroup label={item.label}>
+              {APPETITE_OPTIONS.map((o) => (
+                <Chip
+                  key={o.value}
+                  label={o.label}
+                  tone="coral"
+                  selected={draft.appetiteRatings[item.key] === o.value}
+                  onToggle={() => setAppetite(item.key, o.value)}
+                />
+              ))}
+            </ChipGroup>
+          </div>
+        ))}
       </GlassCard>
 
       {/* 2. 오늘 있었던 일 */}
