@@ -169,3 +169,11 @@
   border-radius: 12px;
   cursor: pointer;
 }
+
+.recovery-note {
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-weight: 500;
+  line-height: 1.5;
+}

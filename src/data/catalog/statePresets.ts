@@ -16,6 +16,12 @@ export const STATE_PRESETS: StatePreset[] = [
   { code: 'irritable', label: '예민', patch: { irritability: 7, anxiety: 4, moodLow: 4, calm: 2 } },
   { code: 'sad', label: '우울', patch: { sadness: 7, heaviness: 7, moodLow: 7, energy: 2, calm: 2 } },
   { code: 'anxious', label: '불안', patch: { anxiety: 8, focus: 3, calm: 1 } },
+  { code: 'annoyed', label: '짜증', patch: { irritability: 7, moodLow: 3, calm: 2 } },
+  { code: 'angry', label: '화냄', patch: { irritability: 9, impulsivity: 5, moodLow: 4, calm: 1 } },
+  { code: 'tearful', label: '울컥/눈물', patch: { sadness: 6, moodLow: 5, heaviness: 4 } },
+  { code: 'lethargic', label: '무기력', patch: { energy: 1, heaviness: 6, fatigue: 5, moodLow: 4 } },
+  { code: 'unfocused', label: '집중 안 됨', patch: { focus: 1, energy: 3 } },
+  // legacy: UI 칩에서는 제외됐지만 저장된 옛 stateCodes 재계산을 위해 preset은 유지
   { code: 'appetite_swing', label: '식욕 변동', patch: { appetite: 7, sweetCraving: 5, saltyCraving: 4, bingeUrge: 5 } },
   { code: 'drained', label: '방전', patch: { fatigue: 8, energy: 2, heaviness: 6, focus: 3 } },
   { code: 'body_discomfort', label: '몸 불편', patch: { bodyDiscomfort: 7, pain: 5, bloating: 5, fatigue: 5 } },

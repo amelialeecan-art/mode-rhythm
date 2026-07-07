@@ -122,6 +122,12 @@ export function AnalysisScreen() {
           {/* 나를 살린 것들 (효과 후보 기반) */}
           <GlassCard tint="mint">
             <SectionHeader title="나를 살린 것들" subtitle="전후 기록과 다음날 흐름을 함께 보고, 도움이 됐던 행동 후보를 보여줘요" star />
+            {vm.mixedRecoveryDayCount > 0 && (
+              <p className="analysis-mixed-note">
+                도움 된 것과 안 맞았던 것이 함께 기록된 날이 {vm.mixedRecoveryDayCount}일 있어요. 같은 행동도 날에 따라
+                다르게 작동할 수 있어서, 이런 날은 해석에 참고만 해요.
+              </p>
+            )}
             {vm.recoveryEffects.length > 0 ? (
               <ul className="pattern-list">
                 {vm.recoveryEffects.map((r) => (

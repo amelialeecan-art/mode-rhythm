@@ -18,6 +18,7 @@ export const CUSTOM_EVENT_CATEGORIES: { code: EventCategory; label: string }[] =
   { code: 'environment', label: EVENT_CATEGORY_LABEL.environment },
   { code: 'digital', label: EVENT_CATEGORY_LABEL.digital },
   { code: 'movement', label: EVENT_CATEGORY_LABEL.movement },
+  { code: 'control', label: EVENT_CATEGORY_LABEL.control },
   { code: 'unknown', label: '기타' },
 ]
 

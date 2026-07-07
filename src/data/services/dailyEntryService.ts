@@ -81,15 +81,24 @@ export interface DailyEntryDraft {
   /** 식욕 상태 직접 입력값 (있으면 state preset보다 우선). 항목별 0/3/5/7/9. */
   appetiteRatings: AppetiteRatings
   cycle: CycleDraft
+  /** "도움 된 것" 회복 행동. */
   recoveryCodes: string[]
-  /** 회복 효과 (빈 문자열 = 미선택). */
+  /** "오히려 안 맞았던 것" 회복 행동 (effect는 worse로 저장). */
+  recoveryNegativeCodes: string[]
+  /** 회복 효과 (빈 문자열 = 미선택) — 도움 된 것 그룹에 적용. */
   recoveryEffect: RecoveryEffectValue | ''
   memo: string
 }
 
 /** appetiteRatings에 입력값이 하나라도 있는지. */
 function hasAppetiteRatings(ar: AppetiteRatings): boolean {
-  return ar.appetite != null || ar.sweetCraving != null || ar.saltyCraving != null || ar.bingeUrge != null
+  return (
+    ar.appetite != null ||
+    ar.sweetCraving != null ||
+    ar.saltyCraving != null ||
+    ar.bingeUrge != null ||
+    ar.greasyCraving != null
+  )
 }
 
 export function emptyCycleDraft(): CycleDraft {
@@ -108,6 +117,7 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
     appetiteRatings: {},
     cycle: emptyCycleDraft(),
     recoveryCodes: [],
+    recoveryNegativeCodes: [],
     recoveryEffect: '',
     memo: '',
   }
@@ -146,6 +156,7 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     fatigue: n.fatigue,
     headache: n.headache,
     digestion: n.digestion,
+    greasyCraving: ar.greasyCraving != null ? clamp10(ar.greasyCraving) : undefined,
     memo: memo ? memo : undefined,
     // 폼 복원용 메타데이터 (비인덱스). 재저장 시 상태값이 0으로 날아가지 않도록 보존.
     stateCodes: [...draft.stateCodes],
@@ -185,23 +196,31 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
 }
 
 function buildRecoveryInputs(draft: DailyEntryDraft): RecoveryLogInput[] {
-  const effect: RecoveryEffectValue = draft.recoveryEffect === '' ? 'unknown' : draft.recoveryEffect
+  const positiveEffect: RecoveryEffectValue = draft.recoveryEffect === '' ? 'unknown' : draft.recoveryEffect
   const inputs: RecoveryLogInput[] = []
-  for (const code of draft.recoveryCodes) {
-    if (NON_SAVED_RECOVERY_CODES.has(code)) continue // '없었음'/'아직 모름'은 저장 안 함
+  const pushAction = (code: string, direction: 'positive' | 'negative') => {
+    if (NON_SAVED_RECOVERY_CODES.has(code)) return // '없었음'/'아직 모름'은 저장 안 함
     const action = RECOVERY_ACTIONS.find((a) => a.code === code)
-    if (!action) continue
+    if (!action) return
     const modelCategory = RECOVERY_CATEGORY_TO_MODEL[action.category]
-    if (!modelCategory) continue
+    if (!modelCategory) return
     inputs.push({
       date: draft.date,
       actionCode: action.code,
       actionLabel: action.label,
       category: modelCategory,
-      effect,
-      // before/after 세부 점수는 이번 단계 optional(비움). 후속 단계 전후 비교를 위해 필드는 유지.
+      // 안 맞았던 것은 자기보고상 'worse'로 — 기존 회복 분석(EFFECT_SCORE)이 그대로 소화한다.
+      effect: direction === 'negative' ? 'worse' : positiveEffect,
+      direction,
+      // before/after 세부 점수는 optional(비움). 전후 비교 필드는 유지.
     })
   }
+  const negativeSet = new Set(draft.recoveryNegativeCodes ?? [])
+  for (const code of draft.recoveryCodes) {
+    if (negativeSet.has(code)) continue // 같은 날 양쪽 중복 방지 (UI에서도 막지만 안전망)
+    pushAction(code, 'positive')
+  }
+  for (const code of negativeSet) pushAction(code, 'negative')
   return inputs
 }
 
@@ -269,6 +288,9 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
   const stateCodes = dailyLog?.stateCodes ?? (dailyLog ? inferStateCodes(dailyLog) : [])
   const overallIntensity = (dailyLog?.overallIntensity as IntensityCode) ?? 'some'
   const appetiteRatings: AppetiteRatings = dailyLog?.appetiteRatings ? { ...dailyLog.appetiteRatings } : {}
+  // 회복 방향 분리 (direction 없는 옛 기록은 positive로 간주)
+  const positiveRecovery = recovery.filter((r) => r.direction !== 'negative')
+  const negativeRecovery = recovery.filter((r) => r.direction === 'negative')
   return {
     date,
     stateCodes,
@@ -298,8 +320,9 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
           symptoms: cycle.symptoms ?? [],
         }
       : emptyCycleDraft(),
-    recoveryCodes: recovery.map((r) => r.actionCode),
-    recoveryEffect: recovery[0]?.effect ?? '',
+    recoveryCodes: positiveRecovery.map((r) => r.actionCode),
+    recoveryNegativeCodes: negativeRecovery.map((r) => r.actionCode),
+    recoveryEffect: positiveRecovery[0]?.effect ?? '',
     memo: dailyLog?.memo ?? '',
   }
 }

@@ -31,6 +31,12 @@ export const RECOVERY_ACTIONS: RecoveryActionItem[] = [
   { code: 'clean', label: '청소', category: 'care' },
   { code: 'cancel_plan', label: '약속 취소', category: 'rest' },
   { code: 'rest', label: '휴식', category: 'rest' },
+  // 같은 칩이 어떤 날은 "도움 된 것", 어떤 날은 "안 맞았던 것"에 갈 수 있다.
+  { code: 'sns', label: 'SNS 보기', category: 'solo' },
+  { code: 'late_snack', label: '야식', category: 'food' },
+  { code: 'sweets', label: '단 음식', category: 'food' },
+  { code: 'rumination', label: '계속 생각함', category: 'solo' },
+  { code: 'lying_down', label: '누워있음', category: 'rest' },
   { code: 'not_yet', label: '아직 모름', category: 'unknown' },
   { code: 'none', label: '없었음', category: 'unknown' },
 ]

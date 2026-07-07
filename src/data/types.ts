@@ -34,6 +34,7 @@ export type EventCategory =
   | 'environment'
   | 'digital'
   | 'movement'
+  | 'control' // 통제감/좌절 (계획 틀어짐, 내 뜻대로 안 됨, 예기 스트레스 등)
   | 'unknown'
 
 /** 회복 행동 분류. */

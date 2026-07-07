@@ -10,8 +10,7 @@ import { eventLogRepository } from '../repositories/eventLogRepository'
 import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { recoveryLogRepository } from '../repositories/recoveryLogRepository'
 import { DAY_TYPE_SHORT_LABEL } from '../../engine'
-import { inferStateCodes } from '../catalog/statePresets'
-import { STATE_CHIPS } from '../catalog/modes'
+import { inferStateCodes, STATE_PRESETS } from '../catalog/statePresets'
 import {
   addMonths,
   endOfMonthISO,
@@ -150,7 +149,8 @@ export async function getCalendarDayDetail(date: ISODate): Promise<CalendarDayDe
 function stateLabelsFor(dailyLog?: DailyLog): string[] {
   if (!dailyLog) return []
   const codes = dailyLog.stateCodes ?? inferStateCodes(dailyLog)
-  return codes.map((c) => STATE_CHIPS.find((s) => s.code === c)?.label).filter((l): l is string => !!l)
+  // STATE_PRESETS 기준 — UI 칩에서 빠진 legacy 코드('식욕 변동')도 라벨 복원 가능
+  return codes.map((c) => STATE_PRESETS.find((s) => s.code === c)?.label).filter((l): l is string => !!l)
 }
 
 /** 월 이동 helper (UI 편의). */
