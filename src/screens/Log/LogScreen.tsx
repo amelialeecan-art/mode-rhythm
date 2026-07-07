@@ -25,7 +25,7 @@ const EVENT_GROUPS = EVENT_CATALOG.reduce<Record<string, EventCatalogItem[]>>((a
   ;(acc[item.category] ??= []).push(item)
   return acc
 }, {})
-const EVENT_ORDER: EventCategory[] = ['sleep', 'food', 'work', 'relationship', 'appearance', 'digital', 'environment', 'movement', 'body', 'unknown']
+const EVENT_ORDER: EventCategory[] = ['sleep', 'food', 'work', 'relationship', 'control', 'appearance', 'digital', 'environment', 'movement', 'body', 'unknown']
 
 // 전체/사건 강도 칩 (전체 강도에는 '없음' 제외).
 const INTENSITY_CHIPS = INTENSITY_OPTIONS.filter((o) => o.code !== 'none') as { code: IntensityCode; label: string; value: number }[]
@@ -52,13 +52,18 @@ const PAIN_OPTIONS: { value: number; label: string }[] = [
   { value: 9, label: '매우 많이' },
 ]
 
-// 식욕 상태 4항목 + 강도 옵션(0/3/5/7/9)
+// 식욕 상태 5항목 + 강도 옵션(0/3/5/7/9). "먹고 싶음"만 — 실제로 먹은 건 사건 카드로.
 const APPETITE_ITEMS: { key: keyof AppetiteRatings; label: string }[] = [
   { key: 'appetite', label: '식욕' },
   { key: 'sweetCraving', label: '단 음식 욕구' },
   { key: 'saltyCraving', label: '짠 음식 욕구' },
+  { key: 'greasyCraving', label: '기름진 음식 욕구' },
   { key: 'bingeUrge', label: '폭식욕' },
 ]
+
+// 회복 그룹에서 실제 행동만 (sentinel은 positive 그룹에서만 노출)
+const RECOVERY_REAL_ACTIONS = RECOVERY_ACTIONS.filter((a) => a.code !== 'not_yet' && a.code !== 'none')
+const RECOVERY_SENTINELS = RECOVERY_ACTIONS.filter((a) => a.code === 'not_yet' || a.code === 'none')
 const APPETITE_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: '없음' },
   { value: 3, label: '조금' },
@@ -120,7 +125,19 @@ export function LogScreen() {
 
   const toggleState = (code: string) => setDraft((d) => ({ ...d, stateCodes: toggleInArray(d.stateCodes, code) }))
   const toggleEvent = (code: string) => setDraft((d) => ({ ...d, catalogEventCodes: toggleInArray(d.catalogEventCodes, code) }))
-  const toggleRecovery = (code: string) => setDraft((d) => ({ ...d, recoveryCodes: toggleInArray(d.recoveryCodes, code) }))
+  // 같은 칩은 도움/안 맞음 중 한쪽에만 — 한쪽 선택 시 반대쪽에서 제거
+  const toggleRecovery = (code: string) =>
+    setDraft((d) => ({
+      ...d,
+      recoveryCodes: toggleInArray(d.recoveryCodes, code),
+      recoveryNegativeCodes: d.recoveryNegativeCodes.filter((c) => c !== code),
+    }))
+  const toggleRecoveryNegative = (code: string) =>
+    setDraft((d) => ({
+      ...d,
+      recoveryNegativeCodes: toggleInArray(d.recoveryNegativeCodes, code),
+      recoveryCodes: d.recoveryCodes.filter((c) => c !== code),
+    }))
 
   const addCustomEvent = () => {
     const name = customName.trim()
@@ -335,12 +352,16 @@ export function LogScreen() {
         <input className="custom-input" placeholder="쉼표로 구분 (예: 허리 묵직함, 두통)" value={symptomsText} onChange={(e) => setSymptomsText(e.target.value)} />
       </GlassCard>
 
-      {/* 4. 회복 행동 */}
+      {/* 4. 회복 행동 — 도움/안 맞음 두 그룹 (같은 칩이 날마다 다른 쪽에 갈 수 있음) */}
       <GlassCard tint="mint">
-        <SectionHeader title="뭐 했더니 좀 나아졌어?" subtitle="나아지게 한 것을 골라요" />
-        <ChipGroup label="회복 행동">
-          {RECOVERY_ACTIONS.map((a) => (
+        <SectionHeader title="뭐 했더니 좀 나아졌어?" subtitle="도움 된 것과 오히려 안 맞았던 것을 나눠 남겨요" />
+        <p className="event-group__label">도움 된 것</p>
+        <ChipGroup label="도움 된 회복 행동">
+          {RECOVERY_REAL_ACTIONS.map((a) => (
             <Chip key={a.code} label={a.label} tone="mint" selected={draft.recoveryCodes.includes(a.code)} onToggle={() => toggleRecovery(a.code)} />
+          ))}
+          {RECOVERY_SENTINELS.map((a) => (
+            <Chip key={a.code} label={a.label} tone="neutral" selected={draft.recoveryCodes.includes(a.code)} onToggle={() => toggleRecovery(a.code)} />
           ))}
         </ChipGroup>
         <p className="event-group__label" style={{ marginTop: 16 }}>그래서 좀 어땠어?</p>
@@ -349,6 +370,13 @@ export function LogScreen() {
             <Chip key={e.code} label={e.label} tone="mint" selected={draft.recoveryEffect === e.code} onToggle={() => setDraft((d) => ({ ...d, recoveryEffect: d.recoveryEffect === e.code ? '' : e.code }))} />
           ))}
         </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 18 }}>오히려 안 맞았던 것</p>
+        <ChipGroup label="안 맞았던 행동">
+          {RECOVERY_REAL_ACTIONS.map((a) => (
+            <Chip key={a.code} label={a.label} tone="coral" selected={draft.recoveryNegativeCodes.includes(a.code)} onToggle={() => toggleRecoveryNegative(a.code)} />
+          ))}
+        </ChipGroup>
+        <p className="recovery-note">같은 행동도 날에 따라 다르게 작동할 수 있어요. 판단이 아니라 기록이에요.</p>
       </GlassCard>
 
       {/* 5. 메모 */}

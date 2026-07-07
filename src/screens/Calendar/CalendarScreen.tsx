@@ -242,8 +242,12 @@ function DayDetailSheet({
               <Section title="회복 행동">
                 <div className="sheet-chips">
                   {detail.recoveryLogs.map((r) => (
-                    <span className="sheet-chip sheet-chip--mint" key={r.id ?? r.actionCode}>
+                    <span
+                      className={`sheet-chip ${r.direction === 'negative' ? '' : 'sheet-chip--mint'}`}
+                      key={r.id ?? r.actionCode}
+                    >
                       {r.actionLabel}
+                      {r.direction === 'negative' ? ' · 안 맞음' : ''}
                     </span>
                   ))}
                 </div>

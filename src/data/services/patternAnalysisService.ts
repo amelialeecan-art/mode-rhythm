@@ -72,6 +72,8 @@ export interface AnalysisViewModel {
   recoveryEffects: RecoveryActionInsight[]
   /** 회복 행동 단순 빈도 (효과 데이터 부족 시 보조). */
   recoveryFrequency: RecoveryFrequencyItem[]
+  /** 도움 된 것과 안 맞았던 것이 같은 날 함께 기록된 "혼합일" 수 (해석 주의 표시용). */
+  mixedRecoveryDayCount: number
 }
 
 function scoreVector(s: DailyScore): Record<AnalysisMetric, number> {
@@ -229,6 +231,16 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     .sort((a, b) => b.count - a.count)
     .slice(0, 6)
 
+  // ---- 혼합일: 도움/안 맞음이 같은 날 함께 기록된 날 (direction 없는 옛 기록 = positive) ----
+  const dirByDate = new Map<ISODate, { pos: boolean; neg: boolean }>()
+  for (const r of recoveryLogs) {
+    const e = dirByDate.get(r.date) ?? { pos: false, neg: false }
+    if (r.direction === 'negative') e.neg = true
+    else e.pos = true
+    dirByDate.set(r.date, e)
+  }
+  const mixedRecoveryDayCount = [...dirByDate.values()].filter((e) => e.pos && e.neg).length
+
   // ---- 회복 행동 효과 후보 (전후 + 다음날) ----
   const rhythmByDate = new Map<ISODate, number>()
   for (const [d, v] of scoreByDate) rhythmByDate.set(d, v.rhythm)
@@ -307,6 +319,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     unexplained,
     recoveryEffects,
     recoveryFrequency,
+    mixedRecoveryDayCount,
   }
 
   return { vm, insights }

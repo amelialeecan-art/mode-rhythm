@@ -16,6 +16,7 @@ export const EVENT_CATEGORY_WEIGHTS: Record<EventLogCategory, number> = {
   environment: 0.7,
   digital: 0.8,
   movement: -0.4, // 운동/산책 등은 부하를 살짝 낮추는 쪽 (단, 회복 분석 아님 — 과하게 낮추지 않음)
+  control: 1.1, // 통제감/좌절 (계획 틀어짐, 예기 스트레스)
   unknown: 0.2,
   custom: 0.8,
 }
@@ -109,14 +110,19 @@ export interface RhythmParts {
   eventLoad: number
 }
 
-/** 전체 리듬 부하 (가중 평균). */
+/**
+ * 전체 리듬 부하 (가중 평균).
+ * 역할 3분할: 상태 = 결과 / 사건 = 설명 후보 / 회복 = 완충 후보.
+ * 사건은 당일 단정용이 아니라 패턴 분석의 설명 후보라 가중치를 낮게 둔다(15%→8%).
+ * 낮춘 몫은 상태 점수(감정 +5%, 수면 +2%)로 재배분 — 합계 1.0 유지.
+ */
 export function calcRhythmLoad(p: RhythmParts): number {
   const r =
-    p.emotionalLoad * 0.3 +
+    p.emotionalLoad * 0.35 +
     p.appetiteLoad * 0.15 +
-    p.sleepLoad * 0.15 +
+    p.sleepLoad * 0.17 +
     p.bodyLoad * 0.15 +
     p.cycleLoad * 0.1 +
-    p.eventLoad * 0.15
+    p.eventLoad * 0.08
   return roundScore(clamp(r, 0, 100))
 }

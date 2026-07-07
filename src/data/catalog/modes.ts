@@ -21,13 +21,21 @@ export const MODES: Record<DayType, ModeDisplay> = {
   mixed: { type: 'mixed', name: '복합 흔들림일', shortLabel: '복합', mascot: 'teary', gradient: MASCOT_GRADIENTS.teary },
 }
 
-/** 오늘 상태 칩 (기록 화면 1번 질문). 표준 라벨. */
+/**
+ * 오늘 상태 칩 (기록 화면 1번 질문). 원인 금지 — 몸/감정의 "결과값"만.
+ * 예민 ≠ 짜증: 예민은 자극에 민감한 상태, 짜증/화냄은 이미 반응이 터진 상태.
+ * '식욕 변동'은 식욕 상태 카드와 중복이라 UI에서 제외 (legacy preset은 유지).
+ */
 export const STATE_CHIPS: { code: string; label: string }[] = [
   { code: 'calm', label: '안정' },
   { code: 'irritable', label: '예민' },
   { code: 'sad', label: '우울' },
   { code: 'anxious', label: '불안' },
-  { code: 'appetite_swing', label: '식욕 변동' },
+  { code: 'annoyed', label: '짜증' },
+  { code: 'angry', label: '화냄' },
+  { code: 'tearful', label: '울컥/눈물' },
+  { code: 'lethargic', label: '무기력' },
+  { code: 'unfocused', label: '집중 안 됨' },
   { code: 'drained', label: '방전' },
   { code: 'body_discomfort', label: '몸 불편' },
   { code: 'social_fatigue', label: '사회 피로' },

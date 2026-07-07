@@ -122,6 +122,10 @@ const MIN_NEXTDAY_SUPPORT = 3
  * 회복 행동을 한 다음날(D+1) rhythmLoad가 낮은 편인지.
  * effectSize = 안 한 다음날 평균 - 한 다음날 평균 (양수면 한 다음날이 더 낮음).
  * D+1 데이터 없으면 제외. 미래 데이터는 쓰지 않는다.
+ *
+ * 해석 규칙(역인과 방지): "행동한 날 당일 점수가 높다 → 효과 없음"으로 계산하지 않는다.
+ * 부하가 높은 날일수록 회복 행동을 하기 때문. 그래서 회복 효과는 당일 상관이 아니라
+ * 전후 자기보고(recoveryDelta/effect)와 이 다음날 비교로만 본다.
  */
 export function nextDayRecoveryEffect(
   ds: RecoveryDataset,

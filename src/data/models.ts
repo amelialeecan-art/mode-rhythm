@@ -36,6 +36,7 @@ export type EventLogCategory =
   | 'environment'
   | 'digital'
   | 'movement'
+  | 'control'
   | 'unknown'
   | 'custom'
 
@@ -110,6 +111,8 @@ export interface DailyLog {
   stateCodes?: string[]
   overallIntensity?: string
   appetiteRatings?: AppetiteRatings
+  /** 기름진 음식 욕구 0~10 (비인덱스 optional — 기록용, 점수 공식 미포함). */
+  greasyCraving?: number
   createdAt: string
   updatedAt: string
 }
@@ -120,6 +123,8 @@ export interface AppetiteRatings {
   sweetCraving?: number
   saltyCraving?: number
   bingeUrge?: number
+  /** 기름진 음식 욕구. 기록/복원용 — appetiteLoad 공식에는 아직 미포함(엔진 유지). */
+  greasyCraving?: number
 }
 
 /* ---------------------------------------------------------------------
@@ -175,6 +180,11 @@ export interface RecoveryLog {
   effect: RecoveryEffectValue
   timeGap?: RecoveryTimeGap
   memo?: string
+  /**
+   * 회복 방향 (비인덱스 optional). 'positive'=도움 된 것, 'negative'=오히려 안 맞았던 것.
+   * 같은 행동이 날에 따라 다른 방향으로 기록될 수 있다. 없으면 positive로 간주(옛 기록).
+   */
+  direction?: 'positive' | 'negative'
   createdAt: string
 }
 
