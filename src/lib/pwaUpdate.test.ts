@@ -4,6 +4,8 @@ import {
   shouldCheckForUpdate,
   setFormBusy,
   isFormBusy,
+  setFormDirty,
+  isFormDirty,
   applyUpdate,
   MIN_CHECK_INTERVAL_MS,
 } from './pwaUpdate'
@@ -23,16 +25,45 @@ describe('shouldCheckForUpdate (스로틀)', () => {
 })
 
 describe('applyUpdate 안전 가드', () => {
-  it('폼 저장 중이면 busy를 반환하고 아무것도 하지 않는다', async () => {
+  it('폼 저장 중이면 saving을 반환하고 아무것도 하지 않는다', async () => {
     setFormBusy(true)
+    setFormDirty(false)
     expect(isFormBusy()).toBe(true)
-    expect(await applyUpdate()).toBe('busy')
+    expect(await applyUpdate()).toBe('saving')
     setFormBusy(false)
+  })
+
+  it('저장하지 않은 입력이 있으면 unsaved를 반환하고 아무것도 하지 않는다', async () => {
+    setFormBusy(false)
+    setFormDirty(true)
+    expect(isFormDirty()).toBe(true)
+    expect(await applyUpdate()).toBe('unsaved')
+    setFormDirty(false)
+  })
+
+  it('저장 중이면(busy) dirty보다 우선해 saving을 반환한다', async () => {
+    setFormBusy(true)
+    setFormDirty(true)
+    expect(await applyUpdate()).toBe('saving')
+    setFormBusy(false)
+    setFormDirty(false)
   })
 
   it('SW 미등록(테스트/미지원) 환경에서는 noop', async () => {
     setFormBusy(false)
+    setFormDirty(false)
     expect(await applyUpdate()).toBe('noop')
+  })
+})
+
+describe('setFormDirty / isFormDirty (저장하지 않은 입력 플래그)', () => {
+  it('기본값은 false, 설정/해제가 반영된다', () => {
+    setFormDirty(false)
+    expect(isFormDirty()).toBe(false)
+    setFormDirty(true)
+    expect(isFormDirty()).toBe(true)
+    setFormDirty(false)
+    expect(isFormDirty()).toBe(false)
   })
 })
 

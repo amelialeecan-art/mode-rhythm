@@ -58,7 +58,7 @@ npm run typecheck  # tsc --noEmit
 - manifest: name/short_name `MODE`, `display: standalone`, `orientation: portrait`, theme `#A985E8`, background `#EBE3FA`.
 - 아이콘은 `public/icons/icon.svg` · `public/icons/maskable.svg` (모찌 캐릭터 기반 **placeholder SVG**). 추후 PNG(192/512)로 교체 가능.
 - 서비스워커는 **앱 셸만 프리캐시**한다. 개인 기록(IndexedDB)은 캐시 대상이 아니며 로컬에 남는다. 개발 중 캐시 꼬임 방지를 위해 dev에서는 SW를 켜지 않는다.
-- **캐시 주의**: 새 버전이 반영되지 않으면 브라우저 새로고침, 또는 설치된 PWA 삭제 후 재설치가 필요할 수 있다.
+- **캐시 주의**: 새 버전이 바로 반영되지 않으면 앱 안의 업데이트 배너 또는 설정 → 앱 버전 → 업데이트 확인으로 갱신한다(브라우저 탭이라면 새로고침도 가능). 설치형 PWA를 삭제·재설치하는 방식은 기록(IndexedDB) 손실 위험이 있어 권장하지 않는다 — 아래 "업데이트" 안내를 따른다.
 
 ### 업데이트 (기존 설치본 유지 — 특히 iOS 홈 화면)
 

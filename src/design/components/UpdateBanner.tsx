@@ -18,7 +18,8 @@ export function UpdateBanner() {
   const onUpdate = async () => {
     setBusyMsg('')
     const result = await applyUpdate()
-    if (result === 'busy') setBusyMsg('기록 저장 중이에요. 저장이 끝나면 다시 눌러 주세요.')
+    if (result === 'saving') setBusyMsg('기록 저장 중이에요. 저장이 끝나면 다시 눌러 주세요.')
+    else if (result === 'unsaved') setBusyMsg('아직 저장하지 않은 기록이 있어요. 기록을 저장한 뒤 업데이트해 주세요.')
     // 'applied'면 reload되므로 이후 상태 갱신 불필요
   }
 

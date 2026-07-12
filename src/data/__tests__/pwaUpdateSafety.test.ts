@@ -5,6 +5,7 @@ import { db } from '../db'
 import { DB_NAME, DB_VERSION, SCHEMA_V1 } from '../schema'
 import { applyUpdate, checkForUpdateNow, setFormBusy } from '../../lib/pwaUpdate'
 
+// 7개 테이블 전체 카운트 (빈 테이블 포함) — 업데이트 전후 완전 일치 확인용.
 async function tableCounts() {
   return {
     dailyLogs: await db.dailyLogs.count(),
@@ -12,6 +13,8 @@ async function tableCounts() {
     cycleLogs: await db.cycleLogs.count(),
     recoveryLogs: await db.recoveryLogs.count(),
     dailyScores: await db.dailyScores.count(),
+    patternInsights: await db.patternInsights.count(),
+    userSettings: await db.userSettings.count(),
   }
 }
 
@@ -23,6 +26,7 @@ describe('PWA 업데이트 흐름의 데이터 안전성', () => {
   it('업데이트 확인/적용을 거쳐도 IndexedDB 기록 수가 그대로다', async () => {
     await seedDemoData()
     const before = await tableCounts()
+    expect(Object.keys(before)).toHaveLength(7) // 7개 테이블 전체 확인
     expect(before.dailyLogs).toBeGreaterThan(0)
 
     // 업데이트 흐름 전체 호출 (테스트 환경: SW 없음 → unsupported/noop 경로)

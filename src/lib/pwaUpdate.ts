@@ -15,6 +15,7 @@ let updateAvailable = false
 let initialized = false
 let lastCheckAt = 0
 let formBusy = false
+let formDirty = false
 
 const listeners = new Set<UpdateListener>()
 
@@ -32,6 +33,14 @@ export function setFormBusy(busy: boolean): void {
 }
 export function isFormBusy(): boolean {
   return formBusy
+}
+
+/** 저장하지 않은 Log 입력 플래그 — 아직 저장 안 한 입력이 reload로 유실되지 않게 업데이트를 보류. */
+export function setFormDirty(dirty: boolean): void {
+  formDirty = dirty
+}
+export function isFormDirty(): boolean {
+  return formDirty
 }
 
 /** 새 버전 감지 상태 구독. 등록 즉시 현재 상태로 1회 호출. */
@@ -101,14 +110,18 @@ export async function checkForUpdateNow(): Promise<UpdateCheckResult> {
   }
 }
 
-export type ApplyUpdateResult = 'applied' | 'busy' | 'noop'
+export type ApplyUpdateResult = 'applied' | 'saving' | 'unsaved' | 'noop'
 
 /**
- * "지금 업데이트": 저장 중인 폼이 없으면 새 SW 활성화 + reload.
+ * "지금 업데이트": 저장 중이거나 저장하지 않은 입력이 있으면 보류, 아니면 새 SW 활성화 + reload.
  * 기록(IndexedDB)은 그대로 유지된다 — 앱 셸만 교체.
+ * - saving: 저장이 진행 중이라 보류 (저장 끝난 뒤 다시 시도)
+ * - unsaved: 저장하지 않은 입력이 있어 보류 (먼저 저장한 뒤 업데이트)
+ * - noop: SW 미등록(테스트/미지원) — 아무것도 하지 않음
  */
 export async function applyUpdate(): Promise<ApplyUpdateResult> {
-  if (isFormBusy()) return 'busy'
+  if (isFormBusy()) return 'saving'
+  if (isFormDirty()) return 'unsaved'
   if (!updateSWFn) return 'noop'
   await updateSWFn(true)
   return 'applied'
