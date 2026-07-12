@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Outlet, useNavigate } from 'react-router-dom'
 import { AppShell } from '../design'
+import { UpdateBanner } from '../design/components/UpdateBanner'
 import { isOnboardingCompleted } from '../lib/onboarding'
+import { initPwaUpdate } from '../lib/pwaUpdate'
 import { OnboardingScreen } from '../screens/Onboarding/OnboardingScreen'
 import { TodayScreen } from '../screens/Today/TodayScreen'
 import { LogScreen } from '../screens/Log/LogScreen'
@@ -27,8 +29,13 @@ function TabbedLayout() {
 const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
 
 export function App() {
+  useEffect(() => {
+    void initPwaUpdate()
+  }, [])
+
   return (
     <BrowserRouter basename={BASENAME}>
+      <UpdateBanner />
       <Routes>
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route element={<TabbedLayout />}>

@@ -16,6 +16,7 @@ import {
   type AppetiteRatings,
 } from '../../data/services/dailyEntryService'
 import { getTodayISODate } from '../../lib/date'
+import { setFormBusy } from '../../lib/pwaUpdate'
 import type { EventCategory } from '../../data/types'
 import type { EventTiming, FlowLevel } from '../../data/models'
 import './log.css'
@@ -162,6 +163,7 @@ export function LogScreen() {
 
   const onSave = async () => {
     setStatus('saving')
+    setFormBusy(true) // 저장 중에는 PWA 업데이트(reload)를 보류
     const symptoms = symptomsText
       .split(',')
       .map((s) => s.trim())
@@ -174,6 +176,8 @@ export function LogScreen() {
     } catch (e) {
       console.error('[MODE] 저장 실패', e)
       setStatus('error')
+    } finally {
+      setFormBusy(false)
     }
   }
 
