@@ -202,3 +202,10 @@
   border-radius: 13px;
   cursor: pointer;
 }
+
+.setting-build {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}

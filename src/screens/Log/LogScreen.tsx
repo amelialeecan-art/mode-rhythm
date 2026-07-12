@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { GlassCard, SectionHeader, Chip, ChipGroup } from '../../design'
 import { STATE_CHIPS } from '../../data/catalog/modes'
@@ -16,6 +16,8 @@ import {
   type AppetiteRatings,
 } from '../../data/services/dailyEntryService'
 import { getTodayISODate } from '../../lib/date'
+import { setFormBusy, setFormDirty } from '../../lib/pwaUpdate'
+import { serializeForm } from './dirty'
 import type { EventCategory } from '../../data/types'
 import type { EventTiming, FlowLevel } from '../../data/models'
 import './log.css'
@@ -89,6 +91,8 @@ export function LogScreen() {
   const [symptomsText, setSymptomsText] = useState('')
   const [hasSaved, setHasSaved] = useState(false)
   const [status, setStatus] = useState<SaveStatus>('idle')
+  // 마지막으로 불러오거나 저장한 시점의 폼 스냅샷 — 이 값과 다르면 "저장하지 않은 입력"으로 본다.
+  const baselineRef = useRef<string>(serializeForm(draft, symptomsText))
 
   // 커스텀 사건 추가 폼
   const [showCustom, setShowCustom] = useState(false)
@@ -103,15 +107,27 @@ export function LogScreen() {
     void loadDailyEntry(date).then((loaded) => {
       if (cancelled) return
       const next = loaded ?? emptyDraft(date)
+      const nextSymptoms = next.cycle.symptoms.join(', ')
       setDraft(next)
-      setSymptomsText(next.cycle.symptoms.join(', '))
+      setSymptomsText(nextSymptoms)
       setHasSaved(loaded != null)
       setStatus('idle')
+      // 불러온 값이 새 baseline — 단순히 탭에 들어오거나 기존 기록을 여는 것은 dirty가 아니다.
+      baselineRef.current = serializeForm(next, nextSymptoms)
+      setFormDirty(false)
     })
     return () => {
       cancelled = true
     }
   }, [date])
+
+  // 저장하지 않은 입력 감지 — baseline과 현재 폼이 다르면 dirty. 실제 입력 변화가 있을 때만 true.
+  useEffect(() => {
+    setFormDirty(serializeForm(draft, symptomsText) !== baselineRef.current)
+  }, [draft, symptomsText])
+
+  // 화면을 벗어나면 미저장 플래그를 정리한다 (Log 탭 밖에서는 업데이트 보류 사유가 아님).
+  useEffect(() => () => setFormDirty(false), [])
 
   /* ---- draft 업데이트 헬퍼 ---- */
   const toggleInArray = (arr: string[], key: string) =>
@@ -162,6 +178,7 @@ export function LogScreen() {
 
   const onSave = async () => {
     setStatus('saving')
+    setFormBusy(true) // 저장 중에는 PWA 업데이트(reload)를 보류
     const symptoms = symptomsText
       .split(',')
       .map((s) => s.trim())
@@ -171,9 +188,14 @@ export function LogScreen() {
       await saveDailyEntry(toSave)
       setHasSaved(true)
       setStatus('success')
+      // 저장 성공 → 현재 폼이 새 baseline, dirty 해제.
+      baselineRef.current = serializeForm(draft, symptomsText)
+      setFormDirty(false)
     } catch (e) {
       console.error('[MODE] 저장 실패', e)
       setStatus('error')
+    } finally {
+      setFormBusy(false)
     }
   }
 

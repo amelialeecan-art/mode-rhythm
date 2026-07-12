@@ -5,8 +5,11 @@ import { userSettingsRepository } from '../../data/repositories/userSettingsRepo
 import { resetDatabase } from '../../data/reset'
 import { seedDemoData } from '../../data/seed'
 import { downloadExportJson } from '../../data/services/dataExportService'
+import { checkForUpdateNow } from '../../lib/pwaUpdate'
 import type { ToneModeValue, UserSettings } from '../../data/models'
 import './settings.css'
+
+const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'
 
 const IS_DEV = import.meta.env.DEV
 
@@ -31,6 +34,8 @@ export function SettingsScreen() {
   const [devMsg, setDevMsg] = useState('')
   const [dataMsg, setDataMsg] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
+  const [updateMsg, setUpdateMsg] = useState('')
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -63,6 +68,16 @@ export function SettingsScreen() {
     const s = await userSettingsRepository.ensureDefault()
     setSettings(s)
     setDataMsg('로컬 데이터를 모두 비웠어요.')
+  }
+
+  const onCheckUpdate = async () => {
+    setChecking(true)
+    setUpdateMsg('')
+    const result = await checkForUpdateNow()
+    if (result === 'update-available') setUpdateMsg('새 버전이 있어요. 위의 업데이트 배너에서 진행해 주세요.')
+    else if (result === 'up-to-date') setUpdateMsg('최신 버전이에요.')
+    else setUpdateMsg('이 환경에서는 업데이트 확인을 지원하지 않아요. (개발 모드/미지원 브라우저)')
+    setChecking(false)
   }
 
   const runSeed = async () => {
@@ -156,6 +171,19 @@ export function SettingsScreen() {
         </button>
         {dataMsg && <p className="dev-msg">{dataMsg}</p>}
         <p className="setting-hint setting-hint--soft">데이터 가져오기(JSON)는 아직 준비 중이에요.</p>
+      </GlassCard>
+
+      {/* 앱 버전 / 업데이트 */}
+      <GlassCard>
+        <SectionHeader title="앱 버전" subtitle="업데이트해도 기록은 그대로 유지돼요" />
+        <div className="setting-row">
+          <span className="setting-row__label">빌드</span>
+          <span className="setting-build">{BUILD_ID}</span>
+        </div>
+        <button className="data-btn" disabled={checking} onClick={() => void onCheckUpdate()}>
+          {checking ? '확인 중…' : '업데이트 확인'}
+        </button>
+        {updateMsg && <p className="setting-hint">{updateMsg}</p>}
       </GlassCard>
 
       {/* 온보딩 다시 보기 */}
