@@ -43,7 +43,24 @@ export {
   type RhythmOptions,
   type CyclePhase,
 } from './services/rhythmService'
-export { exportAllData, downloadExportJson, type ModeExportPayload } from './services/dataExportService'
+export {
+  exportAllData,
+  buildExportPayload,
+  downloadExportJson,
+  downloadExportPayload,
+  EXPORT_FORMAT_VERSION,
+  type ModeExportPayload,
+} from './services/dataExportService'
+export {
+  validateImportPayload,
+  parseAndValidate,
+  importAllData,
+  MAX_IMPORT_BYTES,
+  type ImportValidation,
+  type ImportSummary,
+  type ImportErrorCode,
+  type ImportResultCounts,
+} from './services/dataImportService'
 export {
   getRhythmForecastViewModel,
   type RhythmForecastViewModel,
