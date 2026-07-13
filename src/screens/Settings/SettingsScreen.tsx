@@ -1,13 +1,48 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GlassCard, SectionHeader, Chip, ChipGroup } from '../../design'
 import { userSettingsRepository } from '../../data/repositories/userSettingsRepository'
 import { resetDatabase } from '../../data/reset'
 import { seedDemoData } from '../../data/seed'
-import { downloadExportJson } from '../../data/services/dataExportService'
+import { db } from '../../data/db'
+import {
+  downloadExportJson,
+  buildExportPayload,
+  downloadExportPayload,
+  type ModeExportPayload,
+} from '../../data/services/dataExportService'
+import {
+  parseAndValidate,
+  importAllData,
+  MAX_IMPORT_BYTES,
+  type ImportErrorCode,
+  type ImportSummary,
+} from '../../data/services/dataImportService'
 import { checkForUpdateNow } from '../../lib/pwaUpdate'
+import { setOnboardingCompleted } from '../../lib/onboarding'
+import { getTodayISODate } from '../../lib/date'
 import type { ToneModeValue, UserSettings } from '../../data/models'
 import './settings.css'
+
+/** 가져오기 실패 코드 → 사용자 메시지(원문 미노출). */
+const IMPORT_ERROR_MESSAGE: Record<ImportErrorCode, string> = {
+  'file-read': '파일을 읽을 수 없어요.',
+  'too-large': '파일이 너무 커요. (최대 20MB)',
+  'not-mode': 'MODE 백업 파일이 아니에요.',
+  'unsupported-version': '이 버전의 백업은 아직 지원하지 않아요.',
+  'invalid-structure': '백업 파일이 손상됐거나 형식이 달라요.',
+  'backup-failed': '현재 데이터 백업을 만들지 못해 가져오기를 중단했어요.',
+  'import-failed': '데이터를 가져오지 못했어요. 기존 기록은 그대로예요.',
+}
+
+interface ImportPreview {
+  fileName: string
+  payload: ModeExportPayload
+  summary: ImportSummary
+  currentDailyLogs: number
+}
+
+type ImportStage = 'idle' | 'preview' | 'importing' | 'success'
 
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'
 
@@ -36,6 +71,12 @@ export function SettingsScreen() {
   const [confirmReset, setConfirmReset] = useState(false)
   const [updateMsg, setUpdateMsg] = useState('')
   const [checking, setChecking] = useState(false)
+
+  // 가져오기(복원) 흐름
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importStage, setImportStage] = useState<ImportStage>('idle')
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
+  const [importError, setImportError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -68,6 +109,76 @@ export function SettingsScreen() {
     const s = await userSettingsRepository.ensureDefault()
     setSettings(s)
     setDataMsg('로컬 데이터를 모두 비웠어요.')
+  }
+
+  /* ---- 가져오기(복원) ---- */
+  // 1) 파일 선택 직후: 읽기·검증만. DB는 절대 건드리지 않는다.
+  const onImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    // 같은 파일 재선택도 동작하도록 input을 항상 초기화
+    e.target.value = ''
+    if (!file) return // 취소 → 아무 동작 안 함
+
+    setImportError('')
+    if (file.size > MAX_IMPORT_BYTES) {
+      setImportError(IMPORT_ERROR_MESSAGE['too-large'])
+      return
+    }
+
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      setImportError(IMPORT_ERROR_MESSAGE['file-read'])
+      return
+    }
+
+    const result = parseAndValidate(text)
+    if (!result.ok) {
+      setImportError(IMPORT_ERROR_MESSAGE[result.code])
+      return
+    }
+
+    const currentDailyLogs = await db.dailyLogs.count()
+    setImportPreview({ fileName: file.name, payload: result.payload, summary: result.summary, currentDailyLogs })
+    setImportStage('preview')
+  }
+
+  const cancelImport = () => {
+    setImportPreview(null)
+    setImportStage('idle')
+  }
+
+  // 2) 확인 후: 현재 데이터 자동 백업 → 성공 시에만 전체 교체 → 온보딩 완료 → 성공 화면.
+  const onConfirmImport = async () => {
+    if (!importPreview) return
+    setImportStage('importing')
+    setImportError('')
+
+    // (a) 현재 데이터 자동 백업 (기존 export 형식 그대로). 실패하면 DB 무접촉으로 중단.
+    try {
+      const backup = await buildExportPayload()
+      downloadExportPayload(backup, `mode-autobackup-before-import-${getTodayISODate()}.json`)
+    } catch {
+      setImportError(IMPORT_ERROR_MESSAGE['backup-failed'])
+      setImportPreview(null)
+      setImportStage('idle')
+      return
+    }
+
+    // (b) 원자적 전체 교체. 실패하면 롤백되어 기존 기록 유지.
+    try {
+      await importAllData(importPreview.payload)
+    } catch {
+      setImportError(IMPORT_ERROR_MESSAGE['import-failed'])
+      setImportPreview(null)
+      setImportStage('idle')
+      return
+    }
+
+    // (c) 성공 처리. reload는 사용자가 성공 화면 버튼을 누를 때만.
+    setOnboardingCompleted()
+    setImportStage('success')
   }
 
   const onCheckUpdate = async () => {
@@ -166,11 +277,27 @@ export function SettingsScreen() {
           데이터 내보내기 (JSON)
         </button>
         <p className="setting-hint">민감한 개인 기록이에요. 서버로 보내지 않고, 파일은 이 기기에 저장돼요.</p>
+
+        {/* 가져오기(복원) — 숨김 file input을 버튼으로 트리거 */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="import-file-input"
+          onChange={(e) => void onImportFile(e)}
+        />
+        <button className="data-btn" onClick={() => fileInputRef.current?.click()}>
+          데이터 가져오기 (JSON)
+        </button>
+        <p className="setting-hint">
+          다른 기기·구버전에서 내보낸 백업 JSON을 복원해요. 가져오기 전에 현재 데이터를 자동으로 백업해요.
+        </p>
+        {importError && <p className="import-error">{importError}</p>}
+
         <button className="data-btn data-btn--danger" onClick={() => setConfirmReset(true)}>
           로컬 데이터 초기화
         </button>
         {dataMsg && <p className="dev-msg">{dataMsg}</p>}
-        <p className="setting-hint setting-hint--soft">데이터 가져오기(JSON)는 아직 준비 중이에요.</p>
       </GlassCard>
 
       {/* 앱 버전 / 업데이트 */}
@@ -225,6 +352,64 @@ export function SettingsScreen() {
           </div>
         </>
       )}
+
+      {/* 가져오기 확인 화면 — 백업 요약 + 완전 교체 경고 */}
+      {(importStage === 'preview' || importStage === 'importing') && importPreview && (
+        <>
+          <div className="sheet-scrim" onClick={importStage === 'preview' ? cancelImport : undefined} />
+          <div className="confirm" role="dialog" aria-label="데이터 가져오기 확인">
+            <p className="confirm__title">이 백업을 가져올까요?</p>
+            <ul className="import-summary">
+              <li><span>파일</span><b>{importPreview.fileName}</b></li>
+              <li><span>백업 생성</span><b>{formatDateTime(importPreview.summary.exportedAt)}</b></li>
+              <li><span>기록 일수(하루 기록)</span><b>{importPreview.summary.dailyLogs}개</b></li>
+              <li><span>사건 기록</span><b>{importPreview.summary.eventLogs}개</b></li>
+              <li><span>생리 기록</span><b>{importPreview.summary.cycleLogs}개</b></li>
+              <li><span>회복 기록</span><b>{importPreview.summary.recoveryLogs}개</b></li>
+              <li><span>분석 데이터</span><b>{importPreview.summary.hasAnalysis ? '포함' : '없음'}</b></li>
+              <li><span>현재 기기 하루 기록</span><b>{importPreview.currentDailyLogs}개</b></li>
+            </ul>
+            <p className="confirm__body import-warn">
+              현재 기기의 모든 기록이 <b>가져온 백업으로 완전히 교체</b>됩니다. 가져오기 직전 현재 데이터를 자동으로
+              백업(다운로드)하니, 그 파일도 안전하게 보관해 주세요.
+            </p>
+            <div className="confirm__actions">
+              <button className="confirm__cancel" disabled={importStage === 'importing'} onClick={cancelImport}>
+                취소
+              </button>
+              <button
+                className="confirm__danger"
+                disabled={importStage === 'importing'}
+                onClick={() => void onConfirmImport()}
+              >
+                {importStage === 'importing' ? '가져오는 중…' : '현재 데이터 백업 후 가져오기'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 가져오기 성공 화면 — 사용자가 눌러야 reload */}
+      {importStage === 'success' && (
+        <>
+          <div className="sheet-scrim" />
+          <div className="confirm" role="dialog" aria-label="가져오기 완료">
+            <p className="confirm__title">데이터를 안전하게 가져왔어요</p>
+            <p className="confirm__body">앱을 다시 열면 복원된 기록이 표시됩니다.</p>
+            <div className="confirm__actions">
+              <button className="confirm__danger" onClick={() => window.location.reload()}>
+                복원된 데이터 열기
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
+}
+
+/** exportedAt 문자열을 사람이 읽기 쉬운 형태로. 파싱 실패 시 원문 그대로. */
+function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('ko-KR')
 }

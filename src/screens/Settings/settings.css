@@ -209,3 +209,48 @@
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
+
+/* 가져오기(복원) */
+.import-file-input {
+  display: none;
+}
+.import-error {
+  margin-top: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--coral-ink);
+  line-height: 1.5;
+}
+.import-summary {
+  list-style: none;
+  margin: 14px 0 4px;
+  padding: 0;
+}
+.import-summary li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+.import-summary li:last-child {
+  border-bottom: none;
+}
+.import-summary li span {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.import-summary li b {
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+  word-break: break-all;
+}
+.import-warn {
+  margin-top: 8px;
+}
+.import-warn b {
+  color: var(--coral-ink);
+}
