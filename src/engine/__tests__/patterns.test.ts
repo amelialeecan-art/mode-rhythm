@@ -24,32 +24,44 @@ function seq(start: string, n: number): string[] {
   return out
 }
 
-/** combo: A&B 4일(metric 80), A만 3일(50), B만 3일(50), 빈 2일. */
-function comboDataset(comboMetric: number, comboDays: number): AnalysisDataset {
-  const dates = seq('2026-06-01', comboDays + 8)
+/** combo: A&B comboDays일(metric), A만 aOnly일(50), B만 bOnly일(50), 빈 2일. */
+function comboDataset(comboMetric: number, comboDays: number, aOnly = 4, bOnly = 4): AnalysisDataset {
+  const dates = seq('2026-06-01', comboDays + aOnly + bOnly + 2)
   const days: DaySpec[] = dates.map((date, i) => {
     if (i < comboDays) return { date, factors: ['A', 'B'], m: { appetite: comboMetric } }
-    if (i < comboDays + 3) return { date, factors: ['A'], m: { appetite: 50 } }
-    if (i < comboDays + 6) return { date, factors: ['B'], m: { appetite: 50 } }
+    if (i < comboDays + aOnly) return { date, factors: ['A'], m: { appetite: 50 } }
+    if (i < comboDays + aOnly + bOnly) return { date, factors: ['B'], m: { appetite: 50 } }
     return { date, factors: [], m: { appetite: 50 } }
   })
   return makeDs(days)
 }
 
 describe('accompliceEffect', () => {
-  it('A&B 함께일 때 comboEffect를 계산한다', () => {
-    const r = accompliceEffect(comboDataset(80, 4), 'A', 'B', 'A', 'B', 'appetite', 50)
+  it('A&B 함께일 때 comboEffect를 계산한다 (support 5, A만/B만 4↑)', () => {
+    const r = accompliceEffect(comboDataset(80, 5), 'A', 'B', 'A', 'B', 'appetite', 50)
     expect(r).not.toBeNull()
     expect(r!.comboEffect).toBe(30) // 80 - max(50,50,50)
-    expect(r!.supportCount).toBe(4)
+    expect(r!.supportCount).toBe(5)
+    expect(r!.factorAOnlyCount).toBe(4)
+    expect(r!.factorBOnlyCount).toBe(4)
+    expect(r!.comparisonCount).toBe(8)
   })
 
-  it('combo 표본이 부족하면 null', () => {
-    expect(accompliceEffect(comboDataset(80, 2), 'A', 'B', 'A', 'B', 'appetite', 50)).toBeNull()
+  it('combo support가 4면 부족(null), 5면 가능', () => {
+    expect(accompliceEffect(comboDataset(80, 4), 'A', 'B', 'A', 'B', 'appetite', 50)).toBeNull()
+    expect(accompliceEffect(comboDataset(80, 5), 'A', 'B', 'A', 'B', 'appetite', 50)).not.toBeNull()
+  })
+
+  it('A만 표본이 부족하면(4 미만) baseline 대체 없이 null', () => {
+    expect(accompliceEffect(comboDataset(80, 5, 3, 4), 'A', 'B', 'A', 'B', 'appetite', 50)).toBeNull()
+  })
+
+  it('B만 표본이 부족하면(4 미만) baseline 대체 없이 null', () => {
+    expect(accompliceEffect(comboDataset(80, 5, 4, 3), 'A', 'B', 'A', 'B', 'appetite', 50)).toBeNull()
   })
 
   it('comboEffect가 작으면 null', () => {
-    expect(accompliceEffect(comboDataset(55, 4), 'A', 'B', 'A', 'B', 'appetite', 50)).toBeNull()
+    expect(accompliceEffect(comboDataset(55, 5), 'A', 'B', 'A', 'B', 'appetite', 50)).toBeNull()
   })
 })
 

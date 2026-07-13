@@ -33,7 +33,10 @@ export {
   getRecoveryRecommendations,
   type AnalysisViewModel,
   type AnalysisOptions,
-  type RecoveryFrequencyItem,
+  type AnalysisStage,
+  type FactorPatternCard,
+  type ComboCard,
+  type FrequencyItem,
 } from './services/patternAnalysisService'
 export {
   getRhythmViewModel,

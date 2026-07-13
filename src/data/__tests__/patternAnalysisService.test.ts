@@ -35,18 +35,21 @@ describe('getAnalysisViewModel', () => {
   it('factor/combo/unknown/recoveryFrequency 형태를 반환한다', async () => {
     await seedTwelveDays()
     const vm = await getAnalysisViewModel({ endDate: END })
-    expect(vm.dayCount).toBe(12)
-    expect(vm.hasEnoughData).toBe(true)
+    expect(vm.savedDayCount).toBe(12)
+    expect(vm.validOutcomeDayCount).toBe(12)
     expect(Array.isArray(vm.factorPatterns)).toBe(true)
     expect(Array.isArray(vm.combos)).toBe(true)
     expect(Array.isArray(vm.unexplained)).toBe(true)
     expect(vm.recoveryFrequency.find((r) => r.label === '산책')?.count).toBe(12)
   })
 
-  it('기록이 부족하면 hasEnoughData false', async () => {
-    await saveDailyEntry(draft('2026-06-10', { stateCodes: ['anxious'] }))
+  it('30일 미만이면 factor/combo 카드가 비어 있다 (수집 단계)', async () => {
+    await seedTwelveDays()
     const vm = await getAnalysisViewModel({ endDate: END })
-    expect(vm.hasEnoughData).toBe(false)
+    expect(vm.validOutcomeDayCount).toBeLessThan(30)
+    expect(vm.factorPatterns).toHaveLength(0)
+    expect(vm.combos).toHaveLength(0)
+    expect(vm.analysisStage).toBe('collecting')
   })
 })
 

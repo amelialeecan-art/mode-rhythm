@@ -87,6 +87,65 @@ export const EVENT_CATALOG: EventCatalogItem[] = [
   { code: 'tracking_burden', label: '기록이 부담됐음', category: 'unknown', factorGroup: 'tracking_burden' },
 ]
 
+/**
+ * 회복성(self-care) factor 그룹 — 부하를 높이는 "위험 요인" 분석(factorEffect/combo)에서 제외한다.
+ * 부하가 높은 날 오히려 더 하기 쉬운 행동이라 역인과로 잘못 잡히기 때문.
+ * 이 그룹들은 recoveryLogs 기반 회복 분석에서만 평가된다. (원본 eventLog는 그대로 보존)
+ */
+export const RECOVERY_LIKE_FACTOR_GROUPS: ReadonlySet<string> = new Set(['exercise', 'walk', 'self_care'])
+
+/**
+ * factor 그룹 표준 표시(분석 화면용). 최빈 eventLabel 하나를 제목으로 쓰는 대신,
+ * 그룹이 실제로 묶는 사건들을 제목+설명으로 정직하게 보여준다.
+ * 여기 없는(custom 등) 그룹은 대표 eventLabel을 fallback으로 사용한다.
+ */
+export interface FactorGroupDisplay {
+  title: string
+  subtitle?: string
+}
+export const FACTOR_GROUP_DISPLAY: Record<string, FactorGroupDisplay> = {
+  sleep_deficit: { title: '수면 부족', subtitle: '잠 부족·밤샘 포함' },
+  sleep_schedule: { title: '수면 시간대 불규칙', subtitle: '늦게 잠·늦게 일어남·기상/취침 불규칙 포함' },
+  sleep_quality: { title: '수면의 질 저하', subtitle: '자주 깸·악몽 포함' },
+  morning_light: { title: '아침 햇빛 부족', subtitle: '아침 햇빛 못 봄' },
+  meal_skip: { title: '식사 거름', subtitle: '끼니를 거른 기록' },
+  overeat: { title: '과식', subtitle: '과식 기록' },
+  late_night_eating: { title: '야식', subtitle: '야식 기록' },
+  sugar_intake: { title: '단 음식 섭취', subtitle: '단 음식 먹음' },
+  ultraprocessed: { title: '초가공식품 섭취', subtitle: '초가공식품 먹음' },
+  late_meal: { title: '늦은 식사', subtitle: '늦은 시간 식사' },
+  caffeine: { title: '카페인 과다', subtitle: '카페인을 많이 마심' },
+  caffeine_timing: { title: '카페인 늦은 시간', subtitle: '카페인을 늦게 마심' },
+  hydration: { title: '수분 부족', subtitle: '물 부족' },
+  alcohol: { title: '음주', subtitle: '술 마심' },
+  workload: { title: '업무량 많음', subtitle: '일이 많았음' },
+  deadline_pressure: { title: '마감·압박', subtitle: '마감/압박이 있었음' },
+  interpersonal_stress: { title: '대인 갈등', subtitle: '사람과 갈등이 있었음' },
+  reply_stress: { title: '연락 스트레스', subtitle: '연락/답장 신경 쓰임' },
+  alone_time: { title: '혼자 있는 시간', subtitle: '혼자 오래 있음' },
+  crowd_exposure: { title: '사람 많은 환경', subtitle: '사람 많음' },
+  social_comparison: { title: '사회적 비교', subtitle: '남과 비교하게 됨' },
+  plan_disruption: { title: '계획 틀어짐', subtitle: '계획이 틀어짐' },
+  control_loss: { title: '내 뜻대로 안 됨', subtitle: '통제감 저하' },
+  failure: { title: '실패·실수', subtitle: '실패/실수 기록' },
+  anticipatory_stress: { title: '앞둔 일정 부담', subtitle: '부담 일정·앞둔 약속 스트레스 포함' },
+  body_image: { title: '외모·몸 관련 자극', subtitle: '몸무게 확인·외모 신경 쓰임 포함' },
+  social_media: { title: 'SNS 과다', subtitle: 'SNS를 많이 봄' },
+  short_video: { title: '쇼츠·릴스 과다', subtitle: '쇼츠/릴스를 많이 봄' },
+  late_screen: { title: '밤 화면 노출', subtitle: '누워서 폰·밤에 화면 오래 봄 포함' },
+  low_activity: { title: '활동 부족', subtitle: '집에만 있었음' },
+  high_movement: { title: '이동 많음', subtitle: '이동이 많았음' },
+  weather: { title: '흐린 날씨', subtitle: '날씨가 흐렸음' },
+  environment_stress: { title: '소음·공간 스트레스', subtitle: '소음/공간 스트레스' },
+  clutter: { title: '어수선한 공간', subtitle: '집 지저분함' },
+  cramped_space: { title: '답답한 공간', subtitle: '공간 답답함' },
+  sunlight: { title: '햇빛 부족', subtitle: '햇빛 부족' },
+  tracking_burden: { title: '기록 부담', subtitle: '기록이 부담됐음' },
+  cycle_period: { title: '생리 구간', subtitle: '날짜 기준 자동 계산' },
+  cycle_premenstrual_window: { title: '월경 전 구간', subtitle: '날짜 기준 자동 계산' },
+  cycle_ovulation_window: { title: '배란 추정 구간', subtitle: '날짜 기준 자동 계산' },
+}
+
 /** 카테고리별 그룹핑 (기록 화면에서 섹션 표시용). */
 export const EVENT_CATEGORY_LABEL: Record<EventCategory, string> = {
   sleep: '수면/리듬',

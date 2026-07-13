@@ -31,20 +31,52 @@ const WINDOW_PHRASE: Record<EffectWindow, string> = {
   recent_7_days: '있었던 그 주에',
 }
 
-export type ConfidenceTier = 'reference' | 'possible' | 'likely' | 'strong_pattern'
+/**
+ * 자료 충분도 등급 (표시용). ⚠️ 통계적 유의확률/인과 신뢰도가 아니라
+ * "이 앱이 얼마나 많은 기록으로 비교했는지"를 나타내는 내부 지표다.
+ * 그래서 '가능성 있음/유력 후보/반복 패턴 강함' 같은 확신 표현을 쓰지 않는다.
+ */
+export type EvidenceLevel = 'reference' | 'early' | 'repeated' | 'sufficient'
 
-export const CONFIDENCE_TIER_LABEL: Record<ConfidenceTier, string> = {
-  reference: '참고 기록',
-  possible: '가능성 있음',
-  likely: '유력 후보',
-  strong_pattern: '반복 패턴 강함',
+export const EVIDENCE_LEVEL_LABEL: Record<EvidenceLevel, string> = {
+  reference: '참고 수준',
+  early: '초기 관찰',
+  repeated: '반복 관찰',
+  sufficient: '자료 충분',
 }
 
-export function confidenceTier(confidence: number): ConfidenceTier {
-  if (confidence <= 30) return 'reference'
-  if (confidence <= 55) return 'possible'
-  if (confidence <= 75) return 'likely'
-  return 'strong_pattern'
+const EVIDENCE_ORDER: EvidenceLevel[] = ['reference', 'early', 'repeated', 'sufficient']
+
+/** level을 max 이하로 제한. */
+function capEvidence(level: EvidenceLevel, max: EvidenceLevel): EvidenceLevel {
+  return EVIDENCE_ORDER.indexOf(level) <= EVIDENCE_ORDER.indexOf(max) ? level : max
+}
+
+export interface EvidenceInput {
+  /** 내부 자료 충분도 점수(0~100). */
+  confidence: number
+  /** 유효 결과 기록일 수. */
+  validOutcomeDayCount: number
+  supportCount: number
+  comparisonCount: number
+}
+
+/**
+ * 표시 등급 계산. 내부 confidence를 바탕으로 하되,
+ * 유효 결과일 수와 표본 수로 상한을 둔다(적은 데이터에서 최상위 금지).
+ */
+export function evidenceLevel(i: EvidenceInput): EvidenceLevel {
+  let level: EvidenceLevel =
+    i.confidence <= 30 ? 'reference' : i.confidence <= 55 ? 'early' : i.confidence <= 75 ? 'repeated' : 'sufficient'
+
+  // 유효 결과일 수 상한: 30~44일 → 최대 초기 관찰, 45~59일 → 최대 반복 관찰
+  if (i.validOutcomeDayCount < 45) level = capEvidence(level, 'early')
+  else if (i.validOutcomeDayCount < 60) level = capEvidence(level, 'repeated')
+
+  // 60일 이상이어도 support/comparison이 각각 12일 미만이면 최상위(자료 충분) 금지
+  if (level === 'sufficient' && (i.supportCount < 12 || i.comparisonCount < 12)) level = 'repeated'
+
+  return level
 }
 
 export interface MetricBaseline {
@@ -64,9 +96,14 @@ export interface FactorEffectResult {
   supportCount: number
   comparisonCount: number
   consistency: number
+  /** 내부 자료 충분도 점수(0~100). 표시 등급은 service가 evidenceLevel로 계산. */
   confidence: number
-  confidenceTier: ConfidenceTier
   message: string
+}
+
+/** 이 window의 사람이 읽을 관계 문구(요인 시점 → 결과일). */
+export function windowPhrase(window: EffectWindow): string {
+  return WINDOW_PHRASE[window]
 }
 
 /** 분석 입력 묶음 (service가 repository에서 모아 만든다). */
@@ -80,8 +117,9 @@ export interface AnalysisDataset {
   endDate: ISODate
 }
 
-const MIN_SUPPORT = 4
-const MIN_COMPARISON = 4
+// 보수화된 표본 기준: 요인 있는 결과일/없는 결과일 각각 최소 6일.
+const MIN_SUPPORT = 6
+const MIN_COMPARISON = 6
 
 export function addDaysISO(date: ISODate, n: number): ISODate {
   const d = parseISODate(date)
@@ -162,10 +200,13 @@ export interface ConfidenceInput {
   overlapPenalty: number
 }
 
-/** 신뢰도 0~100 (0단계 명세 공식). */
+/**
+ * 내부 자료 충분도 점수 0~100 (통계적 유의확률이 아님).
+ * 보수화: 표본 포화 분모 8→15, 효과 포화 분모 15→20 (적은 데이터에서 과신 방지).
+ */
 export function calcConfidence(input: ConfidenceInput): number {
-  const supportScore = Math.min(input.supportCount / 8, 1)
-  const effectScore = Math.min(Math.abs(input.effectSize) / 15, 1)
+  const supportScore = Math.min(input.supportCount / 15, 1)
+  const effectScore = Math.min(Math.abs(input.effectSize) / 20, 1)
   const consistencyScore = clamp(input.consistency, 0, 1)
   const recencyScore = clamp(input.recencyScore, 0, 1)
   const raw =
@@ -184,8 +225,9 @@ function buildFactorMessage(
 }
 
 /**
- * 시간창별 요인 효과. 표본이 부족하면 null.
+ * 시간창별 요인 효과. 표본이 부족하거나 평균 차이가 minEffect 미만이면 null.
  * effectSize = 요인 있던 결과날 metric 평균 - 없던 결과날 평균.
+ * @param minEffect 최소 평균 차이(절대값). 기본 0(제한 없음). service는 8을 넘겨 보수화.
  */
 export function factorEffect(
   ds: AnalysisDataset,
@@ -194,6 +236,7 @@ export function factorEffect(
   metric: AnalysisMetric,
   window: EffectWindow,
   baselineMean: number,
+  minEffect = 0,
 ): FactorEffectResult | null {
   const withVals: { date: ISODate; val: number }[] = []
   const withoutVals: number[] = []
@@ -212,6 +255,7 @@ export function factorEffect(
   const withFactorMean = mean(withVals.map((x) => x.val))
   const withoutFactorMean = mean(withoutVals)
   const effectSize = withFactorMean - withoutFactorMean
+  if (Math.abs(effectSize) < minEffect) return null
 
   const consistency = withVals.filter((x) => x.val > baselineMean).length / supportCount
 
@@ -234,7 +278,6 @@ export function factorEffect(
     comparisonCount,
     consistency: Math.round(consistency * 100) / 100,
     confidence,
-    confidenceTier: confidenceTier(confidence),
     message: buildFactorMessage(factorLabel, metric, window, effectSize),
   }
 }

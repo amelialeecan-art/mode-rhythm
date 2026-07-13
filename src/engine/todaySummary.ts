@@ -24,6 +24,12 @@ export interface FactorCandidate {
   detail: string
 }
 
+/** 오늘 있었던 일 요약 (0~100 사건 점수 대신 개수·주요 사건으로 표시). */
+export interface EventSummary {
+  count: number
+  top: { label: string; intensity: number }[]
+}
+
 export interface TodaySummary {
   date: ISODate
   hasEntry: boolean
@@ -31,6 +37,8 @@ export interface TodaySummary {
   scores: DayScores
   cycleContext: CycleContext
   factorCandidates: FactorCandidate[]
+  /** 오늘 있었던 일 개수 + 주요 사건 (사건 부하 숫자 노출 대체). */
+  eventSummary: EventSummary
   plan: TodayPlan
   /** 오늘 기록된 회복 행동 라벨(분석 추천 아님 — 단순 기록). */
   recordedRecovery: string[]
@@ -107,6 +115,14 @@ export function buildTodaySummary(input: TodaySummaryInput): TodaySummary {
 
   const recordedRecovery = Array.from(new Set(recoveryLogs.map((r) => r.actionLabel)))
 
+  const eventSummary: EventSummary = {
+    count: events.length,
+    top: [...events]
+      .sort((a, b) => b.intensity - a.intensity)
+      .slice(0, 3)
+      .map((e) => ({ label: e.eventLabel, intensity: e.intensity })),
+  }
+
   return {
     date,
     hasEntry: true,
@@ -114,6 +130,7 @@ export function buildTodaySummary(input: TodaySummaryInput): TodaySummary {
     scores,
     cycleContext,
     factorCandidates,
+    eventSummary,
     plan,
     recordedRecovery,
   }
