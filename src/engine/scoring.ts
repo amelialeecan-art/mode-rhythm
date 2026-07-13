@@ -25,7 +25,12 @@ function hasEvent(events: EventLog[], code: string): number {
   return events.some((e) => e.eventCode === code) ? 1 : 0
 }
 
-/** 감정 부하. calm이 높으면 낮아진다. */
+/**
+ * 감정 부하. calm이 높으면 낮아진다.
+ * TODO(혼합 상태 재검토): '안정'과 부정 감정을 동시에 기록하면 calm 상쇄로 감정 부하가
+ * 낮게 계산될 수 있다. 이번 단계에서는 공식을 바꾸지 않고, 데이터가 쌓인 뒤 재검토한다.
+ * (statePresets.buildStateNumericFields의 최대값 병합과 함께 다룰 것)
+ */
 export function calcEmotionalLoad(log: DailyLog): number {
   const raw =
     log.moodLow * 1.2 +

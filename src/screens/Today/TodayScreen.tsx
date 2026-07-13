@@ -31,14 +31,22 @@ const TIER_LABEL: Record<FactorTier, string> = {
   not_enough_data: '데이터 부족',
 }
 
+// 사건 부하(0~100)는 오해 소지가 커서 항목 막대에서 제외하고 개수·주요 사건으로 표시.
+// 주기는 데이터 유무에 따라 별도 렌더(숫자 대신 "데이터 없음" 등).
 const LOAD_ROWS: { key: keyof TodaySummary['scores']; label: string; color: string }[] = [
   { key: 'emotionalLoad', label: '감정', color: 'var(--lav)' },
   { key: 'appetiteLoad', label: '식욕', color: 'var(--coral)' },
   { key: 'sleepLoad', label: '수면', color: 'var(--sky)' },
   { key: 'bodyLoad', label: '몸', color: 'var(--mint)' },
-  { key: 'cycleLoad', label: '주기', color: 'var(--rose)' },
-  { key: 'eventLoad', label: '사건', color: 'var(--butter)' },
 ]
+
+// 주기 데이터 상태 → 표시 (calcCycleLoad 공식은 변경하지 않음, 표시의 정직성만 개선)
+const CYCLE_DISPLAY: Record<string, { value: string; hint: string } | null> = {
+  none: { value: '데이터 없음', hint: '생리 시작일을 기록하면 주기 구간을 계산해요.' },
+  low: { value: '데이터 부족', hint: '평균 주기를 사용한 초기 추정이에요.' },
+  medium: { value: '', hint: '주기 반복 기록 중이에요.' },
+  high: null, // 일반 표시
+}
 
 export function TodayScreen() {
   const navigate = useNavigate()
@@ -119,8 +127,9 @@ function FilledToday({
   onRecord: () => void
 }) {
   const tone = useToneMode()
-  const { classification, scores, factorCandidates, plan, recordedRecovery } = summary
+  const { classification, scores, factorCandidates, plan, recordedRecovery, cycleContext, eventSummary } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
+  const cycleDisplay = CYCLE_DISPLAY[cycleContext.confidence] ?? null
 
   return (
     <>
@@ -131,9 +140,12 @@ function FilledToday({
         mascotMood={mascot}
       />
 
-      {/* 전체 리듬 부하 + 항목별 요약 */}
+      {/* 오늘의 종합 부하 + 항목별 요약 */}
       <GlassCard>
-        <SectionHeader title="오늘의 리듬 부하" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
+        <SectionHeader title="오늘의 종합 부하" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
+        <p className="load-explain">
+          오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱 내부 가중치로 합친 값이에요. 진단 점수나 호르몬 수치가 아니에요.
+        </p>
         <div className="loadbars">
           {LOAD_ROWS.map((r) => (
             <div className="loadbar" key={r.key}>
@@ -144,7 +156,44 @@ function FilledToday({
               <span className="loadbar__val">{scores[r.key]}</span>
             </div>
           ))}
+          {/* 주기: 데이터 상태에 따라 정직하게 표시 */}
+          <div className="loadbar" key="cycle">
+            <span className="loadbar__label">주기</span>
+            {cycleDisplay && cycleDisplay.value ? (
+              <span className="loadbar__nodata">{cycleDisplay.value}</span>
+            ) : (
+              <>
+                <span className="loadbar__track">
+                  <i style={{ width: `${scores.cycleLoad}%`, background: 'var(--rose)' }} />
+                </span>
+                <span className="loadbar__val">{scores.cycleLoad}</span>
+              </>
+            )}
+          </div>
         </div>
+        {cycleDisplay && <p className="load-explain load-explain--soft">주기: {cycleDisplay.hint}</p>}
+        <p className="load-explain load-explain--soft">
+          감정 점수는 선택한 불안·짜증·슬픔·무거움 등의 강도를 앱 내부 공식으로 합친 값이에요.
+        </p>
+      </GlassCard>
+
+      {/* 오늘 있었던 일 (사건 부하 숫자 대신 개수·주요 사건) */}
+      <GlassCard>
+        <SectionHeader title="오늘 있었던 일" subtitle={`오늘 있었던 일 ${eventSummary.count}개`} />
+        {eventSummary.count === 0 ? (
+          <p className="today-rec-empty">오늘 기록된 사건이 없어요.</p>
+        ) : (
+          <>
+            <div className="recovery-rec">
+              {eventSummary.top.map((e, i) => (
+                <span className="recovery-rec__chip recovery-rec__chip--plain" key={`${e.label}-${i}`}>
+                  {e.label}
+                </span>
+              ))}
+            </div>
+            {eventSummary.count > 3 && <p className="load-explain load-explain--soft">사건 기록이 많았어요.</p>}
+          </>
+        )}
       </GlassCard>
 
       {/* 오늘 기록 기반 요인 후보 */}
