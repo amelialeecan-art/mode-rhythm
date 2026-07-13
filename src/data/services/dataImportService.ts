@@ -55,6 +55,10 @@ function isFiniteNumber(v: unknown): v is number {
 function isISODateStr(v: unknown): v is string {
   return typeof v === 'string' && ISO_DATE_RE.test(v)
 }
+/** exportedAt 같은 타임스탬프 검증 — 비어있지 않고 실제 파싱 가능한 날짜여야 한다. */
+function isValidDateTimeStr(v: unknown): v is string {
+  return typeof v === 'string' && v.length > 0 && !Number.isNaN(Date.parse(v))
+}
 
 type FieldKind = 'num' | 'str' | 'bool' | 'strArray' | 'date'
 
@@ -151,7 +155,7 @@ export function validateImportPayload(raw: unknown): ImportValidation {
   if (!isPlainObject(raw)) return { ok: false, code: 'invalid-structure' }
   if (raw.app !== 'MODE') return { ok: false, code: 'not-mode' }
   if (raw.version !== EXPORT_FORMAT_VERSION) return { ok: false, code: 'unsupported-version' }
-  if (typeof raw.exportedAt !== 'string' || raw.exportedAt.length === 0) {
+  if (!isValidDateTimeStr(raw.exportedAt)) {
     return { ok: false, code: 'invalid-structure' }
   }
   if (!isPlainObject(raw.tables)) return { ok: false, code: 'invalid-structure' }
