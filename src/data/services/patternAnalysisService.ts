@@ -1,13 +1,24 @@
 /* =====================================================================
-   MODE · 패턴 분석 서비스 (Phase 6)
-   service가 repository에서 모아 engine(순수 함수)로 상관/공범/미제를 계산하고,
+   MODE · 패턴 분석 서비스 (Phase 6 · 3단계 신뢰성 보강)
+   service가 repository에서 모아 engine(순수 함수)로 상관/공범/회복을 계산하고,
    patternInsights에 캐시처럼 저장한다. engine은 DB를 모른다.
 
-   주의: 회복 "효과" 분석은 여기 없다(7단계). 회복은 빈도 표시용으로만 읽는다.
-   현재는 전체 clearAll 후 재생성한다. 데이터가 커지면 기간별/증분 계산으로
-   개선할 수 있다(향후 과제).
+   3단계 안전장치:
+   - 유효 결과일(validOutcomeDate) = 실제 상태 입력이 있는 날만 비교/baseline에 사용
+     (빈 저장일 제외). dailyScore가 있다는 이유만으로 유효 처리하지 않는다.
+   - 분석 단계(analysisStage)를 유효 결과일 수로 나눈다:
+       0~13 수집 / 14~29 초기 흐름 / 30~44 요인 비교 / 45~59 조합 비교 / 60+ 충분
+   - factor 카드는 유효 30일↑, combo 카드는 유효 45일↑에서만 노출.
+   - 사건 timing: today=당일, yesterday=전날만 정확 반영. recent3days/recent7days는
+     정확한 날짜가 없어 정밀 factor/combo 분석에서 제외(원본 기록은 보존).
+   - 회복성 사건 그룹(exercise/walk/self_care)은 위험 요인 후보에서 제외(역인과 방지).
+   - 표시 등급은 통계적 신뢰도가 아니라 "앱 내부 자료 충분도" 지표(evidenceLevel).
+
+   ⚠️ 여기서 회복 "효과"는 recoveryLogs 기반으로만 평가한다(events와 분리).
+   현재는 전체 clearAll 후 재생성한다.
    ===================================================================== */
 import { dailyScoreRepository } from '../repositories/dailyScoreRepository'
+import { dailyLogRepository } from '../repositories/dailyLogRepository'
 import { eventLogRepository } from '../repositories/eventLogRepository'
 import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { recoveryLogRepository } from '../repositories/recoveryLogRepository'
@@ -21,32 +32,65 @@ import {
   detectUnexplained,
   buildCycleContext,
   analyzeRecoveryActions,
+  evidenceLevel,
+  windowPhrase,
+  EVIDENCE_LEVEL_LABEL,
+  ANALYSIS_METRIC_LABEL,
   type AnalysisDataset,
   type AnalysisMetric,
   type EffectWindow,
-  type FactorEffectResult,
-  type AccompliceEffectResult,
+  type EvidenceLevel,
   type UnexplainedDayResult,
   type RecoveryDataset,
   type RecoveryActionInsight,
 } from '../../engine'
+import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS } from '../catalog/events'
 import { assertGuard } from '../../copy/tone'
 import { getTodayISODate } from '../../lib/date'
-import type { DailyScore, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
+import type { DailyLog, DailyScore, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
 
 const ANALYSIS_DAYS = 60
 const BASELINE_DAYS = 30
 const FACTOR_LOOKBACK = 7 // 시간창 분석용 사전 7일 사건 데이터
-const MIN_DAYS_FOR_PATTERNS = 8
+
+// 분석 단계 임계 (유효 결과일 수 기준)
+const FACTOR_MIN_DAYS = 30 // factor 카드 노출 시작
+const COMBO_MIN_DAYS = 45 // combo 카드 노출 시작
+const MIN_FACTOR_EFFECT = 8 // 요인 후보 최소 평균 차이(점)
 
 const FACTOR_METRICS: AnalysisMetric[] = ['emotional', 'appetite', 'sleep', 'body', 'rhythm']
 const COMBO_METRICS: AnalysisMetric[] = ['appetite', 'emotional', 'rhythm', 'body']
 const WINDOWS: EffectWindow[] = ['same_day', 'previous_day', 'recent_3_days', 'recent_7_days']
 
-const CYCLE_FACTOR_LABEL: Record<string, string> = {
-  cycle_period: '생리 구간',
-  cycle_premenstrual_window: '월경 전 구간',
-  cycle_ovulation_window: '배란 추정 구간',
+export type AnalysisStage = 'collecting' | 'early_flow' | 'factor_ready' | 'combo_ready' | 'sufficient'
+
+export const ANALYSIS_STAGE_LABEL: Record<AnalysisStage, string> = {
+  collecting: '기록 수집 중',
+  early_flow: '초기 흐름 확인',
+  factor_ready: '요인 평균 비교 가능',
+  combo_ready: '반복 비교 + 조합 비교 가능',
+  sufficient: '자료가 충분한 반복 후보 가능',
+}
+
+export function analysisStageFor(validDays: number): AnalysisStage {
+  if (validDays <= 13) return 'collecting'
+  if (validDays <= 29) return 'early_flow'
+  if (validDays <= 44) return 'factor_ready'
+  if (validDays <= 59) return 'combo_ready'
+  return 'sufficient'
+}
+
+/**
+ * 사건의 "정확한 발생 추정일". timing을 보수적으로 처리한다.
+ * - today: 저장 날짜
+ * - yesterday: 저장 날짜 - 1일
+ * - recent3days/recent7days: 정확한 날짜가 없어 정밀 factor/combo 분석에서 제외(null).
+ *   (여러 날짜로 복제하지 않는다 — 원본 기록과 eventLoad/일일 표시에서는 그대로 사용)
+ */
+export function eventOccurrenceDate(timing: string, date: ISODate): ISODate | null {
+  if (timing === 'today') return date
+  if (timing === 'yesterday') return addDaysISO(date, -1)
+  return null
 }
 
 export interface AnalysisOptions {
@@ -55,24 +99,69 @@ export interface AnalysisOptions {
   baselineDays?: number
 }
 
-export interface RecoveryFrequencyItem {
+export interface FrequencyItem {
   label: string
   count: number
 }
 
+/** 분석 화면 factor 카드 (숫자 근거를 정직하게 표시). */
+export interface FactorPatternCard {
+  factorGroup: string
+  title: string
+  subtitle?: string
+  metric: AnalysisMetric
+  metricLabel: string
+  window: EffectWindow
+  windowPhrase: string
+  withFactorMean: number
+  withoutFactorMean: number
+  effectSize: number
+  supportCount: number // 요인 있는 결과일 N
+  comparisonCount: number // 요인 없는 결과일 M
+  evidence: EvidenceLevel
+  evidenceLabel: string
+  message: string
+}
+
+/** 분석 화면 combo(같이 겹친 기록) 카드. */
+export interface ComboCard {
+  factorA: string
+  factorB: string
+  titleA: string
+  titleB: string
+  metric: AnalysisMetric
+  metricLabel: string
+  comboMean: number
+  comboEffect: number
+  supportCount: number
+  factorAOnlyCount: number
+  factorBOnlyCount: number
+  comparisonCount: number
+  evidence: EvidenceLevel
+  evidenceLabel: string
+  message: string
+}
+
 export interface AnalysisViewModel {
   endDate: ISODate
-  dayCount: number
-  hasEnoughData: boolean
-  factorPatterns: FactorEffectResult[]
+  /** 이 창에서 저장된 날 수(dailyScore 존재). */
+  savedDayCount: number
+  /** 실제 상태 입력이 있어 비교에 쓸 수 있는 결과일 수. */
+  validOutcomeDayCount: number
+  analysisStage: AnalysisStage
+  analysisStageLabel: string
+  /** 요인 평균 비교(30일)까지 남은 유효일 수. */
+  daysUntilComparison: number
+  /** 초기 단계용 자주 기록한 사건 단순 빈도. */
+  eventFrequency: FrequencyItem[]
+  /** 유효 30일↑에서만 채워짐. */
+  factorPatterns: FactorPatternCard[]
   timeWindowHighlight: { message: string } | null
-  combos: AccompliceEffectResult[]
+  /** 유효 45일↑에서만 채워짐. */
+  combos: ComboCard[]
   unexplained: UnexplainedDayResult[]
-  /** 효과 기반 회복 행동 후보 ("나를 살린 것들"). */
   recoveryEffects: RecoveryActionInsight[]
-  /** 회복 행동 단순 빈도 (효과 데이터 부족 시 보조). */
-  recoveryFrequency: RecoveryFrequencyItem[]
-  /** 도움 된 것과 안 맞았던 것이 같은 날 함께 기록된 "혼합일" 수 (해석 주의 표시용). */
+  recoveryFrequency: FrequencyItem[]
   mixedRecoveryDayCount: number
 }
 
@@ -88,6 +177,31 @@ function scoreVector(s: DailyScore): Record<AnalysisMetric, number> {
   }
 }
 
+// 유효 결과일 판정용 상태 숫자 필드 (하나라도 0보다 크면 실제 입력이 있는 것).
+const OUTCOME_NUMERIC_FIELDS: (keyof DailyLog)[] = [
+  'moodLow', 'anxiety', 'irritability', 'sadness', 'heaviness', 'calm', 'energy', 'focus',
+  'selfCriticism', 'impulsivity', 'appetite', 'sweetCraving', 'saltyCraving', 'bingeUrge',
+  'bodyDiscomfort', 'pain', 'bloating', 'fatigue', 'headache', 'digestion',
+]
+
+function hasUserAppetiteRatings(log: DailyLog): boolean {
+  const ar = log.appetiteRatings
+  return !!ar && Object.values(ar).some((v) => typeof v === 'number')
+}
+
+/**
+ * "비교 가능한 상태 기록"이 있는 날인지. 빈 저장(모든 값 0 + stateCodes=[])은 제외한다.
+ * 기본 overallIntensity 값만으로는 유효 처리하지 않는다(숫자 필드는 stateCodes가 있어야 채워짐).
+ * memo만 있는 날도 숫자 비교 결과일에서는 제외한다(memo는 여기서 보지 않음).
+ */
+export function isValidOutcomeLog(log: DailyLog): boolean {
+  if ((log.stateCodes?.length ?? 0) >= 1) return true
+  if (OUTCOME_NUMERIC_FIELDS.some((k) => (typeof log[k] === 'number' ? (log[k] as number) : 0) > 0)) return true
+  if (log.sleepHours !== undefined || log.sleepQuality !== undefined) return true
+  if (hasUserAppetiteRatings(log)) return true
+  return false
+}
+
 /** 분석 핵심 계산 (저장 전). VM + 저장할 insight 입력을 함께 만든다. */
 async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisViewModel; insights: PatternInsightInput[] }> {
   const endDate = opts.endDate ?? getTodayISODate()
@@ -96,23 +210,39 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   const startDate = addDaysISO(endDate, -(analysisDays - 1))
   const factorStart = addDaysISO(startDate, -FACTOR_LOOKBACK)
 
-  const [scores, events, cycleLogs, recoveryLogs, settings] = await Promise.all([
+  const [scores, dailyLogs, events, cycleLogs, recoveryLogs, settings] = await Promise.all([
     dailyScoreRepository.listByDateRange(startDate, endDate),
+    dailyLogRepository.listByDateRange(startDate, endDate),
     eventLogRepository.listByDateRange(factorStart, endDate),
     cycleLogRepository.listByDateRange('1900-01-01', endDate),
     recoveryLogRepository.listByDateRange(startDate, endDate),
     userSettingsRepository.get(),
   ])
 
-  // 결과 날짜 + 점수 맵
-  const resultDates = scores.map((s) => s.date).filter((d) => d <= endDate)
-  const scoreByDate = new Map<ISODate, Record<AnalysisMetric, number>>()
-  for (const s of scores) scoreByDate.set(s.date, scoreVector(s))
+  // 저장된 날(dailyScore) vs 실제 상태 입력이 있는 유효 결과일 구분
+  const logByDate = new Map<ISODate, DailyLog>()
+  for (const l of dailyLogs) logByDate.set(l.date, l)
+  const savedDayCount = scores.filter((s) => s.date <= endDate).length
 
-  // 요인 맵 (사건 + 주기 자동) — 결과 없는 날짜도 포함
+  // 유효 결과일: dailyScore가 있고 그날 dailyLog가 실제 상태 입력을 가진 날만
+  const resultDates: ISODate[] = []
+  const scoreByDate = new Map<ISODate, Record<AnalysisMetric, number>>()
+  for (const s of scores) {
+    if (s.date > endDate) continue
+    const log = logByDate.get(s.date)
+    if (!log || !isValidOutcomeLog(log)) continue
+    resultDates.push(s.date)
+    scoreByDate.set(s.date, scoreVector(s))
+  }
+  const validOutcomeDayCount = resultDates.length
+  const analysisStage = analysisStageFor(validOutcomeDayCount)
+  const daysUntilComparison = Math.max(0, FACTOR_MIN_DAYS - validOutcomeDayCount)
+
+  // 요인 맵 (사건 + 주기 자동). 결과 없는 날짜도 노출일로 포함될 수 있다.
   const factorByDate = new Map<ISODate, Set<string>>()
   const factorLabels = new Map<string, string>()
   const labelVotes = new Map<string, Map<string, number>>()
+  const eventGroupDates = new Map<string, Set<ISODate>>() // 초기 단계 빈도 표시용
 
   const addFactor = (date: ISODate, group: string) => {
     let set = factorByDate.get(date)
@@ -124,12 +254,23 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   }
 
   for (const e of events) {
-    addFactor(e.date, e.mappedFactorGroup)
+    // 회복성 사건은 위험 요인 후보에서 제외(회복 분석에서만 평가)
+    if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
+
+    // timing 보수 처리: today=당일, yesterday=전날, recent3/7days=정밀 분석 제외
+    const occDate = eventOccurrenceDate(e.timing, e.date)
+    if (occDate === null) continue
+
+    addFactor(occDate, e.mappedFactorGroup)
     const votes = labelVotes.get(e.mappedFactorGroup) ?? new Map<string, number>()
     votes.set(e.eventLabel, (votes.get(e.eventLabel) ?? 0) + 1)
     labelVotes.set(e.mappedFactorGroup, votes)
+
+    const ds = eventGroupDates.get(e.mappedFactorGroup) ?? new Set<ISODate>()
+    ds.add(occDate)
+    eventGroupDates.set(e.mappedFactorGroup, ds)
   }
-  // 그룹별 대표 라벨 = 가장 자주 쓰인 eventLabel
+  // 그룹별 fallback 대표 라벨 = 가장 자주 쓰인 eventLabel (표준 표시가 없을 때만 사용)
   for (const [group, votes] of labelVotes) {
     let best = group
     let bestN = -1
@@ -149,68 +290,131 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     if (ctx.isPremenstrualWindow) addFactor(d, 'cycle_premenstrual_window')
     if (ctx.isOvulationWindow) addFactor(d, 'cycle_ovulation_window')
   }
-  for (const [g, label] of Object.entries(CYCLE_FACTOR_LABEL)) factorLabels.set(g, label)
 
   const ds: AnalysisDataset = { resultDates, scoreByDate, factorByDate, endDate }
-  const dayCount = resultDates.length
-  const hasEnoughData = dayCount >= MIN_DAYS_FOR_PATTERNS
+
+  // 그룹 표시 정보 (표준 라벨 우선, 없으면 대표 eventLabel fallback)
+  const groupTitle = (g: string) => FACTOR_GROUP_DISPLAY[g]?.title ?? factorLabels.get(g) ?? g
+  const groupSubtitle = (g: string) => FACTOR_GROUP_DISPLAY[g]?.subtitle
 
   // 기준선
   const baselineMean = new Map<AnalysisMetric, number>()
-  for (const m of FACTOR_METRICS) baselineMean.set(m, calcBaseline(ds, m, baselineDays).mean)
-  for (const m of COMBO_METRICS) if (!baselineMean.has(m)) baselineMean.set(m, calcBaseline(ds, m, baselineDays).mean)
+  for (const m of [...FACTOR_METRICS, ...COMBO_METRICS]) {
+    if (!baselineMean.has(m)) baselineMean.set(m, calcBaseline(ds, m, baselineDays).mean)
+  }
 
   const allGroups = new Set<string>()
   for (const set of factorByDate.values()) for (const g of set) allGroups.add(g)
 
-  // ---- 요인 패턴: 그룹별 가장 강한 (metric, window) 1개 ----
-  const factorPatterns: FactorEffectResult[] = []
-  if (hasEnoughData) {
+  // ---- 초기 단계용 사건 빈도 (그룹별 기록된 날 수) ----
+  const eventFrequency: FrequencyItem[] = [...eventGroupDates.entries()]
+    .map(([g, dates]) => ({ label: groupTitle(g), count: dates.size }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6)
+
+  // ---- 요인 패턴: 유효 30일↑에서만 ----
+  const factorPatterns: FactorPatternCard[] = []
+  if (validOutcomeDayCount >= FACTOR_MIN_DAYS) {
+    const raw: { group: string; r: ReturnType<typeof factorEffect> }[] = []
     for (const group of allGroups) {
-      const label = factorLabels.get(group) ?? group
-      let best: FactorEffectResult | null = null
+      const label = groupTitle(group)
+      let best: NonNullable<ReturnType<typeof factorEffect>> | null = null
       for (const metric of FACTOR_METRICS) {
         for (const window of WINDOWS) {
-          const r = factorEffect(ds, group, label, metric, window, baselineMean.get(metric) ?? 0)
+          // 평균 차이 8점 미만은 engine에서 null. 여기선 양의 효과(요인이 부하를 높인 쪽)만 후보로.
+          const r = factorEffect(ds, group, label, metric, window, baselineMean.get(metric) ?? 0, MIN_FACTOR_EFFECT)
           if (!r || r.effectSize <= 0) continue
           if (!best || r.confidence > best.confidence) best = r
         }
       }
-      if (best) factorPatterns.push(best)
+      if (best) raw.push({ group, r: best })
     }
-    factorPatterns.sort((a, b) => b.confidence - a.confidence)
+    raw.sort((a, b) => (b.r?.confidence ?? 0) - (a.r?.confidence ?? 0))
+    for (const { group, r } of raw) {
+      if (!r) continue
+      const evidence = evidenceLevel({
+        confidence: r.confidence,
+        validOutcomeDayCount,
+        supportCount: r.supportCount,
+        comparisonCount: r.comparisonCount,
+      })
+      factorPatterns.push({
+        factorGroup: group,
+        title: groupTitle(group),
+        subtitle: groupSubtitle(group),
+        metric: r.metric,
+        metricLabel: ANALYSIS_METRIC_LABEL[r.metric],
+        window: r.window,
+        windowPhrase: windowPhrase(r.window),
+        withFactorMean: r.withFactorMean,
+        withoutFactorMean: r.withoutFactorMean,
+        effectSize: r.effectSize,
+        supportCount: r.supportCount,
+        comparisonCount: r.comparisonCount,
+        evidence,
+        evidenceLabel: EVIDENCE_LEVEL_LABEL[evidence],
+        message: r.message,
+      })
+    }
   }
+  const topFactors = factorPatterns.slice(0, 8)
 
-  // ---- 공범 구조: 자주 나온 요인 쌍 ----
-  const occCount = new Map<string, number>()
-  for (const set of factorByDate.values()) for (const g of set) occCount.set(g, (occCount.get(g) ?? 0) + 1)
-  const frequent = [...occCount.entries()]
-    .filter(([, n]) => n >= 4)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([g]) => g)
+  // ---- 같이 겹친 기록(combo): 유효 45일↑에서만 ----
+  const combos: ComboCard[] = []
+  if (validOutcomeDayCount >= COMBO_MIN_DAYS) {
+    const occCount = new Map<string, number>()
+    for (const set of factorByDate.values()) for (const g of set) occCount.set(g, (occCount.get(g) ?? 0) + 1)
+    const frequent = [...occCount.entries()]
+      .filter(([, n]) => n >= 4)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([g]) => g)
 
-  const combos: AccompliceEffectResult[] = []
-  if (hasEnoughData) {
+    const rawCombos: NonNullable<ReturnType<typeof accompliceEffect>>[] = []
     for (let i = 0; i < frequent.length; i++) {
       for (let j = i + 1; j < frequent.length; j++) {
         const a = frequent[i]
         const b = frequent[j]
-        let best: AccompliceEffectResult | null = null
+        let best: NonNullable<ReturnType<typeof accompliceEffect>> | null = null
         for (const metric of COMBO_METRICS) {
-          const r = accompliceEffect(ds, a, b, factorLabels.get(a) ?? a, factorLabels.get(b) ?? b, metric, baselineMean.get(metric) ?? 0)
+          const r = accompliceEffect(ds, a, b, groupTitle(a), groupTitle(b), metric, baselineMean.get(metric) ?? 0)
           if (r && (!best || r.comboEffect > best.comboEffect)) best = r
         }
-        if (best) combos.push(best)
+        if (best) rawCombos.push(best)
       }
     }
-    combos.sort((a, b) => b.confidence - a.confidence)
+    rawCombos.sort((a, b) => b.confidence - a.confidence)
+    for (const c of rawCombos.slice(0, 3)) {
+      const evidence = evidenceLevel({
+        confidence: c.confidence,
+        validOutcomeDayCount,
+        supportCount: c.supportCount,
+        comparisonCount: c.comparisonCount,
+      })
+      combos.push({
+        factorA: c.factorA,
+        factorB: c.factorB,
+        titleA: groupTitle(c.factorA),
+        titleB: groupTitle(c.factorB),
+        metric: c.metric,
+        metricLabel: ANALYSIS_METRIC_LABEL[c.metric],
+        comboMean: c.comboMean,
+        comboEffect: c.comboEffect,
+        supportCount: c.supportCount,
+        factorAOnlyCount: c.factorAOnlyCount,
+        factorBOnlyCount: c.factorBOnlyCount,
+        comparisonCount: c.comparisonCount,
+        evidence,
+        evidenceLabel: EVIDENCE_LEVEL_LABEL[evidence],
+        message: c.message,
+      })
+    }
   }
-  const topCombos = combos.slice(0, 3)
 
-  // ---- 미제 사건 ----
+  // ---- 미제 사건 (유효 결과일만 대상으로) ----
+  const validScores = scores.filter((s) => scoreByDate.has(s.date))
   const unexplained = detectUnexplained(
-    scores.map((s) => ({
+    validScores.map((s) => ({
       date: s.date,
       rhythmLoad: s.rhythmLoad,
       eventLoad: s.eventLoad,
@@ -226,12 +430,12 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   // ---- 회복 행동 빈도 (효과 분석 아님) ----
   const recCount = new Map<string, number>()
   for (const r of recoveryLogs) recCount.set(r.actionLabel, (recCount.get(r.actionLabel) ?? 0) + 1)
-  const recoveryFrequency: RecoveryFrequencyItem[] = [...recCount.entries()]
+  const recoveryFrequency: FrequencyItem[] = [...recCount.entries()]
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6)
 
-  // ---- 혼합일: 도움/안 맞음이 같은 날 함께 기록된 날 (direction 없는 옛 기록 = positive) ----
+  // ---- 혼합일: 도움/안 맞음이 같은 날 함께 기록된 날 ----
   const dirByDate = new Map<ISODate, { pos: boolean; neg: boolean }>()
   for (const r of recoveryLogs) {
     const e = dirByDate.get(r.date) ?? { pos: false, neg: false }
@@ -259,10 +463,8 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   const recoveryEffects = analyzeRecoveryActions(recoveryDataset, recoveryLogs).slice(0, 6)
 
   // ---- 시간창 하이라이트 (지연 효과 후보) ----
-  const delayed = factorPatterns.find((f) => f.window !== 'same_day')
+  const delayed = topFactors.find((f) => f.window !== 'same_day')
   const timeWindowHighlight = delayed ? { message: delayed.message } : null
-
-  const topFactors = factorPatterns.slice(0, 8)
 
   // ---- 저장할 insight 입력 ----
   const insights: PatternInsightInput[] = []
@@ -272,18 +474,18 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       targetMetric: f.metric as TargetMetric,
       factorCodes: [f.factorGroup],
       effectSize: f.effectSize,
-      confidence: f.confidence,
+      confidence: 0, // 표시 등급은 evidenceLevel — 저장에는 원점수 미노출
       supportCount: f.supportCount,
       message: assertGuard(f.message),
     })
   }
-  for (const c of topCombos) {
+  for (const c of combos) {
     insights.push({
       insightType: 'combo',
       targetMetric: c.metric as TargetMetric,
       factorCodes: [c.factorA, c.factorB],
       effectSize: c.comboEffect,
-      confidence: c.confidence,
+      confidence: 0,
       supportCount: c.supportCount,
       message: assertGuard(c.message),
     })
@@ -311,11 +513,15 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
 
   const vm: AnalysisViewModel = {
     endDate,
-    dayCount,
-    hasEnoughData,
+    savedDayCount,
+    validOutcomeDayCount,
+    analysisStage,
+    analysisStageLabel: ANALYSIS_STAGE_LABEL[analysisStage],
+    daysUntilComparison,
+    eventFrequency,
     factorPatterns: topFactors,
     timeWindowHighlight,
-    combos: topCombos,
+    combos,
     unexplained,
     recoveryEffects,
     recoveryFrequency,
@@ -346,7 +552,7 @@ export async function getAnalysisViewModel(opts: AnalysisOptions = {}): Promise<
 
 /**
  * Today 화면용: 효과 신뢰도 높은 회복 행동 후보 top N (기본 3).
- * 부수효과 없음(저장 안 함). 비슷한 날 매칭 강화는 8단계 예보와 함께.
+ * 부수효과 없음(저장 안 함).
  */
 export async function getRecoveryRecommendations(opts: AnalysisOptions = {}, limit = 3): Promise<RecoveryActionInsight[]> {
   const { vm } = await computeAnalysis(opts)

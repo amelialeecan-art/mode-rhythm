@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react'
 import { GlassCard, SectionHeader } from '../../design'
-import { getAnalysisViewModel, type AnalysisViewModel } from '../../data/services/patternAnalysisService'
-import { CONFIDENCE_TIER_LABEL, ANALYSIS_METRIC_LABEL, RECOVERY_TIER_LABEL } from '../../engine'
+import {
+  getAnalysisViewModel,
+  type AnalysisViewModel,
+  type FactorPatternCard,
+  type ComboCard,
+} from '../../data/services/patternAnalysisService'
+import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
 import { useToneMode } from '../../lib/useToneMode'
 import { getToneCopy } from '../../copy/tone'
 import './analysis.css'
+
+// 하단 고정 안내 — 인과/진단이 아님을 반복해서 명시.
+const FACTOR_FOOTNOTE = '기록이 함께 나타난 평균 차이예요. 이 사건이 상태의 원인이라는 뜻은 아니에요.'
 
 export function AnalysisScreen() {
   const tone = useToneMode()
@@ -21,7 +29,6 @@ export function AnalysisScreen() {
     })
   }
 
-  // 진입 시 자동 계산. (데이터가 커지면 캐시/증분 계산으로 개선 가능)
   useEffect(() => {
     let cancelled = false
     void getAnalysisViewModel().then((v) => {
@@ -41,85 +48,100 @@ export function AnalysisScreen() {
     setRecalcing(false)
   }
 
+  // 유효 결과일 30일 미만이면 효과/원인 후보를 보여주지 않는다.
+  const showComparison = !!vm && vm.validOutcomeDayCount >= 30
+
   return (
     <>
       <header className="screen-head">
         <h1 className="screen-head__title">분석</h1>
-        <p className="screen-head__sub">반복적으로 함께 나타난 패턴을 봐요</p>
+        <p className="screen-head__sub">기록이 함께 나타난 평균을 비교해요</p>
       </header>
 
-      {/* 분석 안내 (tone 반영) */}
+      {/* 고정 안내 — 인과/진단 아님 */}
       <GlassCard tint="lav">
-        <p className="analysis-disclaimer">{getToneCopy(tone, 'analysisIntro')}</p>
+        <p className="analysis-disclaimer">
+          MODE는 기록이 함께 나타난 평균을 비교합니다. 원인이나 의학적 진단을 판정하지 않아요.
+        </p>
+        <p className="analysis-subnote">{getToneCopy(tone, 'analysisIntro')}</p>
       </GlassCard>
 
-      {loading ? (
+      {loading || !vm ? (
         <GlassCard>
           <p className="analysis-loading">패턴을 계산하는 중…</p>
         </GlassCard>
-      ) : !vm || !vm.hasEnoughData ? (
-        <GlassCard>
-          <SectionHeader title="상습 패턴" />
-          <p className="analysis-empty">
-            아직 상습 패턴을 보기엔 기록이 조금 부족해요. 며칠 더 기록하면 반복 경향을 볼 수 있어요.
-            {vm ? ` (현재 ${vm.dayCount}일 기록)` : ''}
-          </p>
-        </GlassCard>
       ) : (
         <>
-          {/* 상습 패턴 */}
+          {/* 기록 현황 */}
           <GlassCard>
-            <SectionHeader title="상습 패턴" subtitle="신뢰도 높은 순으로 보여줘요" />
-            {vm.factorPatterns.length === 0 ? (
-              <p className="analysis-empty">아직 뚜렷한 반복 패턴은 보이지 않아요. 기록이 쌓이면 다시 보여드릴게요.</p>
-            ) : (
-              <ul className="pattern-list">
-                {vm.factorPatterns.map((f, i) => (
-                  <li className="pattern" key={`${f.factorGroup}-${i}`}>
-                    <div className="pattern__top">
-                      <span className="pattern__name">{f.factorLabel}</span>
-                      <span className={`pattern__tier tier--${f.confidenceTier}`}>{CONFIDENCE_TIER_LABEL[f.confidenceTier]}</span>
-                    </div>
-                    <p className="pattern__msg">{f.message}</p>
-                    <div className="pattern__meta">
-                      <span>{ANALYSIS_METRIC_LABEL[f.metric]}</span>
-                      <span>·</span>
-                      <span>효과 +{f.effectSize}</span>
-                      <span>·</span>
-                      <span>{f.supportCount}일 기준</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+            <SectionHeader title="기록 현황" subtitle={vm.analysisStageLabel} />
+            <p className="analysis-count">
+              저장한 날 {vm.savedDayCount}일 · 비교 가능한 상태 기록 {vm.validOutcomeDayCount}일
+            </p>
+            {!showComparison && (
+              <p className="analysis-body">
+                30일이 되면 사건이 있던 날과 없던 날의 평균을 비교해요.
+                {vm.daysUntilComparison > 0 ? ` (비교까지 약 ${vm.daysUntilComparison}일)` : ''}
+              </p>
             )}
           </GlassCard>
 
-          {/* 시간창 하이라이트 */}
-          {vm.timeWindowHighlight && (
-            <GlassCard tint="sky">
-              <SectionHeader title="시간창별 경향" />
-              <p className="analysis-body">{vm.timeWindowHighlight.message}</p>
-            </GlassCard>
-          )}
-
-          {/* 겹쳐 나타나는 패턴 (공범 구조) */}
-          {vm.combos.length > 0 && (
-            <GlassCard tint="lav">
-              <SectionHeader title="겹쳐 나타나는 패턴" subtitle="공범 구조 후보" />
-              {vm.combos.map((c, i) => (
-                <div className="combo" key={`${c.factorA}-${c.factorB}-${i}`}>
-                  <div className="overlap">
-                    <div className="overlap__c overlap__c--a">{c.factorALabel}</div>
-                    <div className="overlap__c overlap__c--b">{c.factorBLabel}</div>
-                  </div>
-                  <p className="overlap__body">{c.message}</p>
-                  <span className={`pattern__tier tier--${c.confidenceTier}`}>{CONFIDENCE_TIER_LABEL[c.confidenceTier]}</span>
+          {/* 30일 미만: 단순 빈도만 */}
+          {!showComparison ? (
+            <GlassCard>
+              <SectionHeader title="자주 기록한 사건" subtitle="아직 평균 비교 전이라 빈도만 보여줘요" />
+              {vm.eventFrequency.length > 0 ? (
+                <div className="recfreq">
+                  {vm.eventFrequency.map((e) => (
+                    <span className="recfreq__chip" key={e.label}>
+                      {e.label} {e.count}일
+                    </span>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="analysis-empty">아직 사건 기록이 적어요. 며칠 더 기록하면 흐름을 볼 수 있어요.</p>
+              )}
             </GlassCard>
+          ) : (
+            <>
+              {/* 함께 나타난 기록 (구 "상습 패턴") */}
+              <GlassCard>
+                <SectionHeader title="함께 나타난 기록" subtitle="자료가 많은 순으로 보여줘요" />
+                {vm.factorPatterns.length === 0 ? (
+                  <p className="analysis-empty">아직 평균 차이가 뚜렷한 기록은 보이지 않아요. 기록이 쌓이면 다시 보여드릴게요.</p>
+                ) : (
+                  <ul className="pattern-list">
+                    {vm.factorPatterns.map((f, i) => (
+                      <FactorRow key={`${f.factorGroup}-${i}`} f={f} />
+                    ))}
+                  </ul>
+                )}
+                <p className="factor-footnote">{FACTOR_FOOTNOTE}</p>
+              </GlassCard>
+
+              {/* 시간창 하이라이트 */}
+              {vm.timeWindowHighlight && (
+                <GlassCard tint="sky">
+                  <SectionHeader title="시간차가 있는 기록" />
+                  <p className="analysis-body">{vm.timeWindowHighlight.message}</p>
+                  <p className="factor-footnote">정확한 날짜가 없는 최근 기간 기록은 시간차 비교에서 제외돼요.</p>
+                </GlassCard>
+              )}
+
+              {/* 같이 겹친 기록 (구 "공범 구조") */}
+              {vm.combos.length > 0 && (
+                <GlassCard tint="lav">
+                  <SectionHeader title="같이 겹친 기록" subtitle="두 기록이 함께 있던 날" />
+                  {vm.combos.map((c, i) => (
+                    <ComboRow key={`${c.factorA}-${c.factorB}-${i}`} c={c} />
+                  ))}
+                  <p className="factor-footnote">원인을 증명한 결과는 아니에요.</p>
+                </GlassCard>
+              )}
+            </>
           )}
 
-          {/* 나를 살린 것들 (효과 후보 기반) */}
+          {/* 나를 살린 것들 (회복 효과 후보) */}
           <GlassCard tint="mint">
             <SectionHeader title="나를 살린 것들" subtitle="전후 기록과 다음날 흐름을 함께 보고, 도움이 됐던 행동 후보를 보여줘요" star />
             {vm.mixedRecoveryDayCount > 0 && (
@@ -175,7 +197,7 @@ export function AnalysisScreen() {
               <div className="unexplained">
                 {vm.unexplained.map((u) => (
                   <span className="unexplained__chip" key={u.date}>
-                    {formatMonthDay(parseISODate(u.date))} · 리듬 {u.rhythmLoad}
+                    {formatMonthDay(parseISODate(u.date))} · 종합 {u.rhythmLoad}
                   </span>
                 ))}
               </div>
@@ -188,5 +210,47 @@ export function AnalysisScreen() {
         {recalcing ? '계산 중…' : '패턴 다시 계산'}
       </button>
     </>
+  )
+}
+
+/** factor 카드: 그룹 표준명 + 숫자 근거를 정직하게 표시. */
+function FactorRow({ f }: { f: FactorPatternCard }) {
+  return (
+    <li className="pattern">
+      <div className="pattern__top">
+        <div>
+          <span className="pattern__name">{f.title}</span>
+          {f.subtitle && <span className="pattern__sub">{f.subtitle}</span>}
+        </div>
+        <span className={`pattern__tier ev--${f.evidence}`}>{f.evidenceLabel}</span>
+      </div>
+      <p className="pattern__msg">
+        {f.windowPhrase} {f.metricLabel} 점수 평균이 {f.effectSize}점 높았어요.
+      </p>
+      <div className="pattern__nums">
+        <span>있는 결과일 {f.supportCount}일 · 없는 결과일 {f.comparisonCount}일</span>
+        <span>있는 날 평균 {f.withFactorMean} · 없는 날 평균 {f.withoutFactorMean}</span>
+      </div>
+    </li>
+  )
+}
+
+/** combo 카드: 두 기록이 함께 있던 날 비교. */
+function ComboRow({ c }: { c: ComboCard }) {
+  return (
+    <div className="combo">
+      <div className="overlap">
+        <div className="overlap__c overlap__c--a">{c.titleA}</div>
+        <div className="overlap__c overlap__c--b">{c.titleB}</div>
+      </div>
+      <p className="overlap__body">
+        두 기록이 함께 있던 {c.supportCount}일에 {c.metricLabel} 점수가 더 높았던 편이에요.
+      </p>
+      <div className="pattern__nums">
+        <span>함께 있던 날 {c.supportCount}일 · 한쪽만 있던 날 {c.comparisonCount}일</span>
+        <span>평균 차이 +{c.comboEffect}점</span>
+      </div>
+      <span className={`pattern__tier ev--${c.evidence}`}>{c.evidenceLabel}</span>
+    </div>
   )
 }

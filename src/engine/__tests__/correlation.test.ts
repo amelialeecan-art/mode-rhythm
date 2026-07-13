@@ -3,7 +3,7 @@ import {
   addDaysISO,
   calcBaseline,
   factorEffect,
-  confidenceTier,
+  evidenceLevel,
   computeOverlapPenalty,
   type AnalysisDataset,
   type AnalysisMetric,
@@ -80,20 +80,54 @@ describe('factorEffect', () => {
   })
 
   it('consistency = 요인 있던 날 중 baseline 초과 비율', () => {
-    const dates = seq('2026-06-01', 8)
-    const vals = [70, 70, 30, 30]
-    const ds = makeDs(dates.map((date, i) => ({ date, factors: i < 4 ? ['F'] : [], m: { emotional: i < 4 ? vals[i] : 50 } })))
+    const dates = seq('2026-06-01', 12)
+    const vals = [70, 70, 70, 30, 30, 30]
+    const ds = makeDs(dates.map((date, i) => ({ date, factors: i < 6 ? ['F'] : [], m: { emotional: i < 6 ? vals[i] : 50 } })))
     const r = factorEffect(ds, 'F', 'F', 'emotional', 'same_day', 50)
     expect(r!.consistency).toBe(0.5)
   })
+
+  it('minEffect 미만 평균 차이는 null (7 거부, 8 가능)', () => {
+    const dates = seq('2026-06-01', 12)
+    // 요인 6일 metric 57, 비요인 6일 50 → 차이 7
+    const ds7 = makeDs(dates.map((date, i) => ({ date, factors: i < 6 ? ['F'] : [], m: { emotional: i < 6 ? 57 : 50 } })))
+    expect(factorEffect(ds7, 'F', 'F', 'emotional', 'same_day', 50, 8)).toBeNull()
+    // 차이 8
+    const ds8 = makeDs(dates.map((date, i) => ({ date, factors: i < 6 ? ['F'] : [], m: { emotional: i < 6 ? 58 : 50 } })))
+    expect(factorEffect(ds8, 'F', 'F', 'emotional', 'same_day', 50, 8)).not.toBeNull()
+  })
+
+  it('표본 기준이 6으로 상향됐다 (5는 부족)', () => {
+    const dates = seq('2026-06-01', 12)
+    // 5일만 요인 → support 5 < 6 → null
+    const ds5 = makeDs(dates.map((date, i) => ({ date, factors: i < 5 ? ['F'] : [], m: { emotional: 50 } })))
+    expect(factorEffect(ds5, 'F', 'F', 'emotional', 'same_day', 50)).toBeNull()
+    // 6일 요인 + 6일 비교 → 가능
+    const ds6 = makeDs(dates.map((date, i) => ({ date, factors: i < 6 ? ['F'] : [], m: { emotional: 50 } })))
+    expect(factorEffect(ds6, 'F', 'F', 'emotional', 'same_day', 50)).not.toBeNull()
+  })
 })
 
-describe('confidenceTier', () => {
-  it('점수에 맞게 매핑된다', () => {
-    expect(confidenceTier(10)).toBe('reference')
-    expect(confidenceTier(40)).toBe('possible')
-    expect(confidenceTier(65)).toBe('likely')
-    expect(confidenceTier(90)).toBe('strong_pattern')
+describe('evidenceLevel (자료 충분도 등급)', () => {
+  it('낮은 confidence는 참고 수준', () => {
+    expect(evidenceLevel({ confidence: 10, validOutcomeDayCount: 60, supportCount: 20, comparisonCount: 20 })).toBe('reference')
+  })
+
+  it('30~44일은 최대 초기 관찰로 제한된다', () => {
+    expect(evidenceLevel({ confidence: 95, validOutcomeDayCount: 35, supportCount: 20, comparisonCount: 20 })).toBe('early')
+  })
+
+  it('45~59일은 최대 반복 관찰로 제한된다', () => {
+    expect(evidenceLevel({ confidence: 95, validOutcomeDayCount: 50, supportCount: 20, comparisonCount: 20 })).toBe('repeated')
+  })
+
+  it('60일 이상 + support/comparison 12↑ + 높은 confidence면 자료 충분', () => {
+    expect(evidenceLevel({ confidence: 90, validOutcomeDayCount: 65, supportCount: 14, comparisonCount: 30 })).toBe('sufficient')
+  })
+
+  it('60일 이상이어도 support/comparison이 12 미만이면 자료 충분 금지', () => {
+    expect(evidenceLevel({ confidence: 90, validOutcomeDayCount: 65, supportCount: 8, comparisonCount: 30 })).toBe('repeated')
+    expect(evidenceLevel({ confidence: 90, validOutcomeDayCount: 65, supportCount: 20, comparisonCount: 8 })).toBe('repeated')
   })
 })
 

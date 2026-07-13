@@ -114,19 +114,20 @@
   border-radius: var(--pill);
   white-space: nowrap;
 }
-.tier--reference {
+/* 자료 충분도 등급 (통계 신뢰도 아님) */
+.ev--reference {
   color: var(--sky-ink);
   background: var(--sky-s);
 }
-.tier--possible {
+.ev--early {
   color: var(--mint-ink);
   background: var(--mint-s);
 }
-.tier--likely {
+.ev--repeated {
   color: var(--lav-ink);
   background: var(--lav-s);
 }
-.tier--strong_pattern {
+.ev--sufficient {
   color: var(--coral-ink);
   background: var(--coral-s);
 }
@@ -177,6 +178,13 @@
   font-weight: 500;
   color: var(--ink);
 }
+.pattern__sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
 .pattern__meta {
   display: flex;
   flex-wrap: wrap;
@@ -185,6 +193,36 @@
   font-size: 11.5px;
   font-weight: 600;
   color: var(--ink-3);
+}
+.pattern__nums {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.factor-footnote {
+  margin-top: 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.analysis-count {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 6px;
+}
+.analysis-subnote {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin-top: 8px;
 }
 
 .combo {

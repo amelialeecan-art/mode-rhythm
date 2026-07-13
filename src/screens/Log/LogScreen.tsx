@@ -234,6 +234,7 @@ export function LogScreen() {
             <Chip key={s.code} label={s.label} tone="lav" selected={draft.stateCodes.includes(s.code)} onToggle={() => toggleState(s.code)} />
           ))}
         </ChipGroup>
+        <p className="state-hint">안정을 다른 감정과 함께 고르면, 힘든 감정 사이에 안정된 순간도 있었다는 뜻이에요.</p>
         <p className="event-group__label" style={{ marginTop: 16 }}>오늘 전체 강도</p>
         <ChipGroup label="전체 강도">
           {INTENSITY_CHIPS.map((o) => (
