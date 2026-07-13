@@ -131,10 +131,11 @@ function zeroNumericFields(): Record<string, number> {
  * 2) 부하성 필드에만 강도 배수 적용 (capacity 필드는 그대로)
  * 3) 0~10 clamp
  *
- * TODO(혼합 상태 재검토): calm/안정과 불안·짜증·슬픔을 동시에 고르면 preset 최대값 병합으로
- * calm이 높게 남아 calcEmotionalLoad의 `- calm*0.8` 상쇄가 감정 부하를 낮출 수 있다.
- * 혼합 감정은 실제로 가능하므로 이번 단계에서는 상호배타/공식을 바꾸지 않는다.
- * 실제 사용 데이터가 더 쌓인 뒤 별도 점수 보정 단계에서 calm 병합·상쇄 방식을 재검토한다.
+ * 안정(calm)은 다른 감정과 함께 선택 가능하다. 단독 선택은 전반적 안정을,
+ * 복수 선택은 힘든 감정 사이에 안정된 구간이 있었음을 뜻한다(상호배타 아님).
+ * TODO(calm 상쇄 강도 재검토): preset 최대값 병합으로 calm이 높게 남으면
+ * calcEmotionalLoad의 `- calm*0.8` 상쇄가 감정 부하를 낮출 수 있다. 선택 방식·공식은
+ * 유지하고, calm의 점수 상쇄 강도는 실제 기록이 충분히 쌓인 뒤 재검토한다.
  */
 export function buildStateNumericFields(
   stateCodes: string[],
