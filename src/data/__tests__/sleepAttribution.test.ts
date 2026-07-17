@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { resetDatabase } from '../reset'
 import { saveDailyEntry, loadDailyEntry, emptyDraft, type DailyEntryDraft } from '../services/dailyEntryService'
+import { getAnalysisViewModel } from '../services/patternAnalysisService'
 import { eventLogRepository, dailyScoreRepository } from '../repositories'
 import { buildExportPayload } from '../services/dataExportService'
 import { validateImportPayload, importAllData } from '../services/dataImportService'
 import { LAST_NIGHT_SLEEP_CODES } from '../catalog/lastNightSleep'
+import { addDaysISO } from '../../engine'
 
 function draft(date: string, p: Partial<DailyEntryDraft> = {}): DailyEntryDraft {
   return { ...emptyDraft(date), ...p, date }
@@ -79,6 +81,67 @@ describe('수면 계산 경로', () => {
     const short = await dailyScoreRepository.getByDate('2026-06-08')
     expect(none!.sleepLoad).toBe(0)
     expect(short!.sleepLoad).toBeGreaterThan(0)
+  })
+})
+
+describe('신규 수면으로 전환된 날짜의 legacy 정리 (1.1)', () => {
+  it('신규 수면 저장 시 지난밤 전용 legacy 사건만 제거되고 낮잠·기타는 유지, 유령 없음', async () => {
+    // legacy: 지난밤 전용(sleep_late) + 낮잠(sleep_nap) + 무관 사건(work_heavy)
+    await saveDailyEntry(draft('2026-06-10', { stateCodes: ['sad'], catalogEventCodes: ['sleep_late', 'sleep_nap', 'work_heavy'] }))
+
+    // 사용자가 지난밤 수면 카드를 실제로 입력하고 저장 → 전환
+    const loaded = await loadDailyEntry('2026-06-10')
+    loaded!.lastNightSleep = { hours: 5, quality: 4, issues: ['sleep_waking'] }
+    await saveDailyEntry(loaded!)
+
+    const codes = (await eventLogRepository.listByDate('2026-06-10')).map((e) => e.eventCode)
+    expect(codes).not.toContain('sleep_late') // 지난밤 전용 legacy 제거
+    expect(codes).toContain('sleep_nap') // 낮잠 유지
+    expect(codes).toContain('work_heavy') // 무관 사건 유지
+
+    // 재열기 → 재저장 → 유령 수면 사건 재생성 없음
+    const l2 = await loadDailyEntry('2026-06-10')
+    expect(l2!.lastNightSleep).toEqual({ hours: 5, quality: 4, issues: ['sleep_waking'] })
+    await saveDailyEntry(l2!)
+    const codes2 = (await eventLogRepository.listByDate('2026-06-10')).map((e) => e.eventCode)
+    expect(codes2.filter((c) => LAST_NIGHT_SLEEP_CODES.has(c))).toEqual([])
+    expect(codes2).toContain('sleep_nap')
+  })
+
+  it('lastNightSleep가 비어 있으면(열기만/카드 미입력) legacy 수면 사건을 변환·삭제하지 않는다', async () => {
+    await saveDailyEntry(draft('2026-06-11', { stateCodes: ['sad'], catalogEventCodes: ['sleep_late'] }))
+    const before = (await eventLogRepository.listByDate('2026-06-11')).map((e) => e.eventCode).sort()
+
+    // 열기만 (저장 안 함) → 변경 없음
+    const loaded = await loadDailyEntry('2026-06-11')
+    expect((await eventLogRepository.listByDate('2026-06-11')).map((e) => e.eventCode).sort()).toEqual(before)
+
+    // 카드 비운 채 그대로 재저장 → legacy 수면 사건 유지
+    await saveDailyEntry(loaded!)
+    expect((await eventLogRepository.listByDate('2026-06-11')).map((e) => e.eventCode)).toContain('sleep_late')
+  })
+})
+
+describe('분석 노출 통합 (1.1)', () => {
+  it('신규 lastNightSleep 수면이 분석 노출에서 사라지지 않는다', async () => {
+    for (let i = 0; i < 5; i++) {
+      await saveDailyEntry(
+        draft(addDaysISO('2026-06-01', i), { stateCodes: ['anxious'], lastNightSleep: { hours: 4, quality: 3, issues: ['sleep_waking', 'sleep_nightmare'] } }),
+      )
+    }
+    const vm = await getAnalysisViewModel({ endDate: '2026-06-05' })
+    const labels = vm.eventFrequency.map((e) => e.label)
+    // sleep_quality(수면의 질 저하) 또는 sleep_deficit(수면 부족)이 노출돼야 한다
+    expect(labels.some((l) => l.includes('수면의 질') || l.includes('수면 부족'))).toBe(true)
+  })
+
+  it('legacy 수면 사건도 분석 노출에 유지된다', async () => {
+    for (let i = 0; i < 5; i++) {
+      await saveDailyEntry(draft(addDaysISO('2026-06-01', i), { stateCodes: ['anxious'], catalogEventCodes: ['sleep_short'] }))
+    }
+    const vm = await getAnalysisViewModel({ endDate: '2026-06-05' })
+    const labels = vm.eventFrequency.map((e) => e.label)
+    expect(labels.some((l) => l.includes('수면 부족'))).toBe(true) // sleep_deficit
   })
 })
 

@@ -45,9 +45,10 @@ import {
   type RecoveryActionInsight,
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS } from '../catalog/events'
+import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
 import { assertGuard } from '../../copy/tone'
 import { getTodayISODate } from '../../lib/date'
-import type { DailyLog, DailyScore, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
+import type { DailyLog, DailyScore, EventLog, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
 
 const ANALYSIS_DAYS = 60
 const BASELINE_DAYS = 30
@@ -253,9 +254,19 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     set.add(group)
   }
 
+  // 날짜별 사건 (수면 노출 adapter의 legacy 조회용)
+  const eventsByDate = new Map<ISODate, EventLog[]>()
+  for (const e of events) {
+    const arr = eventsByDate.get(e.date) ?? []
+    arr.push(e)
+    eventsByDate.set(e.date, arr)
+  }
+
   for (const e of events) {
     // 회복성 사건은 위험 요인 후보에서 제외(회복 분석에서만 평가)
     if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
+    // 지난밤 수면 코드는 아래 canonical 수면 노출(adapter)에서 단일 출처로 처리 → 여기선 건너뜀
+    if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
 
     // timing 보수 처리: today=당일, yesterday=전날, recent3/7days=정밀 분석 제외
     const occDate = eventOccurrenceDate(e.timing, e.date)
@@ -289,6 +300,21 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     if (ctx.isPeriod) addFactor(d, 'cycle_period')
     if (ctx.isPremenstrualWindow) addFactor(d, 'cycle_premenstrual_window')
     if (ctx.isOvulationWindow) addFactor(d, 'cycle_ovulation_window')
+  }
+
+  // 수면 노출 (날짜당 단일 출처: lastNightSleep 우선, 없으면 legacy sleep 사건).
+  // 수면은 "깨어난 날"에 귀속 → 해당 날짜에 factorGroup을 더한다. factorByDate는 Set이라
+  // 다른 경로와 겹쳐도 이중 반영되지 않는다. 신규 수면이 사라지지 않도록 이 경로로 통합한다.
+  const sleepDates = new Set<ISODate>([...logByDate.keys(), ...eventsByDate.keys()])
+  for (const date of sleepDates) {
+    if (date < factorStart || date > endDate) continue
+    const exposure = getSleepExposureForDate(logByDate.get(date), eventsByDate.get(date) ?? [])
+    for (const g of exposure.factorGroups) {
+      addFactor(date, g)
+      const gd = eventGroupDates.get(g) ?? new Set<ISODate>()
+      gd.add(date)
+      eventGroupDates.set(g, gd)
+    }
   }
 
   const ds: AnalysisDataset = { resultDates, scoreByDate, factorByDate, endDate }
