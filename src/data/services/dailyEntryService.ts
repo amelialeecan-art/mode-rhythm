@@ -34,6 +34,7 @@ import type {
   EventTiming,
   FlowLevel,
   ISODate,
+  LastNightSleep,
   RecoveryEffectValue,
   RecoveryLogInput,
 } from '../models'
@@ -87,7 +88,27 @@ export interface DailyEntryDraft {
   recoveryNegativeCodes: string[]
   /** 회복 효과 (빈 문자열 = 미선택) — 도움 된 것 그룹에 적용. */
   recoveryEffect: RecoveryEffectValue | ''
+  /** 지난밤 수면 (깨어난 날짜에 귀속). timing 없음. */
+  lastNightSleep: LastNightSleepDraft
   memo: string
+}
+
+/** 폼 내 지난밤 수면. */
+export interface LastNightSleepDraft {
+  hours?: number
+  quality?: number
+  issues: string[]
+}
+
+/** 지난밤 수면 입력이 하나라도 있으면 저장, 없으면 undefined(빈 저장 깔끔하게). */
+function normalizeLastNight(ln: LastNightSleepDraft): LastNightSleep | undefined {
+  const issues = (ln.issues ?? []).filter(Boolean)
+  if (ln.hours === undefined && ln.quality === undefined && issues.length === 0) return undefined
+  return {
+    ...(ln.hours !== undefined ? { hours: ln.hours } : {}),
+    ...(ln.quality !== undefined ? { quality: ln.quality } : {}),
+    ...(issues.length > 0 ? { issues } : {}),
+  }
 }
 
 /** appetiteRatings에 입력값이 하나라도 있는지. */
@@ -119,6 +140,7 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
     recoveryCodes: [],
     recoveryNegativeCodes: [],
     recoveryEffect: '',
+    lastNightSleep: { issues: [] },
     memo: '',
   }
 }
@@ -162,6 +184,8 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     stateCodes: [...draft.stateCodes],
     overallIntensity: draft.overallIntensity,
     appetiteRatings: hasAppetiteRatings(ar) ? { ...ar } : undefined,
+    // 지난밤 수면(비인덱스). 입력 없으면 undefined.
+    lastNightSleep: normalizeLastNight(draft.lastNightSleep),
   }
 }
 
@@ -323,6 +347,14 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
     recoveryCodes: positiveRecovery.map((r) => r.actionCode),
     recoveryNegativeCodes: negativeRecovery.map((r) => r.actionCode),
     recoveryEffect: positiveRecovery[0]?.effect ?? '',
+    // 지난밤 수면 복원. 옛 기록(필드 없음)은 빈 카드로 — 기존 sleep 사건은 그대로 보존된다.
+    lastNightSleep: dailyLog?.lastNightSleep
+      ? {
+          hours: dailyLog.lastNightSleep.hours,
+          quality: dailyLog.lastNightSleep.quality,
+          issues: [...(dailyLog.lastNightSleep.issues ?? [])],
+        }
+      : { issues: [] },
     memo: dailyLog?.memo ?? '',
   }
 }
