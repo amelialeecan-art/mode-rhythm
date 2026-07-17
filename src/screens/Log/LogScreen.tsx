@@ -3,6 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { GlassCard, SectionHeader, Chip, ChipGroup } from '../../design'
 import { STATE_CHIPS } from '../../data/catalog/modes'
 import { EVENT_CATALOG, EVENT_CATEGORY_LABEL, type EventCatalogItem } from '../../data/catalog/events'
+import {
+  LAST_NIGHT_SLEEP_CODES,
+  SLEEP_HOUR_BUCKETS,
+  SLEEP_QUALITY_OPTIONS,
+  SLEEP_ISSUE_CHIPS,
+} from '../../data/catalog/lastNightSleep'
 import { RECOVERY_ACTIONS, RECOVERY_EFFECTS } from '../../data/catalog/recoveryActions'
 import { INTENSITY_OPTIONS } from '../../data/catalog/intensity'
 import { CUSTOM_EVENT_CATEGORIES, makeCustomEventCode, makeCustomFactorGroup } from '../../data/catalog/customEvent'
@@ -15,7 +21,7 @@ import {
   type IntensityCode,
   type AppetiteRatings,
 } from '../../data/services/dailyEntryService'
-import { getTodayISODate } from '../../lib/date'
+import { getTodayISODate, parseISODate, formatMonthDay } from '../../lib/date'
 import { setFormBusy, setFormDirty } from '../../lib/pwaUpdate'
 import { serializeForm } from './dirty'
 import type { EventCategory } from '../../data/types'
@@ -141,6 +147,14 @@ export function LogScreen() {
 
   const toggleState = (code: string) => setDraft((d) => ({ ...d, stateCodes: toggleInArray(d.stateCodes, code) }))
   const toggleEvent = (code: string) => setDraft((d) => ({ ...d, catalogEventCodes: toggleInArray(d.catalogEventCodes, code) }))
+
+  /* ---- 지난밤 수면 헬퍼 ---- */
+  const setSleepHours = (hours: number) =>
+    setDraft((d) => ({ ...d, lastNightSleep: { ...d.lastNightSleep, hours: d.lastNightSleep.hours === hours ? undefined : hours } }))
+  const setSleepQuality = (quality: number) =>
+    setDraft((d) => ({ ...d, lastNightSleep: { ...d.lastNightSleep, quality: d.lastNightSleep.quality === quality ? undefined : quality } }))
+  const toggleSleepIssue = (code: string) =>
+    setDraft((d) => ({ ...d, lastNightSleep: { ...d.lastNightSleep, issues: toggleInArray(d.lastNightSleep.issues, code) } }))
   // 같은 칩은 도움/안 맞음 중 한쪽에만 — 한쪽 선택 시 반대쪽에서 제거
   const toggleRecovery = (code: string) =>
     setDraft((d) => ({
@@ -201,6 +215,10 @@ export function LogScreen() {
 
   const saveLabel =
     status === 'saving' ? '저장 중…' : status === 'success' ? '저장됐어요' : status === 'error' ? '저장 실패' : '기록 저장'
+
+  // 지난밤 수면은 "깨어난 날짜"(=date)에 귀속 → "전날 밤 → 오늘 아침"으로 표시.
+  const wakeDate = parseISODate(date)
+  const sleepSpan = `${formatMonthDay(new Date(wakeDate.getTime() - 86_400_000))} 밤 → ${formatMonthDay(wakeDate)} 아침`
 
   return (
     <>
@@ -270,6 +288,30 @@ export function LogScreen() {
         ))}
       </GlassCard>
 
+      {/* 1-3. 지난밤 수면 (깨어난 날짜에 귀속 — 일반 사건과 분리) */}
+      <GlassCard tint="sky">
+        <SectionHeader title="지난밤 수면" subtitle={sleepSpan} />
+        <p className="event-group__label">몇 시간 잤어요?</p>
+        <ChipGroup label="수면시간">
+          {SLEEP_HOUR_BUCKETS.map((b) => (
+            <Chip key={b.code} label={b.label} tone="sky" selected={draft.lastNightSleep.hours === b.hours} onToggle={() => setSleepHours(b.hours)} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 14 }}>잘 잤어요?</p>
+        <ChipGroup label="수면 만족도">
+          {SLEEP_QUALITY_OPTIONS.map((q) => (
+            <Chip key={q.value} label={q.label} tone="sky" selected={draft.lastNightSleep.quality === q.value} onToggle={() => setSleepQuality(q.value)} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 14 }}>지난밤에 이런 일이 있었어요?</p>
+        <ChipGroup label="지난밤 수면 이슈">
+          {SLEEP_ISSUE_CHIPS.map((s) => (
+            <Chip key={s.code} label={s.label} tone="sky" selected={draft.lastNightSleep.issues.includes(s.code)} onToggle={() => toggleSleepIssue(s.code)} />
+          ))}
+        </ChipGroup>
+        <p className="state-hint">낮잠은 여기가 아니라 아래 "오늘 있었던 일"에 남겨요.</p>
+      </GlassCard>
+
       {/* 2. 오늘 있었던 일 */}
       <GlassCard>
         <SectionHeader title="오늘 있었던 일" subtitle="원인 추측이 아니라 사건·상황 기록이에요" />
@@ -287,16 +329,21 @@ export function LogScreen() {
           ))}
         </ChipGroup>
 
-        {EVENT_ORDER.filter((c) => EVENT_GROUPS[c]).map((cat) => (
-          <div className="event-group" key={cat}>
-            <p className="event-group__label">{EVENT_CATEGORY_LABEL[cat]}</p>
-            <ChipGroup label={EVENT_CATEGORY_LABEL[cat]}>
-              {EVENT_GROUPS[cat].map((e) => (
-                <Chip key={e.code} label={e.label} tone="coral" selected={draft.catalogEventCodes.includes(e.code)} onToggle={() => toggleEvent(e.code)} />
-              ))}
-            </ChipGroup>
-          </div>
-        ))}
+        {EVENT_ORDER.filter((c) => EVENT_GROUPS[c]).map((cat) => {
+          // 지난밤 수면 코드는 별도 카드에서 입력 → 일반 사건 섹션에서 감춘다. (낮잠 등은 유지)
+          const items = EVENT_GROUPS[cat].filter((e) => !LAST_NIGHT_SLEEP_CODES.has(e.code))
+          if (items.length === 0) return null
+          return (
+            <div className="event-group" key={cat}>
+              <p className="event-group__label">{EVENT_CATEGORY_LABEL[cat]}</p>
+              <ChipGroup label={EVENT_CATEGORY_LABEL[cat]}>
+                {items.map((e) => (
+                  <Chip key={e.code} label={e.label} tone="coral" selected={draft.catalogEventCodes.includes(e.code)} onToggle={() => toggleEvent(e.code)} />
+                ))}
+              </ChipGroup>
+            </div>
+          )
+        })}
 
         {/* 커스텀 사건 */}
         {draft.customEvents.length > 0 && (

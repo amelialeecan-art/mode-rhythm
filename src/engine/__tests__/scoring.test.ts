@@ -38,10 +38,40 @@ describe('calcAppetiteLoad', () => {
 })
 
 describe('calcSleepLoad', () => {
-  it('sleepHours가 적으면 수면 부하가 높아진다', () => {
+  it('sleepHours가 적으면 수면 부하가 높아진다 (legacy 경로)', () => {
     const enough = calcSleepLoad(makeLog({ sleepHours: 8 }), [])
     const little = calcSleepLoad(makeLog({ sleepHours: 4 }), [])
     expect(little).toBeGreaterThan(enough)
+  })
+
+  it('지난밤 수면(lastNightSleep)이 수면 부하를 결정한다', () => {
+    const good = calcSleepLoad(makeLog({ lastNightSleep: { hours: 8 } }), [])
+    const bad = calcSleepLoad(makeLog({ lastNightSleep: { hours: 4, issues: ['sleep_waking', 'sleep_nightmare'] } }), [])
+    expect(bad).toBeGreaterThan(good)
+  })
+
+  it('lastNightSleep가 단일 출처 — sleep 사건이 함께 있어도 이중 가산하지 않는다', () => {
+    const log = makeLog({ lastNightSleep: { hours: 5, quality: 4, issues: ['sleep_waking'] } })
+    const sleepEvents = [
+      makeEvent({ eventCode: 'sleep_allnight', category: 'sleep' }),
+      makeEvent({ eventCode: 'sleep_nightmare', category: 'sleep' }),
+    ]
+    // lastNightSleep가 있으면 events는 무시된다 → 두 결과가 같아야 한다
+    expect(calcSleepLoad(log, sleepEvents)).toBe(calcSleepLoad(log, []))
+  })
+
+  it("옛 기록의 'sleep_short' 사건이 이제 수면 부하에 반영된다 (기존 누락 해결)", () => {
+    // 이전 구현에서는 sleep_short가 calcSleepLoad에서 참조되지 않아 0이었다.
+    const before = calcSleepLoad(makeLog(), [])
+    const withShort = calcSleepLoad(makeLog(), [makeEvent({ eventCode: 'sleep_short', category: 'sleep' })])
+    expect(before).toBe(0)
+    expect(withShort).toBeGreaterThan(before)
+  })
+
+  it('수면시간이 입력되면 sleep_short는 중복 가산하지 않는다', () => {
+    const withHoursOnly = calcSleepLoad(makeLog({ lastNightSleep: { hours: 4 } }), [])
+    const withHoursAndShort = calcSleepLoad(makeLog({ lastNightSleep: { hours: 4, issues: ['sleep_short'] } }), [])
+    expect(withHoursAndShort).toBe(withHoursOnly)
   })
 })
 

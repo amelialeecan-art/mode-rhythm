@@ -113,8 +113,25 @@ export interface DailyLog {
   appetiteRatings?: AppetiteRatings
   /** 기름진 음식 욕구 0~10 (비인덱스 optional — 기록용, 점수 공식 미포함). */
   greasyCraving?: number
+  /**
+   * 지난밤 수면 (비인덱스 optional — Dexie 스키마/인덱스 변경 없음).
+   * "깨어난 날짜"(=이 dailyLog의 date)에 귀속한다. timing을 묻지 않는다.
+   * 신규 기록의 수면 단일 출처 — sleep 사건(eventLogs)과 이중 가산하지 않는다.
+   * 없는 옛 기록은 기존 sleep 사건에서 읽는다(scoring의 단일 출처 규칙).
+   */
+  lastNightSleep?: LastNightSleep
   createdAt: string
   updatedAt: string
+}
+
+/** 지난밤 수면 입력값. issues 코드는 기존 sleep eventCode와 동일하게 유지(호환). */
+export interface LastNightSleep {
+  /** 대표 수면시간(시간). 구간 선택 → 대표값. */
+  hours?: number
+  /** 수면 만족도/질 0~10. */
+  quality?: number
+  /** 수면 이슈 코드: sleep_late/sleep_waking/sleep_nightmare/sleep_allnight/sleep_much/woke_late. */
+  issues?: string[]
 }
 
 /** 식욕 상태 섹션 직접 입력값(있으면 state preset보다 우선). 각 0/3/5/7/9. */

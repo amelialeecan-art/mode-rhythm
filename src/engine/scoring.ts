@@ -61,27 +61,52 @@ export function calcAppetiteLoad(log: DailyLog, events: EventLog[]): number {
   return roundScore(normalizeTo100(Math.max(0, raw), 55))
 }
 
-/** 수면 부하. sleepHours/Quality(숫자) + 사건성 수면 보정. */
+/** 시간 미입력 시 '잠 부족'(sleep_short)을 수면 점수에 반영 (기존 누락 해결). */
+const SLEEP_SHORT_LOAD = 30
+/** '늦게 일어남'(woke_late) 반영. */
+const SLEEP_WOKE_LATE_LOAD = 6
+
+/**
+ * 수면 부하. 지난밤 수면(log.lastNightSleep)을 **단일 출처**로 쓰고,
+ * 없으면(옛 기록) 기존 sleep 사건에서 읽는다 → 이중 가산 방지.
+ * 시간 구간(hours) + 만족도(quality) + 이슈 보정.
+ *
+ * ⚠️ 기존 결함 수정: 'sleep_short'(잠 부족)는 그동안 수면 점수에 전혀 반영되지
+ * 않았다. 신규 기록은 수면시간 구간의 debt로, 옛 기록의 sleep_short 사건은
+ * 아래 SLEEP_SHORT_LOAD로 반영한다(시간이 있으면 debt가 이미 부족을 반영하므로
+ * 중복 가산하지 않는다).
+ */
 export function calcSleepLoad(log: DailyLog, events: EventLog[]): number {
+  const ln = log.lastNightSleep
+  // 단일 출처: lastNightSleep가 있으면 거기서만, 없으면 legacy sleep 사건에서.
+  const hours = ln ? ln.hours : log.sleepHours
+  const quality = ln ? ln.quality : log.sleepQuality
+  const hasN = (code: string): number => {
+    const present = ln ? (ln.issues?.includes(code) ?? false) : hasEvent(events, code) === 1
+    return present ? 1 : 0
+  }
+
   let debt = 0
-  const h = log.sleepHours
-  if (h === undefined) debt = 0
-  else if (h >= 7.5) debt = 0
-  else if (h >= 6.5) debt = 20
-  else if (h >= 5.5) debt = 45
-  else if (h >= 4.5) debt = 70
+  if (hours === undefined) debt = 0
+  else if (hours >= 7.5) debt = 0
+  else if (hours >= 6.5) debt = 20
+  else if (hours >= 5.5) debt = 45
+  else if (hours >= 4.5) debt = 70
   else debt = 90
 
-  const qualityPart = log.sleepQuality === undefined ? 0 : (10 - log.sleepQuality) * 4
+  const qualityPart = quality === undefined ? 0 : (10 - quality) * 4
 
   const raw =
     debt +
     qualityPart +
-    hasEvent(events, 'sleep_late') * 10 +
-    hasEvent(events, 'sleep_waking') * 10 +
-    hasEvent(events, 'sleep_nightmare') * 8 +
-    hasEvent(events, 'sleep_allnight') * 20 +
-    hasEvent(events, 'sleep_much') * 8
+    hasN('sleep_late') * 10 +
+    hasN('sleep_waking') * 10 +
+    hasN('sleep_nightmare') * 8 +
+    hasN('sleep_allnight') * 20 +
+    hasN('sleep_much') * 8 +
+    // 시간이 입력된 경우 debt가 이미 부족을 반영하므로 sleep_short는 중복 가산하지 않는다.
+    (hours === undefined ? hasN('sleep_short') * SLEEP_SHORT_LOAD : 0) +
+    hasN('woke_late') * SLEEP_WOKE_LATE_LOAD
   return roundScore(clamp(raw, 0, 100))
 }
 
