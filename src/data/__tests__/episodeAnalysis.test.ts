@@ -122,3 +122,33 @@ describe('에피소드 분석 연결 (Phase 5)', () => {
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
   })
 })
+
+describe('요약 문장 중립 표현 (Phase 5.1 hotfix)', () => {
+  it('level 4여도 요약은 공통 중립 표현 — "무너지기/무너진 뒤" 미사용', async () => {
+    await save('2026-06-08', { stateCodes: ['calm'], functionLevel: 2, catalogEventCodes: ['meal_overeat'] }) // lag3 선행
+    await save('2026-06-11', { stateCodes: ['sad'], functionLevel: 4, catalogEventCodes: ['shorts_heavy'] }) // 나빠진 뒤
+    await save('2026-06-12', { stateCodes: ['calm'], functionLevel: 2 })
+    await save('2026-06-13', { stateCodes: ['calm'], functionLevel: 2 })
+
+    const ep = (await getAnalysisViewModel({ endDate: END })).episodes[0]
+    const text = ep.summary.join(' ')
+    // 공통 중립 표현 사용
+    expect(ep.summary.some((s) => s.includes('힘들었던 날 3일 전부터'))).toBe(true)
+    expect(ep.summary.some((s) => s.includes('상태가 나빠진 뒤에는'))).toBe(true)
+    // 요약 문장에 "무너" 계열 표현이 없어야 함(구분은 배지에서만)
+    expect(text).not.toMatch(/무너/)
+    // 배지에서만 무너짐 구분
+    expect(ep.severityLabel).toBe('무너짐')
+  })
+
+  it('level 3도 요약은 중립, 배지만 "기능 저하"', async () => {
+    await save('2026-06-10', { stateCodes: ['sad'], functionLevel: 3 })
+    await save('2026-06-11', { stateCodes: ['calm'], functionLevel: 2 })
+    await save('2026-06-12', { stateCodes: ['calm'], functionLevel: 2 })
+
+    const ep = (await getAnalysisViewModel({ endDate: END })).episodes[0]
+    expect(ep.summary[0]).toContain('다른 날보다 힘들었던 날이에요')
+    expect(ep.summary.join(' ')).not.toMatch(/무너/)
+    expect(ep.severityLabel).toBe('기능 저하')
+  })
+})

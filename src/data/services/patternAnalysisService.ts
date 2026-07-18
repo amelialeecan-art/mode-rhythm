@@ -330,23 +330,18 @@ function buildSummary(
   after: SignalAgg[],
   cyclePosition?: EpisodeCyclePosition,
 ): string[] {
-  const sev =
-    ep.peakFunctionLevel === 4
-      ? '일상 기능이 거의 멈췄던 날'
-      : ep.peakFunctionLevel === 3
-        ? '중요한 일 몇 가지를 못 했던 날'
-        : '종합 버거움으로 미루어 본 구간'
+  // 요약 문장은 공통 중립 표현으로 통일한다. level 3/4/추정 구분은 카드 배지에서만.
   const status =
     ep.status === 'recovered'
       ? '이후 회복 흐름이 확인됐어요'
       : ep.status === 'recovering'
         ? '회복 흐름은 아직 뚜렷하지 않아요'
         : '아직 진행 중이에요'
-  const out: string[] = [`${dateLabel}은 ${sev}, ${status}.`]
+  const out: string[] = [`${dateLabel}은 다른 날보다 힘들었던 날이에요, ${status}.`]
 
   if (early.length > 0) {
     const names = early.slice(0, 2).map((a) => a.label).join('·')
-    out.push(`무너지기 ${maxLagOf(early[0])}일 전부터 ${names} 신호가 함께 있었어요.`)
+    out.push(`힘들었던 날 ${maxLagOf(early[0])}일 전부터 ${names} 신호가 함께 있었어요.`)
   } else if (dayBefore.length > 0) {
     const names = dayBefore.slice(0, 2).map((a) => a.label).join('·')
     out.push(`전날 ${names} 기록이 새로 늘었어요.`)
@@ -358,7 +353,7 @@ function buildSummary(
     out.push(`${cyclePosition.phaseLabel}${cyclePosition.detail ? ` (${cyclePosition.detail})` : ''}과 겹친 시기예요.`)
   } else if (after.length > 0) {
     const names = after.slice(0, 2).map((a) => a.label).join('·')
-    out.push(`무너진 뒤에는 ${names} 기록이 늘었어요.`)
+    out.push(`상태가 나빠진 뒤에는 ${names} 기록이 늘었어요.`)
   }
   return out
 }
