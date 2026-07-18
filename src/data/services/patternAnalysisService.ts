@@ -34,6 +34,8 @@ import {
   analyzeRecoveryActions,
   evidenceLevel,
   windowPhrase,
+  detectEpisodes,
+  assembleEpisodeSignals,
   EVIDENCE_LEVEL_LABEL,
   ANALYSIS_METRIC_LABEL,
   type AnalysisDataset,
@@ -43,6 +45,13 @@ import {
   type UnexplainedDayResult,
   type RecoveryDataset,
   type RecoveryActionInsight,
+  type EpisodeDayInput,
+  type EpisodeEvent,
+  type Episode,
+  type EpisodeSignal,
+  type EpisodeSignals,
+  type EpisodeStatus,
+  type EpisodeConfidence,
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
@@ -58,6 +67,9 @@ const FACTOR_LOOKBACK = 7 // 시간창 분석용 사전 7일 사건 데이터
 const FACTOR_MIN_DAYS = 30 // factor 카드 노출 시작
 const COMBO_MIN_DAYS = 45 // combo 카드 노출 시작
 const MIN_FACTOR_EFFECT = 8 // 요인 후보 최소 평균 차이(점)
+
+const MAX_EPISODES_SHOWN = 6 // 최근 K개만 표시(성능 상한, §17)
+const MAX_SIGNALS_PER_BUCKET = 4
 
 const FACTOR_METRICS: AnalysisMetric[] = ['emotional', 'appetite', 'sleep', 'body', 'rhythm']
 const COMBO_METRICS: AnalysisMetric[] = ['appetite', 'emotional', 'rhythm', 'body']
@@ -165,6 +177,116 @@ export interface ComboCard {
   message: string
 }
 
+/* ---------------------------------------------------------------------
+   무너짐 에피소드 카드 (4단계 엔진 → 화면 표시용)
+   reported/mixed/estimated 를 명확히 구분하고, level 3 기능 저하와
+   level 4 무너짐을 구분해 표시한다. 같은 날 관계는 원인처럼 표현하지 않는다.
+   --------------------------------------------------------------------- */
+export interface EpisodeSignalText {
+  factorGroup: string
+  label: string
+  /** "같은 날 / 하루 전 / N일 전 / 최근 N일 반복 / 무너진 뒤" 등. */
+  timing: string
+}
+
+export interface EpisodeCyclePosition {
+  phaseLabel: string
+  detail?: string
+}
+
+export interface EpisodeCard {
+  startDate: ISODate
+  endDate: ISODate
+  peakDate: ISODate
+  lengthDays: number
+  status: EpisodeStatus
+  statusLabel: string
+  confidence: EpisodeConfidence
+  confidenceLabel: string
+  /** level 4 '무너짐' vs level 3 '기능 저하' vs 추정 구분. */
+  severityLabel: string
+  peakFunctionLevel?: number
+  daysToRecovery?: number
+  recoveryStartDate?: ISODate
+  earlyLeadUp: EpisodeSignalText[]
+  dayBeforeWarning: EpisodeSignalText[]
+  sameDayCompanion: EpisodeSignalText[]
+  backgroundConditions: EpisodeSignalText[]
+  afterShift: EpisodeSignalText[]
+  cyclePosition?: EpisodeCyclePosition
+}
+
+const EPISODE_STATUS_LABEL: Record<EpisodeStatus, string> = {
+  ongoing: '진행 중',
+  recovering: '회복 흐름',
+  recovered: '회복함',
+}
+const EPISODE_CONFIDENCE_LABEL: Record<EpisodeConfidence, string> = {
+  reported: '기록 기반',
+  mixed: '기록+추정 혼합',
+  estimated: '추정 (기능 기록 없음)',
+}
+const CYCLE_PHASE_LABEL: Record<string, string> = {
+  period: '생리 중',
+  premenstrual: '월경 전 구간',
+  ovulation: '배란 추정 구간',
+  other: '그 외 구간',
+  unknown: '주기 데이터 없음',
+}
+
+/** level 3(기능 저하)과 level 4(무너짐)를 구분. 자기보고 없으면 추정. */
+function severityLabelFor(peakFunctionLevel?: number): string {
+  if (peakFunctionLevel === 4) return '무너짐'
+  if (peakFunctionLevel === 3) return '기능 저하'
+  return '추정 구간'
+}
+
+function signalTiming(s: EpisodeSignal, afterShift = false): string {
+  if (afterShift) return '무너진 뒤'
+  if (s.occurrences !== undefined) return `최근 ${s.occurrences}일 반복`
+  if (s.lagDays === 0) return '같은 날'
+  if (s.lagDays === 1) return '하루 전'
+  return `${s.lagDays}일 전`
+}
+
+function toSignalText(list: EpisodeSignal[], afterShift = false): EpisodeSignalText[] {
+  return list
+    .slice(0, MAX_SIGNALS_PER_BUCKET)
+    .map((s) => ({ factorGroup: s.factorGroup, label: s.label, timing: signalTiming(s, afterShift) }))
+}
+
+function buildEpisodeCard(ep: Episode, sig: EpisodeSignals): EpisodeCard {
+  let cyclePosition: EpisodeCyclePosition | undefined
+  if (sig.cyclePosition && sig.cyclePosition.phase !== 'unknown') {
+    const cp = sig.cyclePosition
+    let detail: string | undefined
+    if (cp.periodDay !== undefined) detail = `생리 ${cp.periodDay}일차`
+    else if (cp.phase === 'premenstrual' && cp.daysUntilNextPeriod !== undefined)
+      detail = `예정일까지 약 ${cp.daysUntilNextPeriod}일`
+    cyclePosition = { phaseLabel: CYCLE_PHASE_LABEL[cp.phase] ?? cp.phase, detail }
+  }
+  return {
+    startDate: ep.startDate,
+    endDate: ep.endDate,
+    peakDate: ep.peakDate,
+    lengthDays: ep.lengthDays,
+    status: ep.status,
+    statusLabel: EPISODE_STATUS_LABEL[ep.status],
+    confidence: ep.confidence,
+    confidenceLabel: EPISODE_CONFIDENCE_LABEL[ep.confidence],
+    severityLabel: severityLabelFor(ep.peakFunctionLevel),
+    peakFunctionLevel: ep.peakFunctionLevel,
+    daysToRecovery: ep.daysToRecovery,
+    recoveryStartDate: ep.recoveryStartDate,
+    earlyLeadUp: toSignalText(sig.earlyLeadUp),
+    dayBeforeWarning: toSignalText(sig.dayBeforeWarning),
+    sameDayCompanion: toSignalText(sig.sameDayCompanion),
+    backgroundConditions: toSignalText(sig.backgroundConditions),
+    afterShift: toSignalText(sig.afterShift, true),
+    cyclePosition,
+  }
+}
+
 export interface AnalysisViewModel {
   endDate: ISODate
   /** 이 창에서 저장된 날 수(dailyScore 존재). */
@@ -173,6 +295,8 @@ export interface AnalysisViewModel {
   validOutcomeDayCount: number
   analysisStage: AnalysisStage
   analysisStageLabel: string
+  /** 무너짐 에피소드(최근 K개, 최신순). 없으면 빈 배열. */
+  episodes: EpisodeCard[]
   /** 요인 평균 비교(30일)까지 남은 유효일 수. */
   daysUntilComparison: number
   /** 초기 단계용 자주 기록한 사건 단순 빈도. */
@@ -563,12 +687,51 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     })
   }
 
+  // ---- 무너짐 에피소드 (4단계 순수 엔진 연결) ----
+  // 입력: 그날 자기보고 functionLevel(우선) + rhythmLoad(보조 추정). 달력 연속은 엔진이 채운다.
+  const episodeInputs: EpisodeDayInput[] = []
+  const episodeDates = new Set<ISODate>([...logByDate.keys(), ...scoreByDate.keys()])
+  for (const date of episodeDates) {
+    if (date < startDate || date > endDate) continue
+    episodeInputs.push({
+      date,
+      functionLevel: logByDate.get(date)?.functionLevel,
+      rhythmLoad: scoreByDate.get(date)?.rhythm,
+    })
+  }
+  // 사건: 발생 추정일 + relationToShift 보존. 회복성/지난밤수면 코드는 선행신호에서 제외
+  // (수면은 아래 canonical 노출 경로로 단일 반영).
+  const episodeEvents: EpisodeEvent[] = []
+  for (const e of events) {
+    if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
+    if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
+    const occ = eventOccurrenceDate(e.timing, e.date)
+    if (occ === null) continue
+    episodeEvents.push({
+      date: occ,
+      factorGroup: e.mappedFactorGroup,
+      label: groupTitle(e.mappedFactorGroup),
+      relationToShift: e.relationToShift,
+    })
+  }
+  for (const date of sleepDates) {
+    if (date < factorStart || date > endDate) continue
+    const exposure = getSleepExposureForDate(logByDate.get(date), eventsByDate.get(date) ?? [])
+    for (const g of exposure.factorGroups) episodeEvents.push({ date, factorGroup: g, label: groupTitle(g) })
+  }
+
+  const episodes: EpisodeCard[] = detectEpisodes(episodeInputs)
+    .slice(-MAX_EPISODES_SHOWN)
+    .reverse() // 최신순
+    .map((ep) => buildEpisodeCard(ep, assembleEpisodeSignals(ep, episodeEvents, buildCycleContext(ep.startDate, cycleLogs, settings))))
+
   const vm: AnalysisViewModel = {
     endDate,
     savedDayCount,
     validOutcomeDayCount,
     analysisStage,
     analysisStageLabel: ANALYSIS_STAGE_LABEL[analysisStage],
+    episodes,
     daysUntilComparison,
     eventFrequency,
     factorPatterns: topFactors,
