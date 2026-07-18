@@ -296,6 +296,201 @@
   cursor: default;
 }
 
+/* ---------- Phase 5 · 무너짐 에피소드 ---------- */
+.ep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+.ep {
+  padding: 13px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
+}
+.ep__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.ep__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ep__sev {
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: var(--pill);
+}
+/* level 4 무너짐 = coral, level 3 기능 저하 = butter, 추정 = 회색 */
+.ep__sev--4 {
+  color: var(--coral-ink);
+  background: var(--coral-s);
+}
+.ep__sev--3 {
+  color: #9a6a17;
+  background: var(--butter-s);
+}
+.ep__sev--est {
+  color: var(--ink-2);
+  background: rgba(120, 90, 180, 0.1);
+}
+.ep__range {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.ep__conf {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--pill);
+  white-space: nowrap;
+}
+/* reported / mixed / estimated 명확히 구분 */
+.ep__conf--reported {
+  color: var(--mint-ink);
+  background: var(--mint-s);
+}
+.ep__conf--mixed {
+  color: var(--sky-ink);
+  background: var(--sky-s);
+}
+.ep__conf--estimated {
+  color: var(--ink-2);
+  background: rgba(120, 90, 180, 0.1);
+}
+.ep__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.ep__status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--pill);
+}
+.ep__status--ongoing {
+  color: var(--coral-ink);
+  background: var(--coral-s);
+}
+.ep__status--recovering {
+  color: var(--sky-ink);
+  background: var(--sky-s);
+}
+.ep__status--recovered {
+  color: var(--mint-ink);
+  background: var(--mint-s);
+}
+.ep__cycle {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lav-ink);
+}
+.ep__bucket {
+  margin-top: 11px;
+}
+.ep__bhead {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ink-2);
+}
+.ep__bhead--lead {
+  color: var(--lav-ink);
+}
+.ep__bhead--warn {
+  color: var(--coral-ink);
+}
+.ep__bhead--same {
+  color: var(--ink-2);
+}
+.ep__bhead--bg {
+  color: #9a6a17;
+}
+.ep__bhead--after {
+  color: var(--ink-3);
+}
+.ep__sigs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 6px;
+}
+.ep__sig {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 6px 11px;
+  border-radius: var(--pill);
+  background: rgba(120, 90, 180, 0.08);
+}
+.ep__lag {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.ep__note {
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.ep__empty {
+  margin-top: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* 접힘: 장기 관찰 자료 */
+.longterm {
+  margin-top: 6px;
+}
+.longterm__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 13px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.longterm__summary::-webkit-details-marker {
+  display: none;
+}
+.longterm__summary::after {
+  content: ' ▾';
+  color: var(--ink-3);
+}
+.longterm[open] .longterm__summary::after {
+  content: ' ▴';
+}
+.longterm__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
 .analysis-mixed-note {
   margin-top: 10px;
   font-size: 12px;
