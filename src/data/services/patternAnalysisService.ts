@@ -45,9 +45,10 @@ import {
   type RecoveryActionInsight,
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS } from '../catalog/events'
+import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
 import { assertGuard } from '../../copy/tone'
 import { getTodayISODate } from '../../lib/date'
-import type { DailyLog, DailyScore, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
+import type { DailyLog, DailyScore, EventLog, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
 
 const ANALYSIS_DAYS = 60
 const BASELINE_DAYS = 30
@@ -61,6 +62,28 @@ const MIN_FACTOR_EFFECT = 8 // 요인 후보 최소 평균 차이(점)
 const FACTOR_METRICS: AnalysisMetric[] = ['emotional', 'appetite', 'sleep', 'body', 'rhythm']
 const COMBO_METRICS: AnalysisMetric[] = ['appetite', 'emotional', 'rhythm', 'body']
 const WINDOWS: EffectWindow[] = ['same_day', 'previous_day', 'recent_3_days', 'recent_7_days']
+
+/**
+ * 자명/순환 제외표: 입력이 그 지표 점수를 "직접 만드는" (factorGroup → metric)은
+ * 새 발견이 아니라 입력 공식의 반복이므로 핵심 패턴 후보에서 제외한다.
+ * ⚠️ 같은 도메인(자기 자신)만 제외하고, 교차영역은 유지한다.
+ *   유지 예: 수면 문제 → 감정 흔들림/식욕 흔들림, 단 음식 섭취 → 다음날 식욕/감정.
+ */
+const EXCLUDED_SELF_DOMAIN: Record<string, ReadonlySet<AnalysisMetric>> = {
+  // 수면 사건/지난밤 수면 → 수면 문제 정도 (calcSleepLoad가 그대로 반영)
+  sleep_deficit: new Set(['sleep']),
+  sleep_schedule: new Set(['sleep']),
+  sleep_quality: new Set(['sleep']),
+  // 식사 사건 → 식욕 흔들림 (calcAppetiteLoad가 당일 가산)
+  overeat: new Set(['appetite']),
+  meal_skip: new Set(['appetite']),
+  late_night_eating: new Set(['appetite']),
+  // 생리 구간 → 몸 불편/주기 (생리통·주기 점수로 자명)
+  cycle_period: new Set(['body', 'cycle']),
+}
+function isSelfDomain(group: string, metric: AnalysisMetric): boolean {
+  return EXCLUDED_SELF_DOMAIN[group]?.has(metric) ?? false
+}
 
 export type AnalysisStage = 'collecting' | 'early_flow' | 'factor_ready' | 'combo_ready' | 'sufficient'
 
@@ -253,9 +276,19 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     set.add(group)
   }
 
+  // 날짜별 사건 (수면 노출 adapter의 legacy 조회용)
+  const eventsByDate = new Map<ISODate, EventLog[]>()
+  for (const e of events) {
+    const arr = eventsByDate.get(e.date) ?? []
+    arr.push(e)
+    eventsByDate.set(e.date, arr)
+  }
+
   for (const e of events) {
     // 회복성 사건은 위험 요인 후보에서 제외(회복 분석에서만 평가)
     if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
+    // 지난밤 수면 코드는 아래 canonical 수면 노출(adapter)에서 단일 출처로 처리 → 여기선 건너뜀
+    if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
 
     // timing 보수 처리: today=당일, yesterday=전날, recent3/7days=정밀 분석 제외
     const occDate = eventOccurrenceDate(e.timing, e.date)
@@ -291,6 +324,21 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     if (ctx.isOvulationWindow) addFactor(d, 'cycle_ovulation_window')
   }
 
+  // 수면 노출 (날짜당 단일 출처: lastNightSleep 우선, 없으면 legacy sleep 사건).
+  // 수면은 "깨어난 날"에 귀속 → 해당 날짜에 factorGroup을 더한다. factorByDate는 Set이라
+  // 다른 경로와 겹쳐도 이중 반영되지 않는다. 신규 수면이 사라지지 않도록 이 경로로 통합한다.
+  const sleepDates = new Set<ISODate>([...logByDate.keys(), ...eventsByDate.keys()])
+  for (const date of sleepDates) {
+    if (date < factorStart || date > endDate) continue
+    const exposure = getSleepExposureForDate(logByDate.get(date), eventsByDate.get(date) ?? [])
+    for (const g of exposure.factorGroups) {
+      addFactor(date, g)
+      const gd = eventGroupDates.get(g) ?? new Set<ISODate>()
+      gd.add(date)
+      eventGroupDates.set(g, gd)
+    }
+  }
+
   const ds: AnalysisDataset = { resultDates, scoreByDate, factorByDate, endDate }
 
   // 그룹 표시 정보 (표준 라벨 우선, 없으면 대표 eventLabel fallback)
@@ -320,8 +368,10 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       const label = groupTitle(group)
       let best: NonNullable<ReturnType<typeof factorEffect>> | null = null
       for (const metric of FACTOR_METRICS) {
+        // 자명/순환 제외: 같은 도메인 점수를 직접 만드는 요인은 후보에서 제외(교차영역은 유지)
+        if (isSelfDomain(group, metric)) continue
         for (const window of WINDOWS) {
-          // 평균 차이 8점 미만은 engine에서 null. 여기선 양의 효과(요인이 부하를 높인 쪽)만 후보로.
+          // 평균 차이 8점 미만은 engine에서 null. 여기선 양의 효과(요인이 지표를 높인 쪽)만 후보로.
           const r = factorEffect(ds, group, label, metric, window, baselineMean.get(metric) ?? 0, MIN_FACTOR_EFFECT)
           if (!r || r.effectSize <= 0) continue
           if (!best || r.confidence > best.confidence) best = r
@@ -377,6 +427,8 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
         const b = frequent[j]
         let best: NonNullable<ReturnType<typeof accompliceEffect>> | null = null
         for (const metric of COMBO_METRICS) {
+          // 한쪽이라도 그 지표를 직접 만드는 자명 관계면 제외 (예: 수면 그룹 → 수면 지표)
+          if (isSelfDomain(a, metric) || isSelfDomain(b, metric)) continue
           const r = accompliceEffect(ds, a, b, groupTitle(a), groupTitle(b), metric, baselineMean.get(metric) ?? 0)
           if (r && (!best || r.comboEffect > best.comboEffect)) best = r
         }
@@ -496,7 +548,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       targetMetric: 'rhythm',
       factorCodes: unexplained.map((u) => u.date),
       supportCount: unexplained.length,
-      message: assertGuard('일부 고부하 날짜는 현재 기록만으로 충분히 설명되지 않았어요. 이유가 없는 날도 데이터로 보관해요.'),
+      message: assertGuard('일부 버거움이 컸던 날짜는 현재 기록만으로 충분히 설명되지 않았어요. 이유가 없는 날도 데이터로 보관해요.'),
     })
   }
   for (const r of recoveryEffects) {

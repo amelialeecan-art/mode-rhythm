@@ -200,7 +200,7 @@ function recoveryMessage(label: string, immediate: number | undefined, next: Nex
   }
   // immediate가 없고 next만 있는 경우
   void next
-  return `${label}을(를) 기록한 다음날에는 전체 부하가 낮게 기록된 편이에요. 아직 표본은 더 필요해요.`
+  return `${label}을(를) 기록한 다음날에는 전반적인 버거움이 낮게 기록된 편이에요. 아직 표본은 더 필요해요.`
 }
 
 /** 회복 행동별 전후+다음날 종합. recoveryLogs는 분석창 내. */

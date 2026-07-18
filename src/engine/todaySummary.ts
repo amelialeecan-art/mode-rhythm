@@ -66,13 +66,13 @@ function buildFactorCandidates(
   const weighted: { c: FactorCandidate; w: number }[] = []
 
   if (scores.sleepLoad >= HIGH)
-    weighted.push({ w: scores.sleepLoad, c: { label: '수면 부하', tier: 'calculated', detail: '오늘 기록에서 수면 관련 부하가 높게 계산됐어요.' } })
+    weighted.push({ w: scores.sleepLoad, c: { label: '수면 문제 정도', tier: 'calculated', detail: '오늘 기록에서 수면 문제 정도가 높게 계산됐어요.' } })
   if (scores.appetiteLoad >= HIGH)
-    weighted.push({ w: scores.appetiteLoad, c: { label: '식욕 변동', tier: 'calculated', detail: '오늘 기록에서 식욕 관련 부하가 높게 계산됐어요.' } })
+    weighted.push({ w: scores.appetiteLoad, c: { label: '식욕 흔들림', tier: 'calculated', detail: '오늘 기록에서 식욕 흔들림이 높게 계산됐어요.' } })
   if (scores.emotionalLoad >= HIGH)
-    weighted.push({ w: scores.emotionalLoad, c: { label: '감정 부하', tier: 'calculated', detail: '오늘 기록에서 감정 관련 부하가 높게 계산됐어요.' } })
+    weighted.push({ w: scores.emotionalLoad, c: { label: '감정 흔들림', tier: 'calculated', detail: '오늘 기록에서 감정 흔들림이 높게 계산됐어요.' } })
   if (scores.bodyLoad >= HIGH)
-    weighted.push({ w: scores.bodyLoad, c: { label: '신체 부하', tier: 'calculated', detail: '오늘 기록에서 몸 관련 부하가 높게 계산됐어요.' } })
+    weighted.push({ w: scores.bodyLoad, c: { label: '몸 불편', tier: 'calculated', detail: '오늘 기록에서 몸 불편이 높게 계산됐어요.' } })
 
   if (cycle.isPeriod)
     weighted.push({ w: scores.cycleLoad, c: { label: '생리 구간', tier: 'calculated', detail: '날짜 기준으로 생리 구간일 가능성이 있어요.' } })

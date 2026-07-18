@@ -192,7 +192,7 @@ export function AnalysisScreen() {
             <GlassCard tint="yellow">
               <SectionHeader title="설명되지 않은 날" subtitle="미제 사건" />
               <p className="analysis-body">
-                현재 기록만으로는 충분히 설명되지 않은 고부하 날짜들이 있어요. 이유가 없는 날도 데이터로 보관해요.
+                현재 기록만으로는 충분히 설명되지 않은, 버거움이 컸던 날짜들이 있어요. 이유가 없는 날도 데이터로 보관해요.
               </p>
               <div className="unexplained">
                 {vm.unexplained.map((u) => (
@@ -215,6 +215,7 @@ export function AnalysisScreen() {
 
 /** factor 카드: 그룹 표준명 + 숫자 근거를 정직하게 표시. */
 function FactorRow({ f }: { f: FactorPatternCard }) {
+  const sameDay = f.window === 'same_day'
   return (
     <li className="pattern">
       <div className="pattern__top">
@@ -224,13 +225,20 @@ function FactorRow({ f }: { f: FactorPatternCard }) {
         </div>
         <span className={`pattern__tier ev--${f.evidence}`}>{f.evidenceLabel}</span>
       </div>
-      <p className="pattern__msg">
-        {f.windowPhrase} {f.metricLabel} 점수 평균이 {f.effectSize}점 높았어요.
-      </p>
+      {sameDay ? (
+        <p className="pattern__msg">
+          같은 날 함께 나타났어요. {f.metricLabel} 평균 차이 +{f.effectSize}점.
+        </p>
+      ) : (
+        <p className="pattern__msg">
+          {f.windowPhrase} {f.metricLabel} 평균 차이가 +{f.effectSize}점이었어요.
+        </p>
+      )}
       <div className="pattern__nums">
         <span>있는 결과일 {f.supportCount}일 · 없는 결과일 {f.comparisonCount}일</span>
         <span>있는 날 평균 {f.withFactorMean} · 없는 날 평균 {f.withoutFactorMean}</span>
       </div>
+      {sameDay && <p className="pattern__caution">어느 쪽이 먼저인지는 알 수 없어요.</p>}
     </li>
   )
 }

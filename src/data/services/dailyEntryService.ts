@@ -17,6 +17,7 @@ import { eventLogRepository } from '../repositories/eventLogRepository'
 import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { recoveryLogRepository } from '../repositories/recoveryLogRepository'
 import { EVENT_CATALOG } from '../catalog/events'
+import { LAST_NIGHT_SLEEP_CODES } from '../catalog/lastNightSleep'
 import {
   RECOVERY_ACTIONS,
   RECOVERY_CATEGORY_TO_MODEL,
@@ -190,7 +191,14 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
 }
 
 function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
-  const catalogEvents: EventLogInput[] = draft.catalogEventCodes
+  // 신규 지난밤 수면을 실제로 입력·저장한 날짜만, 지난밤 전용 legacy 수면 사건을 canonical
+  // 데이터(lastNightSleep)로 교체한다 → 유령 수면 사건 재생성 방지, 이중 노출 방지.
+  // lastNightSleep가 비어 있으면(옛 기록 열기만 한 경우 등) 아무것도 제거하지 않는다.
+  const lastNightFilled = normalizeLastNight(draft.lastNightSleep) !== undefined
+  const codes = lastNightFilled
+    ? draft.catalogEventCodes.filter((c) => !LAST_NIGHT_SLEEP_CODES.has(c))
+    : draft.catalogEventCodes
+  const catalogEvents: EventLogInput[] = codes
     .map((code) => EVENT_CATALOG.find((e) => e.code === code))
     .filter((e): e is (typeof EVENT_CATALOG)[number] => e != null)
     .map((e) => ({

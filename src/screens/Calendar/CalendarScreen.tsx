@@ -14,6 +14,8 @@ import { startOfMonthISO, parseISODate, formatMonthDay, formatWeekday } from '..
 import type { FlowLevel } from '../../data/models'
 import './calendar.css'
 
+// 사건(eventLoad 0~100)은 점수로 노출하지 않는다 → 렌즈/막대에서 제외.
+// 사건은 개수·주요 기록 형태로만 보여준다(day 상세). eventLoad는 내부 계산에만 유지.
 const LENSES: LensOption[] = [
   { key: 'overall', label: '전체' },
   { key: 'emotion', label: '감정' },
@@ -21,19 +23,17 @@ const LENSES: LensOption[] = [
   { key: 'sleep', label: '수면' },
   { key: 'body', label: '몸' },
   { key: 'cycle', label: '주기' },
-  { key: 'event', label: '사건' },
   { key: 'recovery', label: '회복' },
 ]
 
 const FLOW_LABEL: Record<FlowLevel, string> = { none: '없음', light: '적음', normal: '보통', heavy: '많음' }
 
 const DETAIL_BARS: { key: CalendarLens; label: string; color: string }[] = [
-  { key: 'emotion', label: '감정', color: 'var(--lav)' },
-  { key: 'appetite', label: '식욕', color: 'var(--coral)' },
-  { key: 'sleep', label: '수면', color: 'var(--sky)' },
-  { key: 'body', label: '몸', color: 'var(--mint)' },
+  { key: 'emotion', label: '감정 흔들림', color: 'var(--lav)' },
+  { key: 'appetite', label: '식욕 흔들림', color: 'var(--coral)' },
+  { key: 'sleep', label: '수면 문제', color: 'var(--sky)' },
+  { key: 'body', label: '몸 불편', color: 'var(--mint)' },
   { key: 'cycle', label: '주기', color: 'var(--rose)' },
-  { key: 'event', label: '사건', color: 'var(--butter)' },
 ]
 
 /** 점수(0~100) → 색 단계(0~4). */
@@ -125,11 +125,11 @@ export function CalendarScreen() {
           <p className="callegend">
             회복 렌즈는 회복 행동을 기록한 날과 자기보고 회복 점수를 보여줘요. 색이 진할수록 회복 기록이 강하게 남은 날이에요.
           </p>
-          <p className="callegend callegend--soft">여기서 진함은 부하가 아니라 회복 기록이 높음을 뜻해요.</p>
+          <p className="callegend callegend--soft">여기서 진함은 힘든 정도가 아니라 회복 기록이 높음을 뜻해요.</p>
         </>
       ) : (
         <p className="callegend">
-          색이 진할수록 해당 렌즈의 부하가 높게 기록된 날이에요. 기록이 없는 날은 색을 표시하지 않아요.
+          색이 진할수록 해당 렌즈가 높게 기록된 날이에요. 기록이 없는 날은 색을 표시하지 않아요.
         </p>
       )}
 
