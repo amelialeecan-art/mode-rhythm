@@ -43,17 +43,60 @@ describe('에피소드 분석 연결 (Phase 5)', () => {
     expect(ep.severityLabel).toBe('무너짐')
     expect(ep.startDate).toBe('2026-06-11')
     expect(ep.status).toBe('recovered')
+    expect(ep.dateLabel).toBe('6월 11일')
+    expect(ep.summary.length).toBeGreaterThanOrEqual(2)
 
-    // 시간 순서 버킷
-    expect(ep.earlyLeadUp.map((s) => s.factorGroup)).toContain('workload')
-    expect(ep.dayBeforeWarning.map((s) => s.factorGroup)).toContain('interpersonal_stress')
-    expect(ep.sameDayCompanion.map((s) => s.factorGroup)).toContain('social_media')
-    expect(ep.sameDayCompanion[0].timing).toBe('같은 날')
-    expect(ep.afterShift.map((s) => s.factorGroup)).toContain('short_video')
+    // 기본 카드 3영역
+    expect(ep.earlyChanges.items.map((s) => s.factorGroup)).toContain('workload')
+    expect(ep.dayBeforeNew.items.map((s) => s.factorGroup)).toContain('interpersonal_stress')
+    expect(ep.afterBehaviors.items.map((s) => s.factorGroup)).toContain('short_video')
+    // 같은 날은 접힘 영역으로
+    expect(ep.sameDay.map((s) => s.factorGroup)).toContain('social_media')
 
-    // 누수 방지: 시작 이후 사건(overeat)은 어떤 선행 버킷에도 없음
-    const precursors = [...ep.earlyLeadUp, ...ep.dayBeforeWarning, ...ep.sameDayCompanion].map((s) => s.factorGroup)
-    expect(precursors).not.toContain('overeat')
+    // 누수 방지: 시작 이후 사건(overeat)은 어떤 영역에도 없음
+    const shown = [
+      ...ep.earlyChanges.items,
+      ...ep.dayBeforeNew.items,
+      ...ep.afterBehaviors.items,
+      ...ep.sameDay,
+    ].map((s) => s.factorGroup)
+    expect(shown).not.toContain('overeat')
+  })
+
+  it('같은 factorGroup은 한 항목으로 병합(반복) — 중복 렌더 없음', async () => {
+    await save('2026-06-08', { stateCodes: ['calm'], functionLevel: 2, catalogEventCodes: ['meal_overeat'] }) // lag3
+    await save('2026-06-10', { stateCodes: ['calm'], functionLevel: 2, catalogEventCodes: ['meal_overeat'] }) // lag1
+    await save('2026-06-11', {
+      stateCodes: ['sad'],
+      functionLevel: 4,
+      catalogEventCodes: ['meal_overeat'],
+      eventRelationBefore: ['meal_overeat'], // lag0
+    })
+    await save('2026-06-12', { stateCodes: ['calm'], functionLevel: 2 })
+    await save('2026-06-13', { stateCodes: ['calm'], functionLevel: 2 })
+
+    const ep = (await getAnalysisViewModel({ endDate: END })).episodes[0]
+    const early = ep.earlyChanges.items.filter((s) => s.factorGroup === 'overeat')
+    expect(early).toHaveLength(1) // 3번 기록됐지만 한 항목
+    expect(early[0].detail).toBe('3일 전부터 반복')
+    // 다른 영역에 중복 배치되지 않음
+    expect(ep.dayBeforeNew.items.map((s) => s.factorGroup)).not.toContain('overeat')
+    expect(ep.sameDay.map((s) => s.factorGroup)).not.toContain('overeat')
+  })
+
+  it('영역당 최대 2개 + 나머지는 overflow', async () => {
+    await save('2026-06-09', {
+      stateCodes: ['calm'],
+      functionLevel: 2,
+      catalogEventCodes: ['work_heavy', 'conflict', 'sns_heavy'], // 모두 lag2 선행
+    })
+    await save('2026-06-11', { stateCodes: ['sad'], functionLevel: 4 })
+    await save('2026-06-12', { stateCodes: ['calm'], functionLevel: 2 })
+    await save('2026-06-13', { stateCodes: ['calm'], functionLevel: 2 })
+
+    const ep = (await getAnalysisViewModel({ endDate: END })).episodes[0]
+    expect(ep.earlyChanges.items).toHaveLength(2)
+    expect(ep.earlyChanges.overflow).toBe(1)
   })
 
   it('level 3 기능 저하는 무너짐과 구분해서 표시', async () => {

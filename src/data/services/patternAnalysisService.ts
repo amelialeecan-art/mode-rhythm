@@ -53,10 +53,10 @@ import {
   type EpisodeStatus,
   type EpisodeConfidence,
 } from '../../engine'
-import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS } from '../catalog/events'
+import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS, factorWindowFor } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
 import { assertGuard } from '../../copy/tone'
-import { getTodayISODate } from '../../lib/date'
+import { getTodayISODate, formatMonthDay, parseISODate } from '../../lib/date'
 import type { DailyLog, DailyScore, EventLog, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
 
 const ANALYSIS_DAYS = 60
@@ -69,7 +69,7 @@ const COMBO_MIN_DAYS = 45 // combo 카드 노출 시작
 const MIN_FACTOR_EFFECT = 8 // 요인 후보 최소 평균 차이(점)
 
 const MAX_EPISODES_SHOWN = 6 // 최근 K개만 표시(성능 상한, §17)
-const MAX_SIGNALS_PER_BUCKET = 4
+const SECTION_MAX = 2 // 기본 카드의 각 영역 최대 표시 개수(나머지는 "외 N개"/접힘)
 
 const FACTOR_METRICS: AnalysisMetric[] = ['emotional', 'appetite', 'sleep', 'body', 'rhythm']
 const COMBO_METRICS: AnalysisMetric[] = ['appetite', 'emotional', 'rhythm', 'body']
@@ -182,11 +182,24 @@ export interface ComboCard {
    reported/mixed/estimated 를 명확히 구분하고, level 3 기능 저하와
    level 4 무너짐을 구분해 표시한다. 같은 날 관계는 원인처럼 표현하지 않는다.
    --------------------------------------------------------------------- */
-export interface EpisodeSignalText {
+/** 같은 factorGroup을 한 항목으로 병합한 표시용 신호. */
+export interface MergedSignal {
   factorGroup: string
   label: string
-  /** "같은 날 / 하루 전 / N일 전 / 최근 N일 반복 / 무너진 뒤" 등. */
-  timing: string
+  /** 보조 설명. "3일 전부터 반복" / "3일 전" / "최근 14일 중 3회" 등. 없으면 ''. */
+  detail: string
+}
+
+/** 기본 카드의 한 영역(최대 2개 + 나머지 개수). */
+export interface EpisodeSection {
+  items: MergedSignal[]
+  overflow: number
+}
+
+/** 접힘 "전체 기록"의 한 묶음(정확한 날짜/시점 포함). */
+export interface EpisodeDetailBucket {
+  title: string
+  items: { label: string; timing: string }[]
 }
 
 export interface EpisodeCyclePosition {
@@ -199,6 +212,8 @@ export interface EpisodeCard {
   endDate: ISODate
   peakDate: ISODate
   lengthDays: number
+  /** "7월 18일" 또는 "7월 15일 ~ 7월 18일". */
+  dateLabel: string
   status: EpisodeStatus
   statusLabel: string
   confidence: EpisodeConfidence
@@ -208,12 +223,22 @@ export interface EpisodeCard {
   peakFunctionLevel?: number
   daysToRecovery?: number
   recoveryStartDate?: ISODate
-  earlyLeadUp: EpisodeSignalText[]
-  dayBeforeWarning: EpisodeSignalText[]
-  sameDayCompanion: EpisodeSignalText[]
-  backgroundConditions: EpisodeSignalText[]
-  afterShift: EpisodeSignalText[]
   cyclePosition?: EpisodeCyclePosition
+  /** 2~3문장 "이번 흐름" 요약. */
+  summary: string[]
+  /** 먼저 보인 변화(2일 전 이상). */
+  earlyChanges: EpisodeSection
+  /** 전날 새로 추가된 신호. */
+  dayBeforeNew: EpisodeSection
+  /** 나빠진 뒤 행동. */
+  afterBehaviors: EpisodeSection
+  // ---- 접힘 영역 ----
+  /** 같은 날 함께 기록됨(순서 불명확). */
+  sameDay: MergedSignal[]
+  /** 배경 조건(누적/연속). */
+  background: MergedSignal[]
+  /** 전체 기록(정확한 시점). */
+  allDetail: EpisodeDetailBucket[]
 }
 
 const EPISODE_STATUS_LABEL: Record<EpisodeStatus, string> = {
@@ -241,18 +266,101 @@ function severityLabelFor(peakFunctionLevel?: number): string {
   return '추정 구간'
 }
 
-function signalTiming(s: EpisodeSignal, afterShift = false): string {
-  if (afterShift) return '무너진 뒤'
-  if (s.occurrences !== undefined) return `최근 ${s.occurrences}일 반복`
-  if (s.lagDays === 0) return '같은 날'
-  if (s.lagDays === 1) return '하루 전'
-  return `${s.lagDays}일 전`
+function fmtDate(iso: ISODate): string {
+  return formatMonthDay(parseISODate(iso))
 }
 
-function toSignalText(list: EpisodeSignal[], afterShift = false): EpisodeSignalText[] {
-  return list
-    .slice(0, MAX_SIGNALS_PER_BUCKET)
-    .map((s) => ({ factorGroup: s.factorGroup, label: s.label, timing: signalTiming(s, afterShift) }))
+/** 같은 factorGroup을 하나로 묶는다. lag는 발생한 서로 다른 날만 모은다(중복 제거). */
+interface SignalAgg {
+  factorGroup: string
+  label: string
+  lags: number[]
+}
+function aggregate(signals: EpisodeSignal[]): SignalAgg[] {
+  const m = new Map<string, SignalAgg>()
+  for (const s of signals) {
+    const a = m.get(s.factorGroup) ?? { factorGroup: s.factorGroup, label: s.label, lags: [] }
+    if (!a.lags.includes(s.lagDays)) a.lags.push(s.lagDays)
+    m.set(s.factorGroup, a)
+  }
+  return [...m.values()]
+}
+const maxLagOf = (a: SignalAgg) => Math.max(...a.lags)
+/** 결정론적 정렬: 반복일수 desc → 가장 이른 발생 desc → 그룹명 asc (임의 점수 없음). */
+function cmpAgg(a: SignalAgg, b: SignalAgg): number {
+  if (b.lags.length !== a.lags.length) return b.lags.length - a.lags.length
+  if (maxLagOf(b) !== maxLagOf(a)) return maxLagOf(b) - maxLagOf(a)
+  return a.factorGroup < b.factorGroup ? -1 : a.factorGroup > b.factorGroup ? 1 : 0
+}
+
+function toSection(aggs: SignalAgg[], detailFn: (a: SignalAgg) => string): EpisodeSection {
+  const items = aggs.slice(0, SECTION_MAX).map((a) => ({ factorGroup: a.factorGroup, label: a.label, detail: detailFn(a) }))
+  return { items, overflow: Math.max(0, aggs.length - SECTION_MAX) }
+}
+
+const earlyDetail = (a: SignalAgg) => (a.lags.length >= 2 ? `${maxLagOf(a)}일 전부터 반복` : `${maxLagOf(a)}일 전`)
+const dayBeforeDetail = (a: SignalAgg) => (a.lags.length >= 2 ? '전날부터 이어짐' : '')
+const afterDetail = (a: SignalAgg) => (a.lags.length >= 2 ? '여러 날' : '')
+
+/** 접힘 "전체 기록" 묶음. 같은 그룹+시점은 한 번만(중복 렌더 방지). */
+function detailBucket(title: string, signals: EpisodeSignal[], timingFn: (s: EpisodeSignal) => string): EpisodeDetailBucket | null {
+  const seen = new Set<string>()
+  const items: { label: string; timing: string }[] = []
+  for (const s of signals) {
+    const timing = timingFn(s)
+    const key = `${s.factorGroup}|${timing}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    items.push({ label: s.label, timing })
+  }
+  return items.length > 0 ? { title, items } : null
+}
+
+function backgroundDetail(s: EpisodeSignal): string {
+  // 실제 빈도(occurrences)가 있을 때만 숫자를 쓴다. 창 길이 대비 "N회"로 표기.
+  if (s.occurrences === undefined) return ''
+  return `최근 ${factorWindowFor(s.factorGroup).maxLag}일 중 ${s.occurrences}회`
+}
+
+function buildSummary(
+  ep: Episode,
+  dateLabel: string,
+  early: SignalAgg[],
+  dayBefore: SignalAgg[],
+  after: SignalAgg[],
+  cyclePosition?: EpisodeCyclePosition,
+): string[] {
+  const sev =
+    ep.peakFunctionLevel === 4
+      ? '일상 기능이 거의 멈췄던 날'
+      : ep.peakFunctionLevel === 3
+        ? '중요한 일 몇 가지를 못 했던 날'
+        : '종합 버거움으로 미루어 본 구간'
+  const status =
+    ep.status === 'recovered'
+      ? '이후 회복 흐름이 확인됐어요'
+      : ep.status === 'recovering'
+        ? '회복 흐름은 아직 뚜렷하지 않아요'
+        : '아직 진행 중이에요'
+  const out: string[] = [`${dateLabel}은 ${sev}, ${status}.`]
+
+  if (early.length > 0) {
+    const names = early.slice(0, 2).map((a) => a.label).join('·')
+    out.push(`무너지기 ${maxLagOf(early[0])}일 전부터 ${names} 신호가 함께 있었어요.`)
+  } else if (dayBefore.length > 0) {
+    const names = dayBefore.slice(0, 2).map((a) => a.label).join('·')
+    out.push(`전날 ${names} 기록이 새로 늘었어요.`)
+  } else {
+    out.push('미리 눈에 띈 신호는 뚜렷하지 않았어요.')
+  }
+
+  if (cyclePosition) {
+    out.push(`${cyclePosition.phaseLabel}${cyclePosition.detail ? ` (${cyclePosition.detail})` : ''}과 겹친 시기예요.`)
+  } else if (after.length > 0) {
+    const names = after.slice(0, 2).map((a) => a.label).join('·')
+    out.push(`무너진 뒤에는 ${names} 기록이 늘었어요.`)
+  }
+  return out
 }
 
 function buildEpisodeCard(ep: Episode, sig: EpisodeSignals): EpisodeCard {
@@ -265,11 +373,30 @@ function buildEpisodeCard(ep: Episode, sig: EpisodeSignals): EpisodeCard {
       detail = `예정일까지 약 ${cp.daysUntilNextPeriod}일`
     cyclePosition = { phaseLabel: CYCLE_PHASE_LABEL[cp.phase] ?? cp.phase, detail }
   }
+
+  // 선행 신호(먼저/전날/같은 날)를 그룹으로 병합 후, 가장 이른 발생 위치로 한 곳에만 배치.
+  const preAll = aggregate([...sig.earlyLeadUp, ...sig.dayBeforeWarning, ...sig.sameDayCompanion])
+  const early = preAll.filter((a) => maxLagOf(a) >= 2).sort(cmpAgg)
+  const dayBefore = preAll.filter((a) => maxLagOf(a) === 1).sort(cmpAgg)
+  const sameDayOnly = preAll.filter((a) => maxLagOf(a) === 0).sort(cmpAgg)
+  const after = aggregate(sig.afterShift).sort(cmpAgg)
+
+  const dateLabel = ep.lengthDays > 1 ? `${fmtDate(ep.startDate)} ~ ${fmtDate(ep.endDate)}` : fmtDate(ep.startDate)
+
+  const allDetail = [
+    detailBucket('먼저 보인 변화', sig.earlyLeadUp, (s) => `${s.lagDays}일 전`),
+    detailBucket('전날', sig.dayBeforeWarning, () => ''),
+    detailBucket('같은 날', sig.sameDayCompanion, () => ''),
+    detailBucket('배경 조건', sig.backgroundConditions, backgroundDetail),
+    detailBucket('무너진 뒤', sig.afterShift, () => ''),
+  ].filter((b): b is EpisodeDetailBucket => b !== null)
+
   return {
     startDate: ep.startDate,
     endDate: ep.endDate,
     peakDate: ep.peakDate,
     lengthDays: ep.lengthDays,
+    dateLabel,
     status: ep.status,
     statusLabel: EPISODE_STATUS_LABEL[ep.status],
     confidence: ep.confidence,
@@ -278,12 +405,18 @@ function buildEpisodeCard(ep: Episode, sig: EpisodeSignals): EpisodeCard {
     peakFunctionLevel: ep.peakFunctionLevel,
     daysToRecovery: ep.daysToRecovery,
     recoveryStartDate: ep.recoveryStartDate,
-    earlyLeadUp: toSignalText(sig.earlyLeadUp),
-    dayBeforeWarning: toSignalText(sig.dayBeforeWarning),
-    sameDayCompanion: toSignalText(sig.sameDayCompanion),
-    backgroundConditions: toSignalText(sig.backgroundConditions),
-    afterShift: toSignalText(sig.afterShift, true),
     cyclePosition,
+    summary: buildSummary(ep, dateLabel, early, dayBefore, after, cyclePosition),
+    earlyChanges: toSection(early, earlyDetail),
+    dayBeforeNew: toSection(dayBefore, dayBeforeDetail),
+    afterBehaviors: toSection(after, afterDetail),
+    sameDay: sameDayOnly.map((a) => ({ factorGroup: a.factorGroup, label: a.label, detail: '' })),
+    background: sig.backgroundConditions.map((s) => ({
+      factorGroup: s.factorGroup,
+      label: s.label,
+      detail: backgroundDetail(s),
+    })),
+    allDetail,
   }
 }
 
