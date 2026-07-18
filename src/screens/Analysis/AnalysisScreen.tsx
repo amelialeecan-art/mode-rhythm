@@ -6,7 +6,8 @@ import {
   type FactorPatternCard,
   type ComboCard,
   type EpisodeCard,
-  type EpisodeSignalText,
+  type EpisodeSection,
+  type MergedSignal,
 } from '../../data/services/patternAnalysisService'
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
@@ -61,7 +62,7 @@ export function AnalysisScreen() {
     <>
       <header className="screen-head">
         <h1 className="screen-head__title">분석</h1>
-        <p className="screen-head__sub">무너짐을 에피소드로 묶어서 흐름을 봐요</p>
+        <p className="screen-head__sub">힘들었던 날의 흐름을 순서대로 정리해요</p>
       </header>
 
       {/* 고정 안내 — 인과/진단 아님 */}
@@ -92,12 +93,12 @@ export function AnalysisScreen() {
             )}
           </GlassCard>
 
-          {/* ===== 무너짐 에피소드 (핵심) ===== */}
+          {/* ===== 최근 힘들었던 날 (핵심) ===== */}
           <GlassCard tint="coral">
-            <SectionHeader title="무너짐 에피소드" subtitle="연속된 기능 저하를 하나로 묶어서 봐요" star />
+            <SectionHeader title="최근 힘들었던 날" subtitle="힘들었던 날의 흐름을 하나로 정리했어요" star />
             {vm.episodes.length === 0 ? (
               <p className="analysis-empty">
-                아직 묶을 무너짐 구간이 없어요. ‘오늘 일상 기능’을 3·4로 기록한 날이 생기면 그 흐름을 에피소드로 정리해드릴게요.
+                아직 묶을 흐름이 없어요. ‘오늘 일상 기능’을 3·4로 기록한 날이 생기면 그 흐름을 정리해드릴게요.
               </p>
             ) : (
               <div className="ep-list">
@@ -245,15 +246,20 @@ export function AnalysisScreen() {
   )
 }
 
-/** 에피소드 카드: reported/mixed/estimated 구분 + level 3/4 구분 + 시간 순서 신호. */
+/**
+ * 에피소드 기본 카드 (압축): 헤더 + 이번 흐름 요약 + 먼저 보인 변화 /
+ * 전날 추가된 신호 / 나빠진 뒤 행동(각 최대 2). 나머지는 접힘 영역으로.
+ */
 function EpisodeRow({ ep }: { ep: EpisodeCard }) {
-  const range = ep.lengthDays > 1 ? `${fmt(ep.startDate)} ~ ${fmt(ep.endDate)}` : fmt(ep.startDate)
+  const hasCollapsed = ep.sameDay.length > 0 || ep.background.length > 0 || ep.allDetail.length > 0
+  const noSignals =
+    ep.earlyChanges.items.length === 0 && ep.dayBeforeNew.items.length === 0 && ep.afterBehaviors.items.length === 0
   return (
     <div className="ep">
       <div className="ep__top">
         <div className="ep__title">
           <span className={`ep__sev ep__sev--${ep.peakFunctionLevel ?? 'est'}`}>{ep.severityLabel}</span>
-          <span className="ep__range">{range}</span>
+          <span className="ep__range">{ep.dateLabel}</span>
         </div>
         <span className={`ep__conf ep__conf--${ep.confidence}`}>{ep.confidenceLabel}</span>
       </div>
@@ -261,59 +267,84 @@ function EpisodeRow({ ep }: { ep: EpisodeCard }) {
       <div className="ep__meta">
         <span className={`ep__status ep__status--${ep.status}`}>{ep.statusLabel}</span>
         <span>{ep.lengthDays}일 지속</span>
-        {ep.status === 'recovered' && ep.daysToRecovery !== undefined && (
-          <span>· 시작 {ep.daysToRecovery}일 뒤 회복 흐름</span>
+        {ep.cyclePosition && (
+          <span>
+            · {ep.cyclePosition.phaseLabel}
+            {ep.cyclePosition.detail ? ` (${ep.cyclePosition.detail})` : ''}
+          </span>
         )}
       </div>
 
-      {ep.cyclePosition && (
-        <p className="ep__cycle">
-          주기 위치 · {ep.cyclePosition.phaseLabel}
-          {ep.cyclePosition.detail ? ` (${ep.cyclePosition.detail})` : ''}
-        </p>
+      <div className="ep__summary">
+        {ep.summary.map((s, i) => (
+          <p key={i}>{s}</p>
+        ))}
+      </div>
+
+      <SignalSection title="먼저 보인 변화" section={ep.earlyChanges} tone="lead" />
+      <SignalSection title="전날 추가된 신호" section={ep.dayBeforeNew} tone="warn" />
+      <SignalSection title="나빠진 뒤 행동" section={ep.afterBehaviors} tone="after" />
+
+      {noSignals && <p className="ep__empty">이 구간엔 앞뒤로 함께 기록된 신호가 뚜렷하지 않아요.</p>}
+
+      {hasCollapsed && (
+        <details className="ep__more">
+          <summary className="ep__more-sum">같은 날 · 배경 · 전체 기록 보기</summary>
+          <div className="ep__more-body">
+            {ep.sameDay.length > 0 && (
+              <div className="ep__bucket">
+                <span className="ep__bhead ep__bhead--same">같은 날 함께 기록됨</span>
+                <ChipRow items={ep.sameDay} />
+                <p className="ep__note">어느 쪽이 먼저인지 알 수 없어요.</p>
+              </div>
+            )}
+            {ep.background.length > 0 && (
+              <div className="ep__bucket">
+                <span className="ep__bhead ep__bhead--bg">배경 조건</span>
+                <ChipRow items={ep.background} />
+              </div>
+            )}
+            {ep.allDetail.map((b) => (
+              <div className="ep__bucket" key={b.title}>
+                <span className="ep__bhead ep__bhead--detail">{b.title}</span>
+                <div className="ep__sigs">
+                  {b.items.map((it, i) => (
+                    <span className="ep__sig" key={`${it.label}-${i}`}>
+                      {it.label}
+                      {it.timing && <em className="ep__lag">{it.timing}</em>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
-
-      <SignalBucket title="먼저 쌓인 신호" items={ep.earlyLeadUp} tone="lead" />
-      <SignalBucket title="가까운 경고 (전날)" items={ep.dayBeforeWarning} tone="warn" />
-      <SignalBucket title="배경 조건 (누적)" items={ep.backgroundConditions} tone="bg" />
-      <SignalBucket title="같은 날 함께 기록됨" items={ep.sameDayCompanion} tone="same" note="어느 쪽이 먼저인지 알 수 없어요." />
-      <SignalBucket title="무너진 뒤 나타난 것" items={ep.afterShift} tone="after" />
-
-      {ep.earlyLeadUp.length === 0 &&
-        ep.dayBeforeWarning.length === 0 &&
-        ep.backgroundConditions.length === 0 &&
-        ep.sameDayCompanion.length === 0 &&
-        ep.afterShift.length === 0 && (
-          <p className="ep__empty">이 구간엔 함께 기록된 사건이 아직 없어요.</p>
-        )}
     </div>
   )
 }
 
-function SignalBucket({
-  title,
-  items,
-  tone,
-  note,
-}: {
-  title: string
-  items: EpisodeSignalText[]
-  tone: string
-  note?: string
-}) {
-  if (items.length === 0) return null
+/** 기본 카드의 한 영역: 병합된 신호 최대 2개 + "외 N개". */
+function SignalSection({ title, section, tone }: { title: string; section: EpisodeSection; tone: string }) {
+  if (section.items.length === 0) return null
   return (
     <div className="ep__bucket">
       <span className={`ep__bhead ep__bhead--${tone}`}>{title}</span>
-      <div className="ep__sigs">
-        {items.map((s, i) => (
-          <span className="ep__sig" key={`${s.factorGroup}-${i}`}>
-            {s.label}
-            <em className="ep__lag">{s.timing}</em>
-          </span>
-        ))}
-      </div>
-      {note && <p className="ep__note">{note}</p>}
+      <ChipRow items={section.items} />
+      {section.overflow > 0 && <span className="ep__overflow">외 {section.overflow}개</span>}
+    </div>
+  )
+}
+
+function ChipRow({ items }: { items: MergedSignal[] }) {
+  return (
+    <div className="ep__sigs">
+      {items.map((s, i) => (
+        <span className="ep__sig" key={`${s.factorGroup}-${i}`}>
+          {s.label}
+          {s.detail && <em className="ep__lag">{s.detail}</em>}
+        </span>
+      ))}
     </div>
   )
 }
