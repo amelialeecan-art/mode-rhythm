@@ -11,14 +11,15 @@ import { clamp, roundScore } from './guards'
 /** 분석 대상 metric (회복은 제외 — 회복 효과 분석은 7단계). */
 export type AnalysisMetric = 'emotional' | 'appetite' | 'sleep' | 'body' | 'cycle' | 'event' | 'rhythm'
 
+// 사용자 표시용 라벨 (내부 metric 키는 그대로). "부하" 대신 이해하기 쉬운 말.
 export const ANALYSIS_METRIC_LABEL: Record<AnalysisMetric, string> = {
-  emotional: '감정 부하',
-  appetite: '식욕 변동',
-  sleep: '수면 부하',
-  body: '신체 부하',
-  cycle: '주기 부하',
-  event: '사건 부하',
-  rhythm: '전체 리듬',
+  emotional: '감정 흔들림',
+  appetite: '식욕 흔들림',
+  sleep: '수면 문제 정도',
+  body: '몸 불편',
+  cycle: '주기 영향',
+  event: '사건 기록',
+  rhythm: '오늘의 버거움',
 }
 
 export type EffectWindow = 'same_day' | 'previous_day' | 'recent_3_days' | 'recent_7_days'

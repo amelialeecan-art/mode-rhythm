@@ -13,7 +13,7 @@ export const MODES: Record<DayType, ModeDisplay> = {
   focus: { type: 'focus', name: '집중 가능일', shortLabel: '집중', mascot: 'focus', gradient: MASCOT_GRADIENTS.focus },
   emotional: { type: 'emotional', name: '감정 민감일', shortLabel: '예민', mascot: 'teary', gradient: MASCOT_GRADIENTS.teary },
   appetite: { type: 'appetite', name: '식욕 변동일', shortLabel: '식욕', mascot: 'hungry', gradient: MASCOT_GRADIENTS.hungry },
-  body: { type: 'body', name: '신체 부하일', shortLabel: '몸', mascot: 'sleepy', gradient: MASCOT_GRADIENTS.sleepy },
+  body: { type: 'body', name: '몸 불편일', shortLabel: '몸', mascot: 'sleepy', gradient: MASCOT_GRADIENTS.sleepy },
   social: { type: 'social', name: '사회 피로일', shortLabel: '인간피로', mascot: 'confused', gradient: MASCOT_GRADIENTS.confused },
   impulse: { type: 'impulse', name: '충동 경계일', shortLabel: '충동', mascot: 'hungry', gradient: MASCOT_GRADIENTS.hungry },
   recovery: { type: 'recovery', name: '회복 우선일', shortLabel: '회복', mascot: 'sleepy', gradient: MASCOT_GRADIENTS.sleepy },

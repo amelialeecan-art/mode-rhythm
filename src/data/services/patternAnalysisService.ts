@@ -63,6 +63,28 @@ const FACTOR_METRICS: AnalysisMetric[] = ['emotional', 'appetite', 'sleep', 'bod
 const COMBO_METRICS: AnalysisMetric[] = ['appetite', 'emotional', 'rhythm', 'body']
 const WINDOWS: EffectWindow[] = ['same_day', 'previous_day', 'recent_3_days', 'recent_7_days']
 
+/**
+ * 자명/순환 제외표: 입력이 그 지표 점수를 "직접 만드는" (factorGroup → metric)은
+ * 새 발견이 아니라 입력 공식의 반복이므로 핵심 패턴 후보에서 제외한다.
+ * ⚠️ 같은 도메인(자기 자신)만 제외하고, 교차영역은 유지한다.
+ *   유지 예: 수면 문제 → 감정 흔들림/식욕 흔들림, 단 음식 섭취 → 다음날 식욕/감정.
+ */
+const EXCLUDED_SELF_DOMAIN: Record<string, ReadonlySet<AnalysisMetric>> = {
+  // 수면 사건/지난밤 수면 → 수면 문제 정도 (calcSleepLoad가 그대로 반영)
+  sleep_deficit: new Set(['sleep']),
+  sleep_schedule: new Set(['sleep']),
+  sleep_quality: new Set(['sleep']),
+  // 식사 사건 → 식욕 흔들림 (calcAppetiteLoad가 당일 가산)
+  overeat: new Set(['appetite']),
+  meal_skip: new Set(['appetite']),
+  late_night_eating: new Set(['appetite']),
+  // 생리 구간 → 몸 불편/주기 (생리통·주기 점수로 자명)
+  cycle_period: new Set(['body', 'cycle']),
+}
+function isSelfDomain(group: string, metric: AnalysisMetric): boolean {
+  return EXCLUDED_SELF_DOMAIN[group]?.has(metric) ?? false
+}
+
 export type AnalysisStage = 'collecting' | 'early_flow' | 'factor_ready' | 'combo_ready' | 'sufficient'
 
 export const ANALYSIS_STAGE_LABEL: Record<AnalysisStage, string> = {
@@ -346,8 +368,10 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       const label = groupTitle(group)
       let best: NonNullable<ReturnType<typeof factorEffect>> | null = null
       for (const metric of FACTOR_METRICS) {
+        // 자명/순환 제외: 같은 도메인 점수를 직접 만드는 요인은 후보에서 제외(교차영역은 유지)
+        if (isSelfDomain(group, metric)) continue
         for (const window of WINDOWS) {
-          // 평균 차이 8점 미만은 engine에서 null. 여기선 양의 효과(요인이 부하를 높인 쪽)만 후보로.
+          // 평균 차이 8점 미만은 engine에서 null. 여기선 양의 효과(요인이 지표를 높인 쪽)만 후보로.
           const r = factorEffect(ds, group, label, metric, window, baselineMean.get(metric) ?? 0, MIN_FACTOR_EFFECT)
           if (!r || r.effectSize <= 0) continue
           if (!best || r.confidence > best.confidence) best = r
@@ -403,6 +427,8 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
         const b = frequent[j]
         let best: NonNullable<ReturnType<typeof accompliceEffect>> | null = null
         for (const metric of COMBO_METRICS) {
+          // 한쪽이라도 그 지표를 직접 만드는 자명 관계면 제외 (예: 수면 그룹 → 수면 지표)
+          if (isSelfDomain(a, metric) || isSelfDomain(b, metric)) continue
           const r = accompliceEffect(ds, a, b, groupTitle(a), groupTitle(b), metric, baselineMean.get(metric) ?? 0)
           if (r && (!best || r.comboEffect > best.comboEffect)) best = r
         }
@@ -522,7 +548,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       targetMetric: 'rhythm',
       factorCodes: unexplained.map((u) => u.date),
       supportCount: unexplained.length,
-      message: assertGuard('일부 고부하 날짜는 현재 기록만으로 충분히 설명되지 않았어요. 이유가 없는 날도 데이터로 보관해요.'),
+      message: assertGuard('일부 버거움이 컸던 날짜는 현재 기록만으로 충분히 설명되지 않았어요. 이유가 없는 날도 데이터로 보관해요.'),
     })
   }
   for (const r of recoveryEffects) {

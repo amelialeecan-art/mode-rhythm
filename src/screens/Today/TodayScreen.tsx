@@ -34,10 +34,10 @@ const TIER_LABEL: Record<FactorTier, string> = {
 // 사건 부하(0~100)는 오해 소지가 커서 항목 막대에서 제외하고 개수·주요 사건으로 표시.
 // 주기는 데이터 유무에 따라 별도 렌더(숫자 대신 "데이터 없음" 등).
 const LOAD_ROWS: { key: keyof TodaySummary['scores']; label: string; color: string }[] = [
-  { key: 'emotionalLoad', label: '감정', color: 'var(--lav)' },
-  { key: 'appetiteLoad', label: '식욕', color: 'var(--coral)' },
-  { key: 'sleepLoad', label: '수면', color: 'var(--sky)' },
-  { key: 'bodyLoad', label: '몸', color: 'var(--mint)' },
+  { key: 'emotionalLoad', label: '감정 흔들림', color: 'var(--lav)' },
+  { key: 'appetiteLoad', label: '식욕 흔들림', color: 'var(--coral)' },
+  { key: 'sleepLoad', label: '수면 문제', color: 'var(--sky)' },
+  { key: 'bodyLoad', label: '몸 불편', color: 'var(--mint)' },
 ]
 
 // 주기 데이터 상태 → 표시 (calcCycleLoad 공식은 변경하지 않음, 표시의 정직성만 개선)
@@ -142,7 +142,7 @@ function FilledToday({
 
       {/* 오늘의 종합 부하 + 항목별 요약 */}
       <GlassCard>
-        <SectionHeader title="오늘의 종합 부하" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
+        <SectionHeader title="오늘의 버거움" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
         <p className="load-explain">
           오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱 내부 가중치로 합친 값이에요. 진단 점수나 호르몬 수치가 아니에요.
         </p>

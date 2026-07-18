@@ -69,10 +69,10 @@ function buildObservations(scored: RhythmDay[], days: RhythmDay[]): RhythmObserv
   const out: RhythmObservation[] = []
   if (scored.length === 0) return out
 
-  // 1) 감정 부하 정점
+  // 1) 감정 흔들림 정점
   const peak = scored.reduce((a, b) => ((b.emotional ?? 0) > (a.emotional ?? 0) ? b : a))
   out.push({
-    title: '감정 부하가 가장 높았던 날',
+    title: '감정 흔들림이 가장 컸던 날',
     body: `${formatMonthDay(parseISODate(peak.date))} (감정 ${peak.emotional ?? 0})로 기록됐어요.`,
   })
 
@@ -81,7 +81,7 @@ function buildObservations(scored: RhythmDay[], days: RhythmDay[]): RhythmObserv
   if (coMove >= 2) {
     out.push({
       title: '감정과 식욕이 함께 오른 편',
-      body: `이 기간에 ${coMove}일은 감정 부하와 식욕 변동이 함께 높게 기록됐어요. 함께 나타나는 경향이에요.`,
+      body: `이 기간에 ${coMove}일은 감정 흔들림과 식욕 흔들림이 함께 높게 기록됐어요. 함께 나타나는 경향이에요.`,
     })
   }
 
@@ -94,7 +94,7 @@ function buildObservations(scored: RhythmDay[], days: RhythmDay[]): RhythmObserv
       const word = diff <= -8 ? '낮게' : diff >= 8 ? '높게' : '비슷하게'
       out.push({
         title: '최근 일주일 흐름',
-        body: `최근 일주일은 그 전보다 전체 부하가 ${word} 기록된 편이에요.`,
+        body: `최근 일주일은 그 전보다 전반적인 버거움이 ${word} 기록된 편이에요.`,
       })
     }
   }

@@ -36,7 +36,7 @@ export const DAY_TYPE_LABEL: Record<DayTypeCode, string> = {
   focus: '집중 가능일',
   emotion_sensitive: '감정 민감일',
   appetite_shift: '식욕 변동일',
-  body_load: '신체 부하일',
+  body_load: '몸 불편일',
   social_fatigue: '사회 피로일',
   impulse_caution: '충동 경계일',
   recovery_priority: '회복 우선일',
@@ -67,9 +67,9 @@ const DAY_TYPE_DESC: Record<DayTypeCode, string> = {
   body_load: '몸이 보내는 신호가 큰 날이에요. 무리하지 않아도 괜찮아요.',
   social_fatigue: '사람과의 일에서 피로가 함께 관찰된 날이에요.',
   impulse_caution: '충동이 올라올 수 있는 날이에요. 큰 결정은 천천히 가도 좋아요.',
-  recovery_priority: '여러 부하가 함께 높게 계산된 날이에요. 오늘은 회복을 먼저 둬도 좋아요.',
+  recovery_priority: '여러 가지가 함께 높게 계산된 날이에요. 오늘은 회복을 먼저 둬도 좋아요.',
   unknown_cause: '오늘의 상태는 현재 기록만으로는 충분히 설명되지 않아요. 이유가 없는 날도 데이터예요.',
-  mixed_load: '여러 요인의 부하가 겹쳐 보이는 날이에요.',
+  mixed_load: '여러 요인이 겹쳐 보이는 날이에요.',
 }
 
 /** 사람/관계 관련 사건 수. */
@@ -135,7 +135,7 @@ export function buildSubLabel(dayType: DayTypeCode, input: ClassifyInput): strin
       return '회복 우선'
 
     case 'mixed_load':
-      return '부하 겹침 구간'
+      return '여러 가지 겹침 구간'
 
     case 'unknown_cause':
       return '미제 사건'
@@ -151,6 +151,6 @@ export function buildSubLabel(dayType: DayTypeCode, input: ClassifyInput): strin
 
     case 'stable':
       if (cycle.isPremenstrualWindow) return '월경 전 구간 관찰'
-      return scores.rhythmLoad >= 40 ? '중간 부하 구간' : '안정 구간'
+      return scores.rhythmLoad >= 40 ? '중간 정도 구간' : '안정 구간'
   }
 }

@@ -162,8 +162,8 @@
   gap: 10px;
 }
 .loadbar__label {
-  flex: 0 0 30px;
-  font-size: 12.5px;
+  flex: 0 0 68px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--ink-2);
 }
