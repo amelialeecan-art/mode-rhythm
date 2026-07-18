@@ -18,6 +18,7 @@ import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { recoveryLogRepository } from '../repositories/recoveryLogRepository'
 import { EVENT_CATALOG } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES } from '../catalog/lastNightSleep'
+import { isFunctionDetailLevel } from '../catalog/dailyFunction'
 import {
   RECOVERY_ACTIONS,
   RECOVERY_CATEGORY_TO_MODEL,
@@ -34,6 +35,8 @@ import type {
   EventLogInput,
   EventTiming,
   FlowLevel,
+  EventRelationToShift,
+  FunctionLevel,
   ISODate,
   LastNightSleep,
   RecoveryEffectValue,
@@ -91,6 +94,18 @@ export interface DailyEntryDraft {
   recoveryEffect: RecoveryEffectValue | ''
   /** 지난밤 수면 (깨어난 날짜에 귀속). timing 없음. */
   lastNightSleep: LastNightSleepDraft
+  /** 오늘 일상 기능 단계 (미선택 = undefined). */
+  functionLevel?: FunctionLevel
+  /** 기능 저하 항목 (level 3·4에서만 노출·저장). */
+  functionImpactCodes: string[]
+  /** 기능 저하 직접 추가 (level 3·4). */
+  functionImpactCustom: string[]
+  /** 무너짐 시작 시점 (level 3·4). */
+  functionDropOnset?: string
+  /** 사건 선후관계: "나빠지기 전부터 있었던 것"으로 표시한 eventCode들. */
+  eventRelationBefore: string[]
+  /** 사건 선후관계: "나빠진 뒤 나타난 것"으로 표시한 eventCode들. */
+  eventRelationAfter: string[]
   memo: string
 }
 
@@ -142,8 +157,26 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
     recoveryNegativeCodes: [],
     recoveryEffect: '',
     lastNightSleep: { issues: [] },
+    functionImpactCodes: [],
+    functionImpactCustom: [],
+    eventRelationBefore: [],
+    eventRelationAfter: [],
     memo: '',
   }
+}
+
+/** eventCode의 선후관계 파생. before/after 양쪽=both, 한쪽=해당, 없음=unknown. */
+export function deriveRelationToShift(
+  code: string,
+  before: string[],
+  after: string[],
+): EventRelationToShift {
+  const b = before.includes(code)
+  const a = after.includes(code)
+  if (b && a) return 'both'
+  if (b) return 'before'
+  if (a) return 'after'
+  return 'unknown'
 }
 
 /* ---------------------------------------------------------------------
@@ -157,6 +190,8 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
   // 식욕 상태 직접 입력값이 있으면 preset보다 우선 (spec 우선순위)
   const clamp10 = (x: number) => Math.max(0, Math.min(10, Math.round(x)))
   const pick = (rating: number | undefined, preset: number) => (rating != null ? clamp10(rating) : preset)
+  // 기능 세부(항목/시점)는 무너짐(level 3·4)일 때만 저장한다.
+  const detailLevel = isFunctionDetailLevel(draft.functionLevel)
   return {
     date: draft.date,
     moodLow: n.moodLow,
@@ -187,6 +222,11 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     appetiteRatings: hasAppetiteRatings(ar) ? { ...ar } : undefined,
     // 지난밤 수면(비인덱스). 입력 없으면 undefined.
     lastNightSleep: normalizeLastNight(draft.lastNightSleep),
+    // 오늘 일상 기능(비인덱스). 세부(항목/시점)는 level 3·4에서만 저장.
+    functionLevel: draft.functionLevel,
+    functionImpactCodes: detailLevel && draft.functionImpactCodes.length > 0 ? [...draft.functionImpactCodes] : undefined,
+    functionImpactCustom: detailLevel && draft.functionImpactCustom.length > 0 ? [...draft.functionImpactCustom] : undefined,
+    functionDropOnset: detailLevel ? draft.functionDropOnset : undefined,
   }
 }
 
@@ -198,6 +238,11 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
   const codes = lastNightFilled
     ? draft.catalogEventCodes.filter((c) => !LAST_NIGHT_SLEEP_CODES.has(c))
     : draft.catalogEventCodes
+  // 선후관계는 무너짐(level 3·4) + today 사건에만 부여한다. yesterday/recent 사건은 제외.
+  const detail = isFunctionDetailLevel(draft.functionLevel)
+  const relationFor = (timing: EventTiming, code: string): EventRelationToShift | undefined =>
+    detail && timing === 'today' ? deriveRelationToShift(code, draft.eventRelationBefore, draft.eventRelationAfter) : undefined
+
   const catalogEvents: EventLogInput[] = codes
     .map((code) => EVENT_CATALOG.find((e) => e.code === code))
     .filter((e): e is (typeof EVENT_CATALOG)[number] => e != null)
@@ -210,6 +255,7 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
       intensity: intensityValue(draft.eventIntensity),
       isCustom: false,
       mappedFactorGroup: e.factorGroup,
+      relationToShift: relationFor(draft.eventTiming, e.code),
     }))
 
   const customEvents: EventLogInput[] = draft.customEvents.map((c) => ({
@@ -222,6 +268,7 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
     isCustom: true,
     customLabel: c.customLabel,
     mappedFactorGroup: c.mappedFactorGroup,
+    relationToShift: relationFor(c.timing, c.eventCode),
   }))
 
   return [...catalogEvents, ...customEvents]
@@ -363,6 +410,14 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
           issues: [...(dailyLog.lastNightSleep.issues ?? [])],
         }
       : { issues: [] },
+    // 오늘 일상 기능 복원 (옛 기록은 필드 없음 → undefined/빈 배열).
+    functionLevel: dailyLog?.functionLevel,
+    functionImpactCodes: [...(dailyLog?.functionImpactCodes ?? [])],
+    functionImpactCustom: [...(dailyLog?.functionImpactCustom ?? [])],
+    functionDropOnset: dailyLog?.functionDropOnset,
+    // 사건 선후관계 복원: relationToShift에서 before/after 집합으로 되돌린다.
+    eventRelationBefore: events.filter((e) => e.relationToShift === 'before' || e.relationToShift === 'both').map((e) => e.eventCode),
+    eventRelationAfter: events.filter((e) => e.relationToShift === 'after' || e.relationToShift === 'both').map((e) => e.eventCode),
     memo: dailyLog?.memo ?? '',
   }
 }
