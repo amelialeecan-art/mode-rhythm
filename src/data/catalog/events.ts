@@ -146,6 +146,76 @@ export const FACTOR_GROUP_DISPLAY: Record<string, FactorGroupDisplay> = {
   cycle_ovulation_window: { title: '배란 추정 구간', subtitle: '날짜 기준 자동 계산' },
 }
 
+/* =====================================================================
+   요인별 plausible time window (§15 · cherry-picking 방지, 4단계)
+   에피소드 분석 엔진은 이 허용 범위 '안에서만' lag/누적을 탐색한다.
+   정적 카탈로그(=DB 아님) — 저장/인덱스 영향 없음.
+   ===================================================================== */
+export type FactorWindowMode =
+  | 'nightly' // 지난밤 귀속 + 단기 lag (수면류)
+  | 'short' // 당일~며칠 단기 lag
+  | 'trend' // 며칠~2주 추세
+  | 'cumulative' // 연속 노출/누적
+  | 'cycle' // 주기 위치(연속 거리, 별도 처리)
+  | 'result_side' // 결과쪽(relationToShift='after')이면 선행신호에서 제외
+
+export interface FactorWindow {
+  /** 결과일 D 기준, 요인이 놓일 수 있는 최소 lag(일). 0 = 당일 허용. */
+  minLag: number
+  /** 최대 lag(일). */
+  maxLag: number
+  mode: FactorWindowMode
+}
+
+/** 명시되지 않은 그룹의 보수적 기본값(당일~3일 단기). */
+export const DEFAULT_FACTOR_WINDOW: FactorWindow = { minLag: 0, maxLag: 3, mode: 'short' }
+
+/** §15 표를 코드화. 여기 없는 그룹은 DEFAULT_FACTOR_WINDOW. */
+export const FACTOR_WINDOW: Record<string, FactorWindow> = {
+  // 잠 부족/악몽/자주 깸: 당일 아침 ~ D+3 (지난밤 귀속 + 단기 lag)
+  sleep_deficit: { minLag: 0, maxLag: 3, mode: 'nightly' },
+  sleep_quality: { minLag: 0, maxLag: 3, mode: 'nightly' },
+  // 취침/기상 불규칙: 3~14일 추세
+  sleep_schedule: { minLag: 3, maxLag: 14, mode: 'trend' },
+  morning_light: { minLag: 0, maxLag: 3, mode: 'nightly' },
+  // 늦은 카페인: 그날 밤 ~ 다음날
+  caffeine_timing: { minLag: 0, maxLag: 1, mode: 'short' },
+  caffeine: { minLag: 0, maxLag: 1, mode: 'short' },
+  // 단 음식 섭취: 당일 ~ 다음날(식욕/감정 교차)
+  sugar_intake: { minLag: 0, maxLag: 1, mode: 'short' },
+  // 갈등/실수: 당일 ~ D+3
+  interpersonal_stress: { minLag: 0, maxLag: 3, mode: 'short' },
+  failure: { minLag: 0, maxLag: 3, mode: 'short' },
+  control_loss: { minLag: 0, maxLag: 3, mode: 'short' },
+  plan_disruption: { minLag: 0, maxLag: 3, mode: 'short' },
+  // 앞둔 일정 부담: 발생일 ~ 일정 전(최대 14일) 예기/누적
+  anticipatory_stress: { minLag: 0, maxLag: 14, mode: 'cumulative' },
+  // 집 지저분/공간 답답: 연속 노출 일수
+  clutter: { minLag: 0, maxLag: 14, mode: 'cumulative' },
+  cramped_space: { minLag: 0, maxLag: 14, mode: 'cumulative' },
+  environment_stress: { minLag: 0, maxLag: 7, mode: 'cumulative' },
+  // 쇼츠/누워 있음: relationToShift='after'면 선행신호 제외 → 결과쪽
+  short_video: { minLag: 0, maxLag: 2, mode: 'result_side' },
+  low_activity: { minLag: 0, maxLag: 2, mode: 'result_side' },
+  // SNS/사회적 비교: 당일 ~ D+2
+  social_media: { minLag: 0, maxLag: 2, mode: 'short' },
+  social_comparison: { minLag: 0, maxLag: 2, mode: 'short' },
+}
+
+/** 그룹의 탐색 허용 창(없으면 기본값). */
+export function factorWindowFor(group: string): FactorWindow {
+  return FACTOR_WINDOW[group] ?? DEFAULT_FACTOR_WINDOW
+}
+
+/**
+ * 이 lag(결과일 D − 요인 발생일)가 그룹의 허용 창 안인지.
+ * 창 밖 lag는 에피소드 선행신호 후보에서 제외한다(cherry-picking 방지).
+ */
+export function isLagWithinWindow(group: string, lag: number): boolean {
+  const w = factorWindowFor(group)
+  return lag >= w.minLag && lag <= w.maxLag
+}
+
 /** 카테고리별 그룹핑 (기록 화면에서 섹션 표시용). */
 export const EVENT_CATEGORY_LABEL: Record<EventCategory, string> = {
   sleep: '수면/리듬',
