@@ -120,9 +120,24 @@ export interface DailyLog {
    * 없는 옛 기록은 기존 sleep 사건에서 읽는다(scoring의 단일 출처 규칙).
    */
   lastNightSleep?: LastNightSleep
+  /**
+   * 오늘 일상 기능 (비인덱스 optional — 3단계). 사용자가 직접 고르는 기능 저하 라벨이며
+   * 의료 진단이 아니다. 점수 공식/분석에는 아직 반영하지 않는다(기록·복원만).
+   * 1 유지됨 / 2 버거웠지만 할 일은 함 / 3 중요한 것 몇 개를 못 함 / 4 거의 멈춤·무너짐.
+   */
+  functionLevel?: FunctionLevel
+  /** 기능 저하 항목 코드들 (level 3·4에서만). */
+  functionImpactCodes?: string[]
+  /** 기능 저하 직접 추가 자유 입력 (level 3·4에서만). */
+  functionImpactCustom?: string[]
+  /** 무너짐 시작 시점 코드 (level 3·4에서만). */
+  functionDropOnset?: string
   createdAt: string
   updatedAt: string
 }
+
+/** 일상 기능 단계 (1~4). */
+export type FunctionLevel = 1 | 2 | 3 | 4
 
 /** 지난밤 수면 입력값. issues 코드는 기존 sleep eventCode와 동일하게 유지(호환). */
 export interface LastNightSleep {
@@ -159,8 +174,16 @@ export interface EventLog {
   isCustom: boolean
   customLabel?: string
   mappedFactorGroup: string
+  /**
+   * 무너짐(기능 저하 큰 날)에서만, 이 사건이 상태 악화의 전/후 어디에 있었는지 (비인덱스 optional — 3단계).
+   * today 사건에만 부여한다. 옛 기록/미분류는 undefined(=unknown으로 간주).
+   */
+  relationToShift?: EventRelationToShift
   createdAt: string
 }
+
+/** 사건의 상태 악화 대비 선후관계. */
+export type EventRelationToShift = 'before' | 'after' | 'both' | 'unknown'
 
 /* ---------------------------------------------------------------------
    3) cycleLogs — 생리 관련 "사실" 기록. (자동 계산은 후속 단계 engine/cycle)
