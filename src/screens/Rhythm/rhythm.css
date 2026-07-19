@@ -8,6 +8,15 @@
   padding: 6px 0;
 }
 
+/* ---------- Phase 9C · 다가오는 체크포인트 ---------- */
+.cp-say {
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 8px;
+}
+
 /* ---------- Phase 9B-2B · 보기 방식 + 주기 비교 ---------- */
 .rhythm-view {
   display: flex;
