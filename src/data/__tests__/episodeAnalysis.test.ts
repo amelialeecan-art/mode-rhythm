@@ -170,6 +170,45 @@ describe('조기경보 카드 연결 (Phase 6)', () => {
   })
 })
 
+describe('비슷했던 날의 회복 카드 연결 (Phase 7)', () => {
+  it('에피소드가 없으면 recoveryComparison은 null', async () => {
+    await save('2026-06-10', { stateCodes: ['calm'], functionLevel: 1 })
+    const vm = await getAnalysisViewModel({ endDate: END })
+    expect(vm.recoveryComparison).toBeNull()
+  })
+
+  it('유사 사례 부족이면 gating 문장', async () => {
+    await save('2026-06-10', { stateCodes: ['sad'], functionLevel: 4 })
+    await save('2026-06-11', { stateCodes: ['calm'], functionLevel: 2 })
+    await save('2026-06-12', { stateCodes: ['calm'], functionLevel: 2 })
+    const vm = await getAnalysisViewModel({ endDate: END })
+    expect(vm.recoveryComparison).not.toBeNull()
+    expect(vm.recoveryComparison!.enoughSample).toBe(false)
+    expect(vm.recoveryComparison!.gatingSentence).toContain('자기보고 기준으로만 참고')
+  })
+
+  it('표본 충분: 소요일·함께 기록된 행동 문장(인과 표현 없음)', async () => {
+    const days = ['2026-06-04', '2026-06-11', '2026-06-18', '2026-06-25'] // 4개 level4 에피소드
+    for (const d of days) {
+      const neg = d === '2026-06-11' ? { recoveryNegativeCodes: ['nap'] } : {}
+      await save(d, { stateCodes: ['sad'], functionLevel: 4, recoveryCodes: ['walk'], ...neg })
+      await save(addDaysISO(d, 1), { stateCodes: ['calm'], functionLevel: 2 })
+      await save(addDaysISO(d, 2), { stateCodes: ['calm'], functionLevel: 2 })
+    }
+    const vm = await getAnalysisViewModel({ endDate: '2026-06-30' })
+    const rc = vm.recoveryComparison!
+    expect(rc.enoughSample).toBe(true)
+    expect(rc.similarCount).toBe(3) // 기준(06-25) 제외한 같은 강도 3개
+    expect(rc.durationSentence).toContain('1일쯤')
+    expect(rc.positiveSentence).toContain('산책')
+    expect(rc.positiveActions[0]).toMatchObject({ actionCode: 'walk', episodeCount: 3 })
+    expect(rc.negativeSentence).toContain('낮잠')
+    // 인과·처방·확률 표현 없음
+    const text = `${rc.headlineSentence} ${rc.durationSentence} ${rc.positiveSentence} ${rc.negativeSentence}`
+    expect(text).not.toMatch(/때문에|예방|예측|회복시|하세요|%/)
+  })
+})
+
 describe('요약 문장 중립 표현 (Phase 5.1 hotfix)', () => {
   it('level 4여도 요약은 공통 중립 표현 — "무너지기/무너진 뒤" 미사용', async () => {
     await save('2026-06-08', { stateCodes: ['calm'], functionLevel: 2, catalogEventCodes: ['meal_overeat'] }) // lag3 선행

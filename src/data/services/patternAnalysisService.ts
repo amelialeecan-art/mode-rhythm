@@ -37,6 +37,7 @@ import {
   detectEpisodes,
   assembleEpisodeSignals,
   backtestEarlyWarning,
+  compareSimilarEpisodeRecovery,
   EVIDENCE_LEVEL_LABEL,
   ANALYSIS_METRIC_LABEL,
   type AnalysisDataset,
@@ -56,6 +57,10 @@ import {
   type WarningEvent,
   type ConfusionMatrix,
   type EarlyWarningReport,
+  type EpisodeRecoveryFeature,
+  type RecoveryActionRef,
+  type EpisodeRecoveryActionTally,
+  type SimilarRecoveryComparison,
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS, factorWindowFor } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
@@ -475,6 +480,66 @@ function buildEarlyWarningCard(report: EarlyWarningReport, labelFor: (g: string)
   }
 }
 
+/* ---------------------------------------------------------------------
+   비슷했던 날의 회복 경로 카드 (7단계 엔진 → 화면 표시용)
+   새 효과 점수/추천 없음. 과거에 함께 기록된 빈도 + 실제 소요일만 서술.
+   인과·처방 단정 금지(그날만 그랬을 수 있음). 표본 부족 시 자기보고 기준 안내.
+   --------------------------------------------------------------------- */
+export interface RecoveryComparisonCard {
+  enoughSample: boolean
+  similarCount: number
+  headlineSentence: string
+  durationSentence?: string
+  positiveSentence?: string
+  negativeSentence?: string
+  gatingSentence?: string
+  positiveActions: EpisodeRecoveryActionTally[]
+  negativeActions: EpisodeRecoveryActionTally[]
+}
+
+const MAX_RECOVERY_ACTIONS_SHOWN = 3
+
+function buildRecoveryComparisonCard(cmp: SimilarRecoveryComparison): RecoveryComparisonCard {
+  const headlineSentence = `비슷한 정도로 힘들었던 날이 과거 ${cmp.similarCount}번 있었어요.`
+  if (!cmp.enoughSample) {
+    return {
+      enoughSample: false,
+      similarCount: cmp.similarCount,
+      headlineSentence,
+      gatingSentence: '아직 비슷한 사례를 비교하기엔 기록이 적어요. 지금은 자기보고 기준으로만 참고해요.',
+      positiveActions: [],
+      negativeActions: [],
+    }
+  }
+  const pos = cmp.positiveActions.slice(0, MAX_RECOVERY_ACTIONS_SHOWN)
+  const neg = cmp.negativeActions.slice(0, MAX_RECOVERY_ACTIONS_SHOWN)
+
+  let durationSentence: string | undefined
+  if (cmp.recoveredCount > 0 && cmp.daysToRecovery.length > 0) {
+    const min = cmp.daysToRecovery[0]
+    const max = cmp.daysToRecovery[cmp.daysToRecovery.length - 1]
+    const span = min === max ? `${min}일쯤` : `${min}~${max}일쯤`
+    durationSentence = `그 중 ${cmp.recoveredCount}번은 회복 흐름이 확인됐고, 회복까지 대체로 ${span} 걸렸어요.`
+  }
+  const positiveSentence =
+    pos.length > 0 ? `그때 회복 구간에는 ${pos.map((a) => a.actionLabel).join('·')} 기록이 자주 함께 있었어요.` : undefined
+  const negativeSentence =
+    neg.length > 0
+      ? `안 맞았다고 적은 것도 있었어요. 그날만 그랬을 수 있어요: ${neg.map((a) => a.actionLabel).join('·')}.`
+      : undefined
+
+  return {
+    enoughSample: true,
+    similarCount: cmp.similarCount,
+    headlineSentence,
+    durationSentence,
+    positiveSentence,
+    negativeSentence,
+    positiveActions: pos,
+    negativeActions: neg,
+  }
+}
+
 export interface AnalysisViewModel {
   endDate: ISODate
   /** 이 창에서 저장된 날 수(dailyScore 존재). */
@@ -487,6 +552,8 @@ export interface AnalysisViewModel {
   episodes: EpisodeCard[]
   /** 조기경보 백테스트 카드. 에피소드가 없으면 null. */
   earlyWarning: EarlyWarningCard | null
+  /** 비슷했던 날의 회복 경로 비교. 자기보고 에피소드가 없으면 null. */
+  recoveryComparison: RecoveryComparisonCard | null
   /** 요인 평균 비교(30일)까지 남은 유효일 수. */
   daysUntilComparison: number
   /** 초기 단계용 자주 기록한 사건 단순 빈도. */
@@ -934,6 +1001,25 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   })
   const earlyWarning = rawEpisodes.length > 0 ? buildEarlyWarningCard(earlyWarningReport, groupTitle) : null
 
+  // ---- 비슷했던 날의 회복 경로 비교 (7단계 순수 엔진) ----
+  const recoveryFeatures: EpisodeRecoveryFeature[] = rawEpisodes.map((ep) => ({
+    startDate: ep.startDate,
+    endDate: ep.endDate,
+    recoveryStartDate: ep.recoveryStartDate,
+    peakFunctionLevel: ep.peakFunctionLevel,
+    confidence: ep.confidence,
+    status: ep.status,
+    daysToRecovery: ep.daysToRecovery,
+  }))
+  const recoveryRefByDate = new Map<ISODate, RecoveryActionRef[]>()
+  for (const r of recoveryLogs) {
+    const arr = recoveryRefByDate.get(r.date) ?? []
+    arr.push({ actionCode: r.actionCode, actionLabel: r.actionLabel, direction: r.direction ?? 'positive' })
+    recoveryRefByDate.set(r.date, arr)
+  }
+  const recoveryCmp = compareSimilarEpisodeRecovery(recoveryFeatures, recoveryRefByDate)
+  const recoveryComparison = recoveryCmp ? buildRecoveryComparisonCard(recoveryCmp) : null
+
   const vm: AnalysisViewModel = {
     endDate,
     savedDayCount,
@@ -942,6 +1028,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     analysisStageLabel: ANALYSIS_STAGE_LABEL[analysisStage],
     episodes,
     earlyWarning,
+    recoveryComparison,
     daysUntilComparison,
     eventFrequency,
     factorPatterns: topFactors,
