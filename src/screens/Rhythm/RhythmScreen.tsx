@@ -8,13 +8,11 @@ import {
   type RhythmMetric,
   type CyclePhase,
 } from '../../data/services/rhythmService'
-import { getRhythmForecastViewModel, type RhythmForecastViewModel } from '../../data/services/rhythmForecastService'
-import { parseISODate, formatMonthDay, formatWeekday } from '../../lib/date'
+import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
 import { rhythmCompareSentence, cycleCompareSentence } from './rhythmVoice'
 import { CycleCompareChart } from './CycleCompareChart'
+import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import './rhythm.css'
-
-const OFFSET_LABEL: Record<number, string> = { 1: '내일', 2: '모레', 3: '3일 뒤' }
 
 const RANGES = [
   { key: '30d', label: '30일', days: 30, bucket: 'day' as const },
@@ -50,7 +48,7 @@ export function RhythmScreen() {
   const [metric, setMetric] = useState<RhythmMetric>('emotional')
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
   const [cycleVm, setCycleVm] = useState<CycleCompareViewModel | null>(null)
-  const [forecast, setForecast] = useState<RhythmForecastViewModel | null>(null)
+  const [checkpoint, setCheckpoint] = useState<CheckpointCard | null>(null)
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
@@ -73,8 +71,8 @@ export function RhythmScreen() {
 
   useEffect(() => {
     let cancelled = false
-    void getRhythmForecastViewModel().then((f) => {
-      if (!cancelled) setForecast(f)
+    void getCheckpointSignals().then((s) => {
+      if (!cancelled) setCheckpoint(buildCheckpoint(s))
     })
     return () => {
       cancelled = true
@@ -206,25 +204,14 @@ export function RhythmScreen() {
                 )}
               </GlassCard>
 
-              {forecast && forecast.hasData && forecast.next3Days.length > 0 && (
+              {checkpoint && (
                 <GlassCard tint="sky">
-                  <SectionHeader title="다음 3일 흐름" subtitle="실제 기록이 아니라, 최근 흐름과 주기 위치를 바탕으로 한 참고예요" />
-                  <div className="fc3">
-                    {forecast.next3Days.map((d) => {
-                      const date = parseISODate(d.date)
-                      return (
-                        <div className="fc3__card" key={d.date}>
-                          <span className="fc3__day">
-                            {OFFSET_LABEL[d.dayOffset]} · {formatMonthDay(date)} {formatWeekday(date).slice(0, 1)}
-                          </span>
-                          <span className="fc3__mode">{d.label} 가능성</span>
-                          {d.subLabel && <span className="fc3__sub">{d.subLabel}</span>}
-                          <span className="fc3__meta">참고도 {d.confidence} · 리듬 {d.predictedScores.rhythmLoad}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <p className="rhythm-note">기록이 쌓이면 더 개인화돼요. 확정은 아니에요.</p>
+                  <SectionHeader title="다가오는 체크포인트" />
+                  {checkpoint.sentences.map((s, i) => (
+                    <p className="cp-say" key={i}>
+                      {s}
+                    </p>
+                  ))}
                 </GlassCard>
               )}
             </>
