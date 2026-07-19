@@ -1,3 +1,166 @@
+/* ---------- Phase 9A · 다이어트 + 개인용 말투 ---------- */
+.analysis-meta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+/* 에피소드 트리거 한 줄 (유쾌 라벨) */
+.ep__trigger {
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+  color: var(--coral-ink);
+}
+
+/* 이전 에피소드 접힘 */
+.ep-older {
+  margin-top: 6px;
+}
+.ep-older__sum {
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  padding: 4px 0;
+}
+.ep-older__sum::-webkit-details-marker {
+  display: none;
+}
+.ep-older__sum::after {
+  content: ' ▾';
+  color: var(--ink-3);
+}
+.ep-older[open] .ep-older__sum::after {
+  content: ' ▴';
+}
+.ep-older__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+/* 자연어 패턴 리스트 */
+.pat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 12px;
+}
+.pat__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.pat__name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.pat__str {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--pill);
+  white-space: nowrap;
+}
+.pat__str--strong {
+  color: var(--coral-ink);
+  background: var(--coral-s);
+}
+.pat__str--medium {
+  color: var(--lav-ink);
+  background: var(--lav-s);
+}
+.pat__str--weak {
+  color: var(--ink-3);
+  background: rgba(120, 90, 180, 0.08);
+}
+.pat__say {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--ink);
+}
+.pat__more {
+  margin-top: 7px;
+}
+.pat__more > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.pat__more > summary::-webkit-details-marker {
+  display: none;
+}
+.pat__more > summary::after {
+  content: ' ▾';
+}
+.pat__more[open] > summary::after {
+  content: ' ▴';
+}
+.pat__nums {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.pat__tier {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: var(--pill);
+  white-space: nowrap;
+}
+
+/* 접힘 섹션 (다른 패턴 / 그 밖의 기록) */
+.more {
+  margin-top: 4px;
+}
+.more--block {
+  margin-top: 6px;
+}
+.more__sum {
+  cursor: pointer;
+  list-style: none;
+  padding: 13px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.more__sum::-webkit-details-marker {
+  display: none;
+}
+.more__sum::after {
+  content: ' ▾';
+  color: var(--ink-3);
+}
+.more[open] .more__sum::after {
+  content: ' ▴';
+}
+.more__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
 /* 공범 구조 두 원 */
 .overlap {
   display: flex;
