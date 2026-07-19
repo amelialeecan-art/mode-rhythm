@@ -185,6 +185,9 @@ describe('비슷했던 날의 회복 카드 연결 (Phase 7)', () => {
     expect(vm.recoveryComparison).not.toBeNull()
     expect(vm.recoveryComparison!.enoughSample).toBe(false)
     expect(vm.recoveryComparison!.gatingSentence).toContain('자기보고 기준으로만 참고')
+    // 유사도 기준이 기능 저하 강도임을 과장 없이 표기
+    expect(vm.recoveryComparison!.gatingSentence).toContain('기능 저하 강도가 비슷한 사례')
+    expect(vm.recoveryComparison!.headlineSentence).toContain('기능 저하 강도가 비슷했던 날')
   })
 
   it('표본 충분: 소요일·함께 기록된 행동 문장(인과 표현 없음)', async () => {
@@ -198,6 +201,8 @@ describe('비슷했던 날의 회복 카드 연결 (Phase 7)', () => {
     const vm = await getAnalysisViewModel({ endDate: '2026-06-30' })
     const rc = vm.recoveryComparison!
     expect(rc.enoughSample).toBe(true)
+    expect(rc.headlineSentence).toContain('기능 저하 강도가 비슷했던 날')
+    expect(rc.headlineSentence).not.toContain('비슷한 정도로')
     expect(rc.similarCount).toBe(3) // 기준(06-25) 제외한 같은 강도 3개
     expect(rc.durationSentence).toContain('1일쯤')
     expect(rc.positiveSentence).toContain('산책')

@@ -320,7 +320,7 @@ function RecoveryComparisonCardView({ rc }: { rc: RecoveryComparisonCard }) {
   const hasDetail = rc.positiveActions.length > 0 || rc.negativeActions.length > 0
   return (
     <GlassCard tint="mint">
-      <SectionHeader title="비슷했던 날의 회복" subtitle="비슷한 정도로 힘들었던 날끼리 회복 흐름을 되짚어요" />
+      <SectionHeader title="비슷한 강도로 힘들었던 날의 회복" subtitle="기능 저하 강도가 비슷한 날끼리 회복 흐름을 되짚어요" />
       <p className="rc-line rc-line--head">{rc.headlineSentence}</p>
       {!rc.enoughSample ? (
         <p className="rc-line rc-line--muted">{rc.gatingSentence}</p>
@@ -355,6 +355,7 @@ function RecoveryComparisonCardView({ rc }: { rc: RecoveryComparisonCard }) {
                     ))}
                   </div>
                 )}
+                <p className="rc-note">현재는 기능 저하 강도를 기준으로 비교해요.</p>
                 <p className="rc-note">
                   회복시킨 원인이 아니라, 비슷했던 날에 함께 기록된 횟수예요. 같은 행동도 날에 따라 다르게 느껴질 수 있어요.
                 </p>
