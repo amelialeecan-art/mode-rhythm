@@ -55,11 +55,6 @@ export function assertGuard(text: string): string {
   return text
 }
 
-/** 요인과 결과의 관계를 단정 없이 "경향" 표현으로. */
-export function toTendencyPhrase(factorLabel: string, metricLabel: string): string {
-  return `${factorLabel}과(와) ${metricLabel}이(가) 함께 나타나는 경향이 있어요`
-}
-
 /* ---------------------------------------------------------------------
    톤별 보조 문구 (일부 화면에만 가볍게 적용)
    어떤 톤에서도 단정하지 않는다.
