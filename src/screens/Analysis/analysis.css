@@ -582,6 +582,85 @@
   color: var(--ink-3);
 }
 
+/* ---------- Phase 7 · 비슷했던 날의 회복 ---------- */
+.rc-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.rc-line {
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--ink);
+}
+.rc-line--head {
+  margin-top: 10px;
+  font-weight: 700;
+}
+.rc-line--muted {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.rc-more {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.rc-more-sum {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.rc-more-sum::-webkit-details-marker {
+  display: none;
+}
+.rc-more-sum::after {
+  content: ' ▾';
+  color: var(--ink-3);
+}
+.rc-more[open] .rc-more-sum::after {
+  content: ' ▴';
+}
+.rc-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin-top: 10px;
+}
+.rc-tally__head {
+  font-size: 12px;
+  font-weight: 800;
+}
+.rc-tally__head--pos {
+  color: var(--mint-ink);
+}
+.rc-tally__head--neg {
+  color: var(--coral-ink);
+}
+.rc-tally__row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.rc-tally__row b {
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.rc-note {
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 /* 접힘: 장기 관찰 자료 */
 .longterm {
   margin-top: 6px;

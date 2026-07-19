@@ -9,6 +9,7 @@ import {
   type EpisodeSection,
   type MergedSignal,
   type EarlyWarningCard,
+  type RecoveryComparisonCard,
 } from '../../data/services/patternAnalysisService'
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
@@ -116,6 +117,9 @@ export function AnalysisScreen() {
 
           {/* ===== 미리 알아차릴 수 있었을까? (조기경보 백테스트) ===== */}
           {vm.earlyWarning && <EarlyWarningCardView ew={vm.earlyWarning} />}
+
+          {/* ===== 비슷했던 날의 회복 (유사 에피소드 회복 경로) ===== */}
+          {vm.recoveryComparison && <RecoveryComparisonCardView rc={vm.recoveryComparison} />}
 
           {/* ===== 장기 관찰 자료 (기존 분석 — 접힘) ===== */}
           <details className="longterm">
@@ -305,6 +309,61 @@ function MatrixTable({ title, cm }: { title: string; cm: EarlyWarningCard['prevN
         <b>{cm.correctRejection}</b>
       </div>
     </div>
+  )
+}
+
+/**
+ * 비슷했던 날의 회복 카드. 새 점수·추천 없이 과거에 함께 기록된 빈도 + 실제
+ * 소요일만 서술. 표본 부족 시 자기보고 기준 안내. 인과·처방 표현 없음.
+ */
+function RecoveryComparisonCardView({ rc }: { rc: RecoveryComparisonCard }) {
+  const hasDetail = rc.positiveActions.length > 0 || rc.negativeActions.length > 0
+  return (
+    <GlassCard tint="mint">
+      <SectionHeader title="비슷했던 날의 회복" subtitle="비슷한 정도로 힘들었던 날끼리 회복 흐름을 되짚어요" />
+      <p className="rc-line rc-line--head">{rc.headlineSentence}</p>
+      {!rc.enoughSample ? (
+        <p className="rc-line rc-line--muted">{rc.gatingSentence}</p>
+      ) : (
+        <div className="rc-lines">
+          {rc.durationSentence && <p className="rc-line">{rc.durationSentence}</p>}
+          {rc.positiveSentence && <p className="rc-line">{rc.positiveSentence}</p>}
+          {rc.negativeSentence && <p className="rc-line rc-line--muted">{rc.negativeSentence}</p>}
+          {hasDetail && (
+            <details className="rc-more">
+              <summary className="rc-more-sum">함께 기록된 행동 보기</summary>
+              <div className="rc-more-body">
+                {rc.positiveActions.length > 0 && (
+                  <div className="rc-tally">
+                    <span className="rc-tally__head rc-tally__head--pos">도움이 됐다고 적음</span>
+                    {rc.positiveActions.map((a) => (
+                      <div className="rc-tally__row" key={`p-${a.actionCode}`}>
+                        <span>{a.actionLabel}</span>
+                        <b>{a.episodeCount}번</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {rc.negativeActions.length > 0 && (
+                  <div className="rc-tally">
+                    <span className="rc-tally__head rc-tally__head--neg">안 맞았다고 적음</span>
+                    {rc.negativeActions.map((a) => (
+                      <div className="rc-tally__row" key={`n-${a.actionCode}`}>
+                        <span>{a.actionLabel}</span>
+                        <b>{a.episodeCount}번</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="rc-note">
+                  회복시킨 원인이 아니라, 비슷했던 날에 함께 기록된 횟수예요. 같은 행동도 날에 따라 다르게 느껴질 수 있어요.
+                </p>
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </GlassCard>
   )
 }
 

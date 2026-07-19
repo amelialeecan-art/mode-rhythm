@@ -12,6 +12,7 @@
 import type { ISODate, RecoveryEffectValue, RecoveryLog, RecoveryLogCategory } from '../data/models'
 import { clamp, roundScore } from './guards'
 import { addDaysISO } from './correlation'
+import type { EpisodeConfidence, EpisodeStatus } from './episode'
 
 function mean(nums: number[]): number {
   if (nums.length === 0) return 0
@@ -265,4 +266,114 @@ export function analyzeRecoveryActions(ds: RecoveryDataset, recoveryLogs: Recove
 
   insights.sort((a, b) => b.confidence - a.confidence || b.combinedScore - a.combinedScore)
   return insights
+}
+
+/* =====================================================================
+   유사 에피소드 회복 경로 비교 (7단계 · 순수 함수, 기존 함수 보존)
+   "비슷한 정도로 힘들었던 날"끼리 회복이 어떻게 흘렀는지 되짚는다.
+   새 효과 점수/추천을 만들지 않는다 — 과거에 '함께 기록된' 빈도와 실제
+   소요일만 서술한다. 인과·처방 단정 금지(그날만 그랬을 수 있음).
+   estimated-only 에피소드는 자기보고가 아니므로 제외한다.
+   ===================================================================== */
+
+/** 유사 사례로 인정할 최소 표본. 미만이면 확정 비교를 보이지 않는다. */
+export const MIN_SIMILAR_EPISODES = 3
+
+/** 비교에 쓰는 에피소드 최소 특징(기능저하 강도/회복 상태/소요일). */
+export interface EpisodeRecoveryFeature {
+  startDate: ISODate
+  endDate: ISODate
+  recoveryStartDate?: ISODate
+  /** 기능저하 강도(3/4). 유사도의 핵심 축. */
+  peakFunctionLevel?: number
+  confidence: EpisodeConfidence
+  status: EpisodeStatus
+  daysToRecovery?: number
+}
+
+/** 회복 로그 한 건의 최소 정보(방향 포함). */
+export interface RecoveryActionRef {
+  actionCode: string
+  actionLabel: string
+  direction: 'positive' | 'negative'
+}
+
+export interface EpisodeRecoveryActionTally {
+  actionCode: string
+  actionLabel: string
+  direction: 'positive' | 'negative'
+  /** 유사·회복 에피소드 중 이 행동이 회복 구간에 기록된 에피소드 수(로그 수 아님). */
+  episodeCount: number
+}
+
+export interface SimilarRecoveryComparison {
+  referenceStart: ISODate
+  peakFunctionLevel?: number
+  /** 기준과 같은 강도인 다른(과거) 에피소드 수. */
+  similarCount: number
+  enoughSample: boolean
+  /** 유사 에피소드 중 회복이 확인된 수. */
+  recoveredCount: number
+  /** 유사·회복 에피소드의 소요일(오름차순). */
+  daysToRecovery: number[]
+  positiveActions: EpisodeRecoveryActionTally[]
+  negativeActions: EpisodeRecoveryActionTally[]
+}
+
+function tallyActions(
+  episodes: EpisodeRecoveryFeature[],
+  recoveryByDate: Map<ISODate, RecoveryActionRef[]>,
+  direction: 'positive' | 'negative',
+): EpisodeRecoveryActionTally[] {
+  // actionCode → { label, 기록된 에피소드 집합 }
+  const map = new Map<string, { label: string; episodes: Set<string> }>()
+  for (const e of episodes) {
+    const last = e.recoveryStartDate ?? e.endDate
+    for (let d = e.startDate; d <= last; d = addDaysISO(d, 1)) {
+      const refs = recoveryByDate.get(d)
+      if (!refs) continue
+      for (const r of refs) {
+        if (r.direction !== direction) continue
+        const cur = map.get(r.actionCode) ?? { label: r.actionLabel, episodes: new Set<string>() }
+        cur.episodes.add(e.startDate)
+        map.set(r.actionCode, cur)
+      }
+    }
+  }
+  return [...map.entries()]
+    .map(([actionCode, v]) => ({ actionCode, actionLabel: v.label, direction, episodeCount: v.episodes.size }))
+    .sort((a, b) => b.episodeCount - a.episodeCount || (a.actionCode < b.actionCode ? -1 : 1))
+}
+
+/**
+ * 가장 최근 자기보고 에피소드를 기준으로, 같은 기능저하 강도의 과거 에피소드들과
+ * 회복 경로(소요일 + 회복 구간에 함께 기록된 행동)를 비교한다.
+ * 자기보고 에피소드가 없으면 null.
+ */
+export function compareSimilarEpisodeRecovery(
+  episodes: EpisodeRecoveryFeature[],
+  recoveryByDate: Map<ISODate, RecoveryActionRef[]>,
+): SimilarRecoveryComparison | null {
+  const reported = episodes.filter((e) => e.confidence !== 'estimated')
+  if (reported.length === 0) return null
+
+  // 기준 = 가장 최근 시작 에피소드
+  const reference = [...reported].sort((a, b) => (a.startDate < b.startDate ? 1 : -1))[0]
+  // 유사 = 같은 기능저하 강도인 '다른' 에피소드(과거 포함 전체)
+  const similar = reported.filter(
+    (e) => e.startDate !== reference.startDate && e.peakFunctionLevel === reference.peakFunctionLevel,
+  )
+  const recovered = similar.filter((e) => e.status === 'recovered' && e.daysToRecovery !== undefined)
+  const daysToRecovery = recovered.map((e) => e.daysToRecovery as number).sort((a, b) => a - b)
+
+  return {
+    referenceStart: reference.startDate,
+    peakFunctionLevel: reference.peakFunctionLevel,
+    similarCount: similar.length,
+    enoughSample: similar.length >= MIN_SIMILAR_EPISODES,
+    recoveredCount: recovered.length,
+    daysToRecovery,
+    positiveActions: tallyActions(recovered, recoveryByDate, 'positive'),
+    negativeActions: tallyActions(recovered, recoveryByDate, 'negative'),
+  }
 }
