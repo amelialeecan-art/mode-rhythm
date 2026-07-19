@@ -103,6 +103,18 @@ export {
   type CyclePositionSignal,
 } from './episode'
 export {
+  warningSignalsAt,
+  warningFires,
+  backtestEarlyWarning,
+  WARNING_MIN_SIGNALS,
+  MIN_REPORTED_EPISODES,
+  type WarningCutoff,
+  type WarningEvent,
+  type ConfusionMatrix,
+  type BacktestInput,
+  type EarlyWarningReport,
+} from './earlyWarning'
+export {
   recoveryDelta,
   calcRecoveryScore,
   immediateRecoveryScore,
