@@ -42,7 +42,9 @@ export {
   getRhythmViewModel,
   type RhythmViewModel,
   type RhythmDay,
-  type RhythmObservation,
+  type RhythmBucket,
+  type RhythmMetric,
+  type WeekCompareStat,
   type RhythmOptions,
   type CyclePhase,
 } from './services/rhythmService'
