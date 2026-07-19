@@ -8,6 +8,104 @@
   padding: 6px 0;
 }
 
+/* ---------- Phase 9B-2B · 보기 방식 + 주기 비교 ---------- */
+.rhythm-view {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.rhythm-view__tab {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 12px;
+  border: 1.4px solid var(--line);
+  background: rgba(255, 255, 255, 0.4);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rhythm-view__tab--on {
+  border-color: var(--lav-2);
+  background: rgba(169, 133, 232, 0.16);
+  color: var(--lav-ink);
+}
+.cc-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.cc-x-t {
+  font-size: 8.5px;
+  font-weight: 700;
+  fill: var(--ink-3);
+}
+.cc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.cc-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cc-legend__line {
+  width: 16px;
+  height: 3px;
+  border-radius: 3px;
+}
+.cc-legend__line--prev {
+  background: var(--ink-3);
+  opacity: 0.55;
+}
+.cc-legend__band {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(229, 139, 190, 0.28);
+}
+.cc-say {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--ink);
+}
+.cc-more {
+  margin-top: 8px;
+}
+.cc-more > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.cc-more > summary::-webkit-details-marker {
+  display: none;
+}
+.cc-more > summary::after {
+  content: ' ▾';
+}
+.cc-more[open] > summary::after {
+  content: ' ▴';
+}
+.cc-nums {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Phase 9B-1 · 기간/항목 선택 + 최근 일주일 ---------- */
 .rhythm-tabs {
   display: flex;

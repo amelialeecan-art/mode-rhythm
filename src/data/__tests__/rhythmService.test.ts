@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { resetDatabase } from '../reset'
 import { saveDailyEntry, emptyDraft, type DailyEntryDraft } from '../services/dailyEntryService'
-import { getRhythmViewModel } from '../services/rhythmService'
+import { getRhythmViewModel, getCycleCompareViewModel } from '../services/rhythmService'
 import { addDaysISO } from '../../engine'
 
 const END = '2026-06-20'
@@ -84,5 +84,20 @@ describe('getRhythmViewModel — 7일 집계(장기)', () => {
     await saveDailyEntry(draft('2026-06-20', { stateCodes: ['anxious'] }))
     const vm = await getRhythmViewModel({ endDate: END, days: 90, bucket: 'week' })
     expect(vm.weekCompare.emotional.enough).toBe(false)
+  })
+})
+
+describe('getCycleCompareViewModel — 표본 부족 게이트', () => {
+  it('생리 시작 기록이 3회 미만이면 eligible false + neededMore', async () => {
+    await saveDailyEntry(
+      draft('2026-05-01', { stateCodes: ['sad'], cycle: { periodStart: true, periodEnd: false, symptoms: [] } }),
+    )
+    await saveDailyEntry(
+      draft('2026-05-29', { stateCodes: ['sad'], cycle: { periodStart: true, periodEnd: false, symptoms: [] } }),
+    )
+    const vm = await getCycleCompareViewModel({ endDate: END })
+    expect(vm.cycleCount).toBe(2)
+    expect(vm.eligible).toBe(false)
+    expect(vm.neededMore).toBe(1)
   })
 })
