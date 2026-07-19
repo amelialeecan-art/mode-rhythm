@@ -510,6 +510,78 @@
   margin-top: 10px;
 }
 
+/* ---------- Phase 6 · 조기경보 백테스트 ---------- */
+.ew-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+.ew-line {
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--ink);
+}
+.ew-line--balance {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.ew-more {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.ew-more-sum {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.ew-more-sum::-webkit-details-marker {
+  display: none;
+}
+.ew-more-sum::after {
+  content: ' ▾';
+  color: var(--ink-3);
+}
+.ew-more[open] .ew-more-sum::after {
+  content: ' ▴';
+}
+.ew-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 11px;
+}
+.ew-matrix__title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--sky-ink);
+}
+.ew-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.ew-grid b {
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.ew-note {
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 /* 접힘: 장기 관찰 자료 */
 .longterm {
   margin-top: 6px;

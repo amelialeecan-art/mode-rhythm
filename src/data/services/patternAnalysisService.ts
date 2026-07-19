@@ -36,6 +36,7 @@ import {
   windowPhrase,
   detectEpisodes,
   assembleEpisodeSignals,
+  backtestEarlyWarning,
   EVIDENCE_LEVEL_LABEL,
   ANALYSIS_METRIC_LABEL,
   type AnalysisDataset,
@@ -52,6 +53,9 @@ import {
   type EpisodeSignals,
   type EpisodeStatus,
   type EpisodeConfidence,
+  type WarningEvent,
+  type ConfusionMatrix,
+  type EarlyWarningReport,
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS, factorWindowFor } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
@@ -415,6 +419,62 @@ function buildEpisodeCard(ep: Episode, sig: EpisodeSignals): EpisodeCard {
   }
 }
 
+/* ---------------------------------------------------------------------
+   조기경보 백테스트 카드 (6단계 엔진 → 화면 표시용)
+   확률이 아니라 과거 실제 횟수만. 인과/예측 단정 금지.
+   --------------------------------------------------------------------- */
+export interface EarlyWarningCard {
+  eligible: boolean
+  minRequired: number
+  reportedEpisodeCount: number
+  estimatedExcludedCount: number
+  neededMore: number
+  /** 표본 충분: 기본 3문장. */
+  prevNightSentence: string
+  morningSentence: string
+  balanceSentence: string
+  /** 표본 부족 시 안내(그 외 문장은 비움). */
+  gatingSentence?: string
+  prevNight: ConfusionMatrix
+  morning: ConfusionMatrix
+  /** 접힘 "계산 근거"에 쓰는 신호 이름들. */
+  signalLabelsUsed: string[]
+}
+
+function buildEarlyWarningCard(report: EarlyWarningReport, labelFor: (g: string) => string): EarlyWarningCard {
+  const signalLabelsUsed = report.signalGroupsUsed.map(labelFor)
+  if (!report.eligible) {
+    return {
+      eligible: false,
+      minRequired: report.minRequired,
+      reportedEpisodeCount: report.reportedEpisodeCount,
+      estimatedExcludedCount: report.estimatedExcludedCount,
+      neededMore: report.neededMore,
+      prevNightSentence: '',
+      morningSentence: '',
+      balanceSentence: '',
+      gatingSentence: `조기 신호를 확인하려면 비슷한 기록이 ${report.neededMore}번 더 필요해요.`,
+      prevNight: report.prevNight,
+      morning: report.morning,
+      signalLabelsUsed,
+    }
+  }
+  const p = report.prevNight.positives
+  return {
+    eligible: true,
+    minRequired: report.minRequired,
+    reportedEpisodeCount: report.reportedEpisodeCount,
+    estimatedExcludedCount: report.estimatedExcludedCount,
+    neededMore: 0,
+    prevNightSentence: `과거 힘들었던 날 ${p}번 중 ${report.prevNight.hit}번은 전날 밤 기록에서 먼저 나타난 신호가 있었어요.`,
+    morningSentence: `당일 아침(지난밤 수면 포함)까지 보면 ${p}번 중 ${report.morning.hit}번에서 알아차릴 수 있었던 신호가 있었어요.`,
+    balanceSentence: `다만 같은 신호가 있었는데 괜찮았던 날도 ${report.prevNight.falseAlarm}번 있었어요.`,
+    prevNight: report.prevNight,
+    morning: report.morning,
+    signalLabelsUsed,
+  }
+}
+
 export interface AnalysisViewModel {
   endDate: ISODate
   /** 이 창에서 저장된 날 수(dailyScore 존재). */
@@ -425,6 +485,8 @@ export interface AnalysisViewModel {
   analysisStageLabel: string
   /** 무너짐 에피소드(최근 K개, 최신순). 없으면 빈 배열. */
   episodes: EpisodeCard[]
+  /** 조기경보 백테스트 카드. 에피소드가 없으면 null. */
+  earlyWarning: EarlyWarningCard | null
   /** 요인 평균 비교(30일)까지 남은 유효일 수. */
   daysUntilComparison: number
   /** 초기 단계용 자주 기록한 사건 단순 빈도. */
@@ -828,8 +890,10 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     })
   }
   // 사건: 발생 추정일 + relationToShift 보존. 회복성/지난밤수면 코드는 선행신호에서 제외
-  // (수면은 아래 canonical 노출 경로로 단일 반영).
+  // (수면은 아래 canonical 노출 경로로 단일 반영). warningEvents는 조기경보 백테스트용
+  // (지난밤 수면은 아침에 이미 알 수 있으므로 nightlySleep 플래그로 표시).
   const episodeEvents: EpisodeEvent[] = []
+  const warningEvents: WarningEvent[] = []
   for (const e of events) {
     if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
     if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
@@ -841,17 +905,34 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       label: groupTitle(e.mappedFactorGroup),
       relationToShift: e.relationToShift,
     })
+    warningEvents.push({ date: occ, factorGroup: e.mappedFactorGroup, relationToShift: e.relationToShift })
   }
   for (const date of sleepDates) {
     if (date < factorStart || date > endDate) continue
     const exposure = getSleepExposureForDate(logByDate.get(date), eventsByDate.get(date) ?? [])
-    for (const g of exposure.factorGroups) episodeEvents.push({ date, factorGroup: g, label: groupTitle(g) })
+    for (const g of exposure.factorGroups) {
+      episodeEvents.push({ date, factorGroup: g, label: groupTitle(g) })
+      warningEvents.push({ date, factorGroup: g, nightlySleep: true })
+    }
   }
 
-  const episodes: EpisodeCard[] = detectEpisodes(episodeInputs)
+  const rawEpisodes = detectEpisodes(episodeInputs)
+  const episodes: EpisodeCard[] = rawEpisodes
     .slice(-MAX_EPISODES_SHOWN)
     .reverse() // 최신순
     .map((ep) => buildEpisodeCard(ep, assembleEpisodeSignals(ep, episodeEvents, buildCycleContext(ep.startDate, cycleLogs, settings))))
+
+  // ---- 조기경보 백테스트 (6단계 순수 엔진) ----
+  // 양성 = 에피소드 시작(연속 무너짐의 각 날 아님). 음성 = 에피소드 구간 밖 유효 결과일.
+  const episodeSpanDates: ISODate[] = []
+  for (const ep of rawEpisodes) for (const d of ep.days) episodeSpanDates.push(d.date)
+  const earlyWarningReport = backtestEarlyWarning({
+    outcomeDays: resultDates,
+    episodeStarts: rawEpisodes.map((ep) => ({ date: ep.startDate, confidence: ep.confidence })),
+    episodeSpanDates,
+    events: warningEvents,
+  })
+  const earlyWarning = rawEpisodes.length > 0 ? buildEarlyWarningCard(earlyWarningReport, groupTitle) : null
 
   const vm: AnalysisViewModel = {
     endDate,
@@ -860,6 +941,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     analysisStage,
     analysisStageLabel: ANALYSIS_STAGE_LABEL[analysisStage],
     episodes,
+    earlyWarning,
     daysUntilComparison,
     eventFrequency,
     factorPatterns: topFactors,

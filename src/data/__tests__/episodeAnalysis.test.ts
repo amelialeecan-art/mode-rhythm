@@ -3,6 +3,7 @@ import { resetDatabase } from '../reset'
 import { DB_NAME, DB_VERSION, SCHEMA_V1 } from '../schema'
 import { saveDailyEntry, emptyDraft, type DailyEntryDraft } from '../services/dailyEntryService'
 import { getAnalysisViewModel } from '../services/patternAnalysisService'
+import { addDaysISO } from '../../engine'
 
 /* 합성 데이터만 사용. Phase 4 순수 엔진 ↔ 실제 DB ↔ Analysis VM 연결 검증. */
 function draft(date: string, p: Partial<DailyEntryDraft> = {}): DailyEntryDraft {
@@ -120,6 +121,52 @@ describe('에피소드 분석 연결 (Phase 5)', () => {
     expect(DB_NAME).toBe('MODELocalDB')
     expect(DB_VERSION).toBe(1)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
+  })
+})
+
+describe('조기경보 카드 연결 (Phase 6)', () => {
+  it('무너짐 기록이 없으면 earlyWarning은 null', async () => {
+    await save('2026-06-10', { stateCodes: ['calm'], functionLevel: 1 })
+    const vm = await getAnalysisViewModel({ endDate: END })
+    expect(vm.earlyWarning).toBeNull()
+  })
+
+  it('에피소드가 부족하면 gating 문장', async () => {
+    await save('2026-06-10', { stateCodes: ['sad'], functionLevel: 4 })
+    await save('2026-06-11', { stateCodes: ['calm'], functionLevel: 2 })
+    await save('2026-06-12', { stateCodes: ['calm'], functionLevel: 2 })
+    const vm = await getAnalysisViewModel({ endDate: END })
+    expect(vm.earlyWarning).not.toBeNull()
+    expect(vm.earlyWarning!.eligible).toBe(false)
+    expect(vm.earlyWarning!.gatingSentence).toContain('번 더 필요해요')
+    expect(vm.earlyWarning!.prevNightSentence).toBe('')
+  })
+
+  it('표본 충분하면 전날/아침 결과 문장 + 오경보 균형 문장', async () => {
+    // reported 에피소드 4개, 각 전날 work_heavy(전날 밤 신호)
+    const seeds: [string, string][] = [
+      ['2026-06-03', '2026-06-04'],
+      ['2026-06-10', '2026-06-11'],
+      ['2026-06-17', '2026-06-18'],
+      ['2026-06-24', '2026-06-25'],
+    ]
+    for (const [prev, day] of seeds) {
+      await save(prev, { stateCodes: ['calm'], functionLevel: 2, catalogEventCodes: ['work_heavy'] })
+      await save(day, { stateCodes: ['sad'], functionLevel: 4 })
+      await save(addDaysISO(day, 1), { stateCodes: ['calm'], functionLevel: 2 })
+      await save(addDaysISO(day, 2), { stateCodes: ['calm'], functionLevel: 2 })
+    }
+    const vm = await getAnalysisViewModel({ endDate: '2026-06-30' })
+    const ew = vm.earlyWarning!
+    expect(ew.eligible).toBe(true)
+    expect(ew.reportedEpisodeCount).toBe(4)
+    expect(ew.prevNight.positives).toBe(4)
+    expect(ew.prevNight.hit).toBe(4) // 각 전날 신호가 있었음
+    expect(ew.prevNightSentence).toContain('4번 중 4번')
+    expect(ew.balanceSentence).toContain('괜찮았던 날도')
+    // 확률·인과 단정 표현 없음
+    const text = `${ew.prevNightSentence} ${ew.morningSentence} ${ew.balanceSentence}`
+    expect(text).not.toMatch(/예방|원인|정확히 예측|때문에|%/)
   })
 })
 

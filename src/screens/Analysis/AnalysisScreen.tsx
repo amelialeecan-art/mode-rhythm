@@ -8,6 +8,7 @@ import {
   type EpisodeCard,
   type EpisodeSection,
   type MergedSignal,
+  type EarlyWarningCard,
 } from '../../data/services/patternAnalysisService'
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
@@ -112,6 +113,9 @@ export function AnalysisScreen() {
               거예요.
             </p>
           </GlassCard>
+
+          {/* ===== 미리 알아차릴 수 있었을까? (조기경보 백테스트) ===== */}
+          {vm.earlyWarning && <EarlyWarningCardView ew={vm.earlyWarning} />}
 
           {/* ===== 장기 관찰 자료 (기존 분석 — 접힘) ===== */}
           <details className="longterm">
@@ -243,6 +247,64 @@ export function AnalysisScreen() {
         {recalcing ? '계산 중…' : '패턴 다시 계산'}
       </button>
     </>
+  )
+}
+
+/**
+ * 조기경보 백테스트 카드. 기본: 전날 밤 / 당일 아침 결과 + 오경보 균형 문장.
+ * 혼동행렬 상세와 사용된 신호는 "계산 근거 보기" 접힘. 확률·인과 표현 없음.
+ */
+function EarlyWarningCardView({ ew }: { ew: EarlyWarningCard }) {
+  return (
+    <GlassCard tint="sky">
+      <SectionHeader title="미리 알아차릴 수 있었을까?" subtitle="과거 기록으로 되짚어 본 실제 횟수예요" />
+      {!ew.eligible ? (
+        <p className="analysis-body">{ew.gatingSentence}</p>
+      ) : (
+        <>
+          <div className="ew-lines">
+            <p className="ew-line">{ew.prevNightSentence}</p>
+            <p className="ew-line">{ew.morningSentence}</p>
+            <p className="ew-line ew-line--balance">{ew.balanceSentence}</p>
+          </div>
+          <details className="ew-more">
+            <summary className="ew-more-sum">계산 근거 보기</summary>
+            <div className="ew-more-body">
+              <MatrixTable title="전날 밤 (D-1까지)" cm={ew.prevNight} />
+              <MatrixTable title="당일 아침 (지난밤 수면 포함)" cm={ew.morning} />
+              {ew.estimatedExcludedCount > 0 && (
+                <p className="ew-note">추정만으로 잡힌 구간 {ew.estimatedExcludedCount}개는 핵심 표본에서 제외했어요.</p>
+              )}
+              {ew.signalLabelsUsed.length > 0 && (
+                <p className="ew-note">사용된 신호: {ew.signalLabelsUsed.join(', ')}</p>
+              )}
+              <p className="ew-note">
+                원인이나 예측이 아니라, 그 시점에 알아차릴 수 있었던 신호가 과거에 있었는지만 세요. 놓친 경우도, 잘못 경고한
+                경우도 함께 봅니다.
+              </p>
+            </div>
+          </details>
+        </>
+      )}
+    </GlassCard>
+  )
+}
+
+function MatrixTable({ title, cm }: { title: string; cm: EarlyWarningCard['prevNight'] }) {
+  return (
+    <div className="ew-matrix">
+      <span className="ew-matrix__title">{title}</span>
+      <div className="ew-grid">
+        <span>힘들었던 날 · 신호 있었음</span>
+        <b>{cm.hit}</b>
+        <span>힘들었던 날 · 신호 놓침</span>
+        <b>{cm.miss}</b>
+        <span>괜찮았는데 신호 있었음</span>
+        <b>{cm.falseAlarm}</b>
+        <span>괜찮았고 신호도 없었음</span>
+        <b>{cm.correctRejection}</b>
+      </div>
+    </div>
   )
 }
 
