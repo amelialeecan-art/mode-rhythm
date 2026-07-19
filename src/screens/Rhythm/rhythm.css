@@ -8,6 +8,89 @@
   padding: 6px 0;
 }
 
+/* ---------- Phase 9B-1 · 기간/항목 선택 + 최근 일주일 ---------- */
+.rhythm-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.rhythm-tab {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 12px;
+  border: 1.4px solid var(--line);
+  background: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rhythm-tab--on {
+  border-color: var(--lav-2);
+  background: rgba(169, 133, 232, 0.14);
+  color: var(--lav-ink);
+}
+.rhythm-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+.rhythm-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--pill);
+  border: 1.4px solid var(--line);
+  background: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.rhythm-metric--on {
+  background: rgba(255, 255, 255, 0.75);
+}
+.rhythm-metric__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.rhythm-week {
+  font-size: 14.5px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 8px;
+}
+.rhythm-week-more {
+  margin-top: 8px;
+}
+.rhythm-week-more > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.rhythm-week-more > summary::-webkit-details-marker {
+  display: none;
+}
+.rhythm-week-more > summary::after {
+  content: ' ▾';
+}
+.rhythm-week-more[open] > summary::after {
+  content: ' ▴';
+}
+.rhythm-week-nums {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
 .rhythm-legend {
   display: flex;
   flex-wrap: wrap;

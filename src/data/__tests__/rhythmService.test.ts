@@ -44,3 +44,45 @@ describe('getRhythmViewModel', () => {
     expect(vm.hasData).toBe(false)
   })
 })
+
+describe('getRhythmViewModel — 7일 집계(장기)', () => {
+  it('week 집계: 결측일을 0으로 세지 않고 실제 기록만 평균', async () => {
+    // 마지막 주(06-14~06-20)에 이틀만 기록(같은 상태 → 같은 점수)
+    await saveDailyEntry(draft('2026-06-19', { stateCodes: ['anxious'], overallIntensity: 'much' }))
+    await saveDailyEntry(draft('2026-06-20', { stateCodes: ['anxious'], overallIntensity: 'much' }))
+    const vm = await getRhythmViewModel({ endDate: END, days: 14, bucket: 'week' })
+    expect(vm.bucketMode).toBe('week')
+    expect(vm.buckets).toHaveLength(2) // 14일 / 7
+    const last = vm.buckets[1]
+    const dayVal = vm.days.find((d) => d.date === '2026-06-20')!.emotional!
+    // 7일 중 2일만 기록 → 평균이 2일 값과 같아야(=/7로 희석되지 않음)
+    expect(last.emotional).toBe(dayVal)
+    expect(last.hasData).toBe(true)
+    // 기록 없는 이전 주 → undefined(선 끊김), hasData false
+    expect(vm.buckets[0].emotional).toBeUndefined()
+    expect(vm.buckets[0].hasData).toBe(false)
+  })
+
+  it('weekCompare: 최근 7일 vs 이전 28일, 표본 수 집계', async () => {
+    // 최근 7일 안에 3일
+    for (const d of ['2026-06-18', '2026-06-19', '2026-06-20']) {
+      await saveDailyEntry(draft(d, { stateCodes: ['anxious'], overallIntensity: 'much' }))
+    }
+    // 이전 28일 안에 5일
+    for (const d of ['2026-06-01', '2026-06-03', '2026-06-05', '2026-06-07', '2026-06-09']) {
+      await saveDailyEntry(draft(d, { stateCodes: ['anxious'], overallIntensity: 'much' }))
+    }
+    const vm = await getRhythmViewModel({ endDate: END, days: 90, bucket: 'week' })
+    const c = vm.weekCompare.emotional
+    expect(c.recentN).toBe(3)
+    expect(c.prevN).toBe(5)
+    expect(c.enough).toBe(true)
+    expect(c.diff).toBe(0) // 같은 상태 → 최근/이전 평균 동일
+  })
+
+  it('표본 부족이면 enough false', async () => {
+    await saveDailyEntry(draft('2026-06-20', { stateCodes: ['anxious'] }))
+    const vm = await getRhythmViewModel({ endDate: END, days: 90, bucket: 'week' })
+    expect(vm.weekCompare.emotional.enough).toBe(false)
+  })
+})
