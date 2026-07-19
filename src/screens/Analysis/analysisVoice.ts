@@ -101,3 +101,57 @@ export function episodeTrigger(inp: EpisodeTriggerInput): string | null {
   if (inp.afters.filter(Boolean).length > 0) return '이번엔 원인이라기보다 무너진 뒤 생긴 후폭풍에 가까워요.'
   return null
 }
+
+/* ---- 사건 전후 변화 곡선 요약 한 문장 (9B-2A) ---- */
+const METRIC_NOUN: Record<AnalysisMetric, string> = {
+  emotional: '멘탈',
+  sleep: '잠',
+  appetite: '식욕',
+  body: '몸 상태',
+  rhythm: '컨디션',
+  cycle: '주기 영향',
+  event: '기록',
+}
+const METRIC_AFTER_VERB: Record<AnalysisMetric, string> = {
+  emotional: '흔들렸어요',
+  sleep: '망가졌어요',
+  appetite: '요동쳤어요',
+  body: '나빠졌어요',
+  rhythm: '무너졌어요',
+  cycle: '커졌어요',
+  event: '몰렸어요',
+}
+const RESPONSE_DIFF = 8 // 기존 factor 최소 효과(MIN_FACTOR_EFFECT)와 동일 기준
+
+export interface EventCurveInput {
+  title: string
+  metric: AnalysisMetric
+  points: { rel: number; mean?: number }[]
+  baseline: number
+}
+
+/** 사건 전후 곡선을 자연어 한 문장으로. 같은 날 관계에 새 인과 방향을 만들지 않는다. */
+export function eventResponseSentence(inp: EventCurveInput): string {
+  const get = (rel: number) => inp.points.find((p) => p.rel === rel)?.mean
+  const avg = (rels: number[]) => {
+    const v = rels.map(get).filter((x): x is number => x !== undefined)
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : undefined
+  }
+  const after = avg([1, 2, 3])
+  const before = avg([-3, -2, -1])
+  const day0 = get(0)
+  const noun = iga(METRIC_NOUN[inp.metric])
+  const verb = METRIC_AFTER_VERB[inp.metric]
+
+  const afterUp = after !== undefined && after - inp.baseline >= RESPONSE_DIFF
+  const beforeUp = before !== undefined && before - inp.baseline >= RESPONSE_DIFF
+  const day0Up = day0 !== undefined && day0 - inp.baseline >= RESPONSE_DIFF
+
+  if (beforeUp && afterUp) return `${inp.title} 전부터 ${noun} 안 좋았고, 이후에도 이어졌어요.`
+  if (afterUp && day0Up && after !== undefined && (day0 as number) >= after)
+    return `${inp.title} 당일과 다음 날 ${noun} 가장 크게 ${verb}`
+  if (afterUp) return `${inp.title} 뒤 1~3일 동안 ${noun} 평소보다 더 ${verb}`
+  if (day0Up) return `${inp.title} 당일 ${noun} 가장 크게 ${verb}`
+  if (beforeUp) return `${inp.title} 전부터 ${noun} 안 좋은 편이었어요.`
+  return '사건 전후로 뚜렷한 변화는 없었어요.'
+}

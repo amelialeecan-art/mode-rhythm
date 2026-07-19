@@ -126,6 +126,59 @@
   white-space: nowrap;
 }
 
+/* 사건 전후 변화 (흐름 보기) */
+.pat__flow {
+  margin-top: 8px;
+}
+.pat__flow > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lav-ink);
+}
+.pat__flow > summary::-webkit-details-marker {
+  display: none;
+}
+.pat__flow > summary::after {
+  content: ' ▾';
+}
+.pat__flow[open] > summary::after {
+  content: ' ▴';
+}
+.pat__flow-body {
+  margin-top: 8px;
+}
+.pat__flow-say {
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.pat__flow-empty {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.er-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-width: 340px;
+}
+.er-baseline-t {
+  font-size: 8.5px;
+  font-weight: 700;
+  fill: var(--ink-3);
+}
+.er-x-t {
+  font-size: 8.5px;
+  font-weight: 700;
+  fill: var(--ink-3);
+}
+
 /* 접힘 섹션 (다른 패턴 / 그 밖의 기록) */
 .more {
   margin-top: 4px;

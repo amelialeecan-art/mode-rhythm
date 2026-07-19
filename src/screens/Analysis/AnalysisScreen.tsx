@@ -13,8 +13,19 @@ import {
 } from '../../data/services/patternAnalysisService'
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
-import { factorPhrase, episodeTrigger, type VoiceStrength } from './analysisVoice'
+import { factorPhrase, episodeTrigger, eventResponseSentence, type VoiceStrength } from './analysisVoice'
+import { EventResponseChart } from './EventResponseChart'
 import './analysis.css'
+
+const METRIC_COLOR: Record<string, string> = {
+  emotional: '#A985E8',
+  appetite: '#FF9576',
+  sleep: '#74A8EC',
+  body: '#5BC79E',
+  rhythm: '#46BBB0',
+  cycle: '#E58BBE',
+  event: '#9aa0b5',
+}
 
 function fmt(date: string): string {
   return formatMonthDay(parseISODate(date))
@@ -429,6 +440,32 @@ function FactorRow({ f, strength }: { f: FactorPatternCard; strength: VoiceStren
         <span className={`pat__str pat__str--${strength}`}>{f.evidenceLabel}</span>
       </div>
       <p className="pat__say">{text}</p>
+
+      <details className="pat__flow">
+        <summary>흐름 보기</summary>
+        {f.response.eligible ? (
+          <div className="pat__flow-body">
+            <p className="pat__flow-say">
+              {eventResponseSentence({ title: f.title, metric: f.metric, points: f.response.points, baseline: f.response.baseline })}
+            </p>
+            <EventResponseChart points={f.response.points} baseline={f.response.baseline} color={METRIC_COLOR[f.metric] ?? '#A985E8'} />
+            <details className="pat__more">
+              <summary>근거 보기</summary>
+              <div className="pat__nums">
+                <span>평소 기준선 {f.response.baseline} · 노출 {f.response.exposures}회</span>
+                {f.response.points.map((p) => (
+                  <span key={p.rel}>
+                    {p.rel === 0 ? '당일' : p.rel < 0 ? `${-p.rel}일 전` : `${p.rel}일 후`}: {p.mean ?? '—'} (기록 {p.n}일)
+                  </span>
+                ))}
+              </div>
+            </details>
+          </div>
+        ) : (
+          <p className="pat__flow-empty">아직 흐름을 그릴 만큼 반복 기록이 없어요.</p>
+        )}
+      </details>
+
       <details className="pat__more">
         <summary>근거 보기</summary>
         <div className="pat__nums">
