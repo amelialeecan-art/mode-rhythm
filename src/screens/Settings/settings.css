@@ -111,11 +111,6 @@
 }
 
 /* 개발용 버튼 */
-.dev-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 13px;
-}
 .dev-btn {
   flex: 1;
   border: 1.6px solid var(--butter);
@@ -130,11 +125,6 @@
 .dev-btn:disabled {
   opacity: 0.5;
   cursor: default;
-}
-.dev-btn--danger {
-  border-color: var(--coral-2);
-  background: rgba(255, 149, 118, 0.16);
-  color: var(--coral-ink);
 }
 .dev-msg {
   margin-top: 10px;

@@ -1,34 +1,3 @@
-.rep-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 13px;
-}
-.rep-row__top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.rep-row__d {
-  font-size: 12px;
-  color: var(--ink-3);
-  font-weight: 700;
-}
-.bar {
-  height: 9px;
-  border-radius: 9px;
-  background: rgba(120, 90, 180, 0.1);
-  overflow: hidden;
-}
-.bar i {
-  display: block;
-  height: 100%;
-  border-radius: 9px;
-}
-
 /* 공범 구조 두 원 */
 .overlap {
   display: flex;
@@ -393,12 +362,6 @@
 .ep__status--recovered {
   color: var(--mint-ink);
   background: var(--mint-s);
-}
-.ep__cycle {
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--lav-ink);
 }
 .ep__bucket {
   margin-top: 11px;

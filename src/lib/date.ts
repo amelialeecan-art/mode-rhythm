@@ -12,9 +12,6 @@ export function toISODate(d: Date): ISODate {
   return `${y}-${m}-${day}`
 }
 
-/** toISODate 별칭 (로컬 날짜 기준임을 이름으로 명시). */
-export const toISODateLocal = toISODate
-
 /** 오늘(로컬) ISODate. UTC slice 대신 로컬 자정 기준을 보장. */
 export function getTodayISODate(): ISODate {
   return toISODate(new Date())
