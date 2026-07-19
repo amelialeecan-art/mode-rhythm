@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { factorStrength, factorPhrase, episodeTrigger } from './analysisVoice'
+import { factorStrength, factorPhrase, episodeTrigger, eventResponseSentence } from './analysisVoice'
+
+const pts = (m: Record<number, number | undefined>) =>
+  [-3, -2, -1, 0, 1, 2, 3].map((rel) => ({ rel, mean: m[rel] }))
 
 describe('factorStrength — 엔진 evidence/시간창 → 강도', () => {
   it('reference는 약함', () => {
@@ -70,5 +73,27 @@ describe('episodeTrigger — 유쾌 라벨(카드당 1회), 결정론적', () =>
     const a = episodeTrigger({ precursors: ['마감·압박', '수면 부족'], afters: [] })
     const b = episodeTrigger({ precursors: ['마감·압박', '수면 부족'], afters: [] })
     expect(a).toBe(b)
+  })
+})
+
+describe('eventResponseSentence — 사건 전후 곡선 요약', () => {
+  const base = 42
+  it('사건 뒤 1~3일 악화', () => {
+    const s = eventResponseSentence({ title: '대인 갈등', metric: 'sleep', baseline: base, points: pts({ [-1]: 42, 0: 44, 1: 70, 2: 66, 3: 62 }) })
+    expect(s).toContain('대인 갈등 뒤 1~3일 동안')
+    expect(s).toContain('망가졌어요')
+  })
+  it('당일 정점', () => {
+    const s = eventResponseSentence({ title: '마감·압박', metric: 'emotional', baseline: base, points: pts({ [-1]: 43, 0: 78, 1: 70, 2: 50, 3: 45 }) })
+    expect(s).toContain('당일과 다음 날')
+    expect(s).toContain('멘탈')
+  })
+  it('사건 전부터 안 좋고 이후에도 이어짐', () => {
+    const s = eventResponseSentence({ title: '쇼츠·릴스 과다', metric: 'body', baseline: base, points: pts({ [-3]: 60, [-2]: 62, [-1]: 64, 0: 65, 1: 63, 2: 61, 3: 60 }) })
+    expect(s).toBe('쇼츠·릴스 과다 전부터 몸 상태가 안 좋았고, 이후에도 이어졌어요.')
+  })
+  it('뚜렷한 변화 없음', () => {
+    const s = eventResponseSentence({ title: '과식', metric: 'appetite', baseline: base, points: pts({ [-1]: 44, 0: 45, 1: 43, 2: 46, 3: 44 }) })
+    expect(s).toBe('사건 전후로 뚜렷한 변화는 없었어요.')
   })
 })

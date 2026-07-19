@@ -103,6 +103,15 @@ export {
   type CyclePositionSignal,
 } from './episode'
 export {
+  buildEventResponse,
+  dedupeExposures,
+  MIN_EXPOSURES,
+  EVENT_RESPONSE_BEFORE,
+  EVENT_RESPONSE_AFTER,
+  type EventResponsePoint,
+  type EventResponseCurve,
+} from './eventResponse'
+export {
   warningSignalsAt,
   warningFires,
   backtestEarlyWarning,

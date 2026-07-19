@@ -38,6 +38,7 @@ import {
   assembleEpisodeSignals,
   backtestEarlyWarning,
   compareSimilarEpisodeRecovery,
+  buildEventResponse,
   EVIDENCE_LEVEL_LABEL,
   ANALYSIS_METRIC_LABEL,
   type AnalysisDataset,
@@ -61,6 +62,7 @@ import {
   type RecoveryActionRef,
   type EpisodeRecoveryActionTally,
   type SimilarRecoveryComparison,
+  type EventResponseCurve,
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS, factorWindowFor } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
@@ -165,6 +167,8 @@ export interface FactorPatternCard {
   evidence: EvidenceLevel
   evidenceLabel: string
   message: string
+  /** 사건 전후 변화 곡선(0일 정렬 평균 + 평소 기준선). 표본 부족이면 eligible=false. */
+  response: EventResponseCurve
 }
 
 /** 분석 화면 combo(같이 겹친 기록) 카드. */
@@ -762,6 +766,17 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       if (best) raw.push({ group, r: best })
     }
     raw.sort((a, b) => (b.r?.confidence ?? 0) - (a.r?.confidence ?? 0))
+    // 사건 전후 곡선용: 날짜→metric 값 맵(기록된 날만)
+    const metricMapOf = (metric: AnalysisMetric): Map<ISODate, number> => {
+      const m = new Map<ISODate, number>()
+      for (const [d, v] of scoreByDate) m.set(d, v[metric])
+      return m
+    }
+    const occurrenceDatesOf = (group: string): ISODate[] => {
+      const out: ISODate[] = []
+      for (const [d, set] of factorByDate) if (set.has(group)) out.push(d)
+      return out
+    }
     for (const { group, r } of raw) {
       if (!r) continue
       const evidence = evidenceLevel({
@@ -770,6 +785,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
         supportCount: r.supportCount,
         comparisonCount: r.comparisonCount,
       })
+      const response = buildEventResponse(occurrenceDatesOf(group), metricMapOf(r.metric))
       factorPatterns.push({
         factorGroup: group,
         title: groupTitle(group),
@@ -786,6 +802,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
         evidence,
         evidenceLabel: EVIDENCE_LEVEL_LABEL[evidence],
         message: r.message,
+        response,
       })
     }
   }
