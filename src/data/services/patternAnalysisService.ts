@@ -500,13 +500,14 @@ export interface RecoveryComparisonCard {
 const MAX_RECOVERY_ACTIONS_SHOWN = 3
 
 function buildRecoveryComparisonCard(cmp: SimilarRecoveryComparison): RecoveryComparisonCard {
-  const headlineSentence = `비슷한 정도로 힘들었던 날이 과거 ${cmp.similarCount}번 있었어요.`
+  // 실제 유사도 기준은 기능 저하 강도(peakFunctionLevel)뿐이므로 표현을 과장하지 않는다.
+  const headlineSentence = `기능 저하 강도가 비슷했던 날이 과거 ${cmp.similarCount}번 있었어요.`
   if (!cmp.enoughSample) {
     return {
       enoughSample: false,
       similarCount: cmp.similarCount,
       headlineSentence,
-      gatingSentence: '아직 비슷한 사례를 비교하기엔 기록이 적어요. 지금은 자기보고 기준으로만 참고해요.',
+      gatingSentence: '아직 기능 저하 강도가 비슷한 사례를 비교하기엔 기록이 적어요. 지금은 자기보고 기준으로만 참고해요.',
       positiveActions: [],
       negativeActions: [],
     }
