@@ -8,9 +8,18 @@
 import { dailyScoreRepository } from '../repositories/dailyScoreRepository'
 import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { userSettingsRepository } from '../repositories/userSettingsRepository'
-import { addDaysISO, buildCycleContext } from '../../engine'
+import {
+  addDaysISO,
+  buildCycleContext,
+  buildCycleCompare,
+  CYCLE_BEFORE,
+  CYCLE_AFTER,
+  MIN_PERIOD_STARTS,
+  MIN_COMPARE_CYCLES,
+  type CyclePoint,
+} from '../../engine'
 import { getTodayISODate } from '../../lib/date'
-import type { DailyScore, ISODate } from '../models'
+import type { CycleLog, DailyScore, ISODate } from '../models'
 
 export type CyclePhase = 'period' | 'premenstrual' | 'ovulation'
 export type RhythmMetric = 'emotional' | 'appetite' | 'sleep' | 'body' | 'recovery'
@@ -238,5 +247,97 @@ export async function getRhythmViewModel(opts: RhythmOptions = {}): Promise<Rhyt
     dayCount: scored.length,
     hasData: scored.length >= 2,
     weekCompare,
+  }
+}
+
+/* =====================================================================
+   생리주기별 흐름 비교 (9B-2B)
+   ===================================================================== */
+export interface CycleMetricCurve {
+  recent: CyclePoint[]
+  previous: CyclePoint[]
+  baseline: number
+}
+export interface CycleCompareViewModel {
+  hasCycleData: boolean
+  /** 생리 시작 기록 수. */
+  cycleCount: number
+  /** 이전 비교에 실제 기여한 주기 수. */
+  compareCycles: number
+  eligible: boolean
+  /** 부족할 때 더 필요한 시작 기록 수. */
+  neededMore: number
+  /** 최근 주기 생리 구간 길이(배경 표시용). */
+  periodLen: number
+  relMin: number
+  relMax: number
+  byMetric: Record<RhythmMetric, CycleMetricCurve>
+}
+
+const CYCLE_FETCH_DAYS = 400 // 최근 ~4주기 + 여유
+
+function metricOf(s: DailyScore, m: RhythmMetric): number {
+  if (m === 'emotional') return s.emotionalLoad
+  if (m === 'appetite') return s.appetiteLoad
+  if (m === 'sleep') return s.sleepLoad
+  if (m === 'body') return s.bodyLoad
+  return s.recoveryScore ?? 0
+}
+
+/** 최근 주기의 생리 구간 길이(시작~종료). 종료 기록 없으면 기본 5일. */
+function recentPeriodLen(cycleLogs: CycleLog[], recentStart: ISODate): number {
+  const ends = cycleLogs
+    .filter((c) => c.periodEnd && c.date >= recentStart)
+    .map((c) => c.date)
+    .sort()
+  if (ends.length === 0) return 5
+  const diff = Math.round((Date.parse(ends[0]) - Date.parse(recentStart)) / 86400000) + 1
+  return Math.min(Math.max(diff, 1), 8)
+}
+
+/** Rhythm '주기 비교' ViewModel. 생리 시작일 0일 정렬 + 최근 vs 이전 3주기 평균. */
+export async function getCycleCompareViewModel(opts: RhythmOptions = {}): Promise<CycleCompareViewModel> {
+  const endDate = opts.endDate ?? getTodayISODate()
+  const fetchStart = addDaysISO(endDate, -(CYCLE_FETCH_DAYS - 1))
+
+  const [scores, cycleLogs] = await Promise.all([
+    dailyScoreRepository.listByDateRange(fetchStart, endDate),
+    cycleLogRepository.listByDateRange(CYCLE_HISTORY_FLOOR, endDate),
+  ])
+  const periodStarts = cycleLogs
+    .filter((c) => c.periodStart && c.date <= endDate)
+    .map((c) => c.date)
+    .sort()
+
+  const scoreByDate = new Map<ISODate, DailyScore>(scores.map((s) => [s.date, s]))
+  const metricMapOf = (m: RhythmMetric): Map<ISODate, number> => {
+    const map = new Map<ISODate, number>()
+    for (const [d, s] of scoreByDate) map.set(d, metricOf(s, m))
+    return map
+  }
+
+  const byMetric = {} as Record<RhythmMetric, CycleMetricCurve>
+  let compareCycles = 0
+  for (const m of RHYTHM_METRICS) {
+    const c = buildCycleCompare(periodStarts, metricMapOf(m))
+    byMetric[m] = { recent: c.recent, previous: c.previous, baseline: c.baseline }
+    compareCycles = Math.max(compareCycles, c.compareCycles)
+  }
+
+  const cycleCount = periodStarts.length
+  const eligible = cycleCount >= MIN_PERIOD_STARTS && compareCycles >= MIN_COMPARE_CYCLES
+  const neededMore = eligible ? 0 : Math.max(1, MIN_PERIOD_STARTS - cycleCount)
+  const recentStart = periodStarts[periodStarts.length - 1]
+
+  return {
+    hasCycleData: cycleCount > 0,
+    cycleCount,
+    compareCycles,
+    eligible,
+    neededMore,
+    periodLen: recentStart ? recentPeriodLen(cycleLogs, recentStart) : 5,
+    relMin: -CYCLE_BEFORE,
+    relMax: CYCLE_AFTER,
+    byMetric,
   }
 }

@@ -39,3 +39,76 @@ export function rhythmCompareSentence(metric: RhythmMetric, cmp: WeekCompareStat
   if (down) return `최근 일주일은 평소보다 ${iga(label)} 적었어요.`
   return '최근 일주일은 평소와 큰 차이가 없었어요.'
 }
+
+/* ---- 생리주기별 비교 문장 (9B-2B) ---- */
+const CYCLE_TOPIC: Record<RhythmMetric, string> = {
+  emotional: '감정',
+  appetite: '식욕',
+  sleep: '수면',
+  body: '몸 상태',
+  recovery: '회복',
+}
+const CYCLE_VERB: Record<RhythmMetric, string> = {
+  emotional: '흔들렸어요',
+  appetite: '요동쳤어요',
+  sleep: '흔들렸어요',
+  body: '나빠졌어요',
+  recovery: '늘었어요',
+}
+const CYCLE_COLLAPSE: Record<RhythmMetric, string> = {
+  emotional: '멘탈 붕괴',
+  appetite: '식욕 폭발',
+  sleep: '수면 붕괴',
+  body: '몸 저하',
+  recovery: '회복 변화',
+}
+
+export interface CycleCurvePoints {
+  recent: { rel: number; mean?: number }[]
+  previous: { rel: number; mean?: number }[]
+  baseline: number
+}
+
+/** 최근 주기 vs 이전 3주기 평균을 자연어 한 문장으로. 실제 차이가 있을 때만 차이를 말한다. */
+export function cycleCompareSentence(metric: RhythmMetric, c: CycleCurvePoints): string {
+  const meanAt = (arr: { rel: number; mean?: number }[], rel: number) => arr.find((p) => p.rel === rel)?.mean
+  const preMean = (arr: { rel: number; mean?: number }[]) => {
+    const v = [-7, -6, -5, -4, -3, -2, -1].map((r) => meanAt(arr, r)).filter((x): x is number => x !== undefined)
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : undefined
+  }
+  // 기준선+임계 이상으로 처음 올라간 상대날(가장 이른 날)
+  const onset = (arr: { rel: number; mean?: number }[]) => {
+    for (let r = -14; r <= 0; r++) {
+      const m = meanAt(arr, r)
+      if (m !== undefined && m - c.baseline >= DIFF_THRESHOLD) return r
+    }
+    return null
+  }
+  const topic = CYCLE_TOPIC[metric]
+
+  if (metric === 'recovery') {
+    const d = (preMean(c.recent) ?? 0) - (preMean(c.previous) ?? 0)
+    if (d >= DIFF_THRESHOLD) return '이번 주기는 이전보다 회복 행동이 많았어요.'
+    if (d <= -DIFF_THRESHOLD) return '이번 주기는 이전보다 회복 행동이 적었어요.'
+    return '회복 행동은 이전 주기들과 거의 비슷했어요.'
+  }
+
+  const rPre = preMean(c.recent)
+  const pPre = preMean(c.previous)
+  if (rPre === undefined || pPre === undefined) return `${topic} 변화는 이전 주기와 비교하기엔 아직 일러요.`
+  const diff = rPre - pPre
+
+  if (diff >= DIFF_THRESHOLD) {
+    if (pPre - c.baseline < DIFF_THRESHOLD) {
+      return `생리 탓만 하기엔 억울해요. 이전 주기에는 같은 시기에도 ${iga(topic)} 비교적 안정적이었어요.`
+    }
+    const rOn = onset(c.recent)
+    const pOn = onset(c.previous)
+    if (rOn !== null && pOn !== null && rOn < pOn) {
+      return `이번 주기는 생리 ${-rOn}일 전부터 ${iga(topic)} ${CYCLE_VERB[metric]}. 이전 주기보다 ${pOn - rOn}일쯤 빨랐어요.`
+    }
+    return `이번에는 생리 직전 ${iga(CYCLE_COLLAPSE[metric])} 이전 주기보다 강했어요.`
+  }
+  if (diff <= -DIFF_THRESHOLD) return `이번 주기는 이전보다 ${iga(topic)} 잠잠한 편이에요.`
+  return `${topic} 변화는 이전 주기들과 거의 비슷했어요.`
+}

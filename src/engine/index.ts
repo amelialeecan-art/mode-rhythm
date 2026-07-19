@@ -103,6 +103,15 @@ export {
   type CyclePositionSignal,
 } from './episode'
 export {
+  buildCycleCompare,
+  CYCLE_BEFORE,
+  CYCLE_AFTER,
+  MIN_PERIOD_STARTS,
+  MIN_COMPARE_CYCLES,
+  type CyclePoint,
+  type CycleCompareCurve,
+} from './cycleCompare'
+export {
   buildEventResponse,
   dedupeExposures,
   MIN_EXPOSURES,
