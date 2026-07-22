@@ -34,7 +34,6 @@ import type {
   EventLogCategory,
   EventLogInput,
   EventTiming,
-  EventDuration,
   FlowLevel,
   EventRelationToShift,
   FunctionLevel,
@@ -59,10 +58,6 @@ export interface EventDraft {
   isCustom: boolean
   customLabel?: string
   mappedFactorGroup: string
-  /** timing='exact'일 때의 정확한 발생일. */
-  occurredOn?: ISODate
-  /** 여러 날 이어진 사건의 지속기간(선택). */
-  durationDays?: EventDuration
 }
 
 /** 폼 내 생리 기록 (사실만). */
@@ -81,13 +76,9 @@ export interface DailyEntryDraft {
   stateCodes: string[]
   /** 상태 preset에 적용할 전체 강도. */
   overallIntensity: IntensityCode
-  /** 카탈로그 사건에 공통 적용할 시점/강도. */
+  /** 카탈로그 사건에 공통 적용할 시점/강도. (발생일은 항상 기록 날짜와 같다.) */
   eventTiming: EventTiming
   eventIntensity: IntensityCode
-  /** eventTiming='exact'일 때 카탈로그 사건 공통 발생일. */
-  eventOccurredOn?: ISODate
-  /** 카탈로그 사건 공통 지속기간(선택). */
-  eventDuration?: EventDuration
   /** 선택된 카탈로그 사건 코드들. */
   catalogEventCodes: string[]
   /** 커스텀 사건들. */
@@ -252,10 +243,8 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
   const relationFor = (timing: EventTiming, code: string): EventRelationToShift | undefined =>
     detail && timing === 'today' ? deriveRelationToShift(code, draft.eventRelationBefore, draft.eventRelationAfter) : undefined
 
-  // timing='exact'면 정확한 발생일을 함께 저장(없으면 기록 날짜). 그 외 timing은 발생일 미저장.
-  const occurredFor = (timing: EventTiming, picked?: ISODate): ISODate | undefined =>
-    timing === 'exact' ? picked ?? draft.date : undefined
-
+  // 사건 발생일은 항상 이 기록의 날짜(draft.date)와 같다 → timing='today'로 저장한다.
+  // (별도 발생일/지속기간 입력 없음. 옛 기록의 timing/occurredOn/durationDays는 읽기 호환으로 보존.)
   const catalogEvents: EventLogInput[] = codes
     .map((code) => EVENT_CATALOG.find((e) => e.code === code))
     .filter((e): e is (typeof EVENT_CATALOG)[number] => e != null)
@@ -264,13 +253,11 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
       eventCode: e.code,
       eventLabel: e.label,
       category: e.category, // EventCategory ⊂ EventLogCategory (custom 제외)
-      timing: draft.eventTiming,
+      timing: 'today',
       intensity: intensityValue(draft.eventIntensity),
       isCustom: false,
       mappedFactorGroup: e.factorGroup,
-      relationToShift: relationFor(draft.eventTiming, e.code),
-      occurredOn: occurredFor(draft.eventTiming, draft.eventOccurredOn),
-      durationDays: draft.eventDuration,
+      relationToShift: relationFor('today', e.code),
     }))
 
   const customEvents: EventLogInput[] = draft.customEvents.map((c) => ({
@@ -278,14 +265,12 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
     eventCode: c.eventCode,
     eventLabel: c.eventLabel,
     category: c.category,
-    timing: c.timing,
+    timing: 'today',
     intensity: c.intensity,
     isCustom: true,
     customLabel: c.customLabel,
     mappedFactorGroup: c.mappedFactorGroup,
-    relationToShift: relationFor(c.timing, c.eventCode),
-    occurredOn: occurredFor(c.timing, c.occurredOn),
-    durationDays: c.durationDays,
+    relationToShift: relationFor('today', c.eventCode),
   }))
 
   return [...catalogEvents, ...customEvents]
@@ -393,9 +378,6 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
     overallIntensity,
     eventTiming: events[0]?.timing ?? 'today',
     eventIntensity: 'some',
-    // 카탈로그 사건 공통 발생일/지속기간은 첫 카탈로그 사건에서 복원.
-    eventOccurredOn: events.find((e) => !e.isCustom)?.occurredOn,
-    eventDuration: events.find((e) => !e.isCustom)?.durationDays,
     catalogEventCodes: events.filter((e) => !e.isCustom).map((e) => e.eventCode),
     customEvents: events
       .filter((e) => e.isCustom)
@@ -408,8 +390,6 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
         isCustom: true,
         customLabel: e.customLabel,
         mappedFactorGroup: e.mappedFactorGroup,
-        occurredOn: e.occurredOn,
-        durationDays: e.durationDays,
       })),
     appetiteRatings,
     cycle: cycle
