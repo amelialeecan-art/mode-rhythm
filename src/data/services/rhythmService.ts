@@ -6,17 +6,21 @@
    scoring/점수 공식은 건드리지 않는다 — 표시용 집계만.
    ===================================================================== */
 import { dailyScoreRepository } from '../repositories/dailyScoreRepository'
+import { dailyLogRepository } from '../repositories/dailyLogRepository'
 import { cycleLogRepository } from '../repositories/cycleLogRepository'
 import { userSettingsRepository } from '../repositories/userSettingsRepository'
 import {
   addDaysISO,
   buildCycleContext,
   buildCycleCompare,
+  buildRecentFlow,
   CYCLE_BEFORE,
   CYCLE_AFTER,
   MIN_PERIOD_STARTS,
   MIN_COMPARE_CYCLES,
   type CyclePoint,
+  type RecentFlow,
+  type RecentFlowDay,
 } from '../../engine'
 import { getTodayISODate } from '../../lib/date'
 import type { CycleLog, DailyScore, ISODate } from '../models'
@@ -340,4 +344,44 @@ export async function getCycleCompareViewModel(opts: RhythmOptions = {}): Promis
     relMax: CYCLE_AFTER,
     byMetric,
   }
+}
+
+/* =====================================================================
+   최근 흐름 (9D)
+   최근 ~35일의 dailyScores(영역별 부하) + dailyLogs(생활기능)를 모아
+   engine.buildRecentFlow에 넘긴다. 판정 규칙/기준선은 engine에만 있고,
+   여기서는 데이터 조합만 한다. 표시 가능(displayable)일 때만 반환.
+   ===================================================================== */
+const RECENT_FLOW_FETCH_DAYS = 35 // 14일 창 + 개인 기준선용 여유
+
+export async function getRecentFlow(opts: { endDate?: ISODate } = {}): Promise<RecentFlow | null> {
+  const endDate = opts.endDate ?? getTodayISODate()
+  const fetchStart = addDaysISO(endDate, -(RECENT_FLOW_FETCH_DAYS - 1))
+
+  const [scores, logs] = await Promise.all([
+    dailyScoreRepository.listByDateRange(fetchStart, endDate),
+    dailyLogRepository.listByDateRange(fetchStart, endDate),
+  ])
+  const funcByDate = new Map<ISODate, number>()
+  for (const l of logs) if (l.functionLevel != null) funcByDate.set(l.date, l.functionLevel)
+
+  const dateSet = new Set<ISODate>()
+  for (const s of scores) dateSet.add(s.date)
+  for (const d of funcByDate.keys()) dateSet.add(d)
+  const scoreByDate = new Map<ISODate, DailyScore>(scores.map((s) => [s.date, s]))
+
+  const days: RecentFlowDay[] = [...dateSet].sort().map((date) => {
+    const s = scoreByDate.get(date)
+    return {
+      date,
+      emotional: s?.emotionalLoad,
+      appetite: s?.appetiteLoad,
+      sleep: s?.sleepLoad,
+      body: s?.bodyLoad,
+      functionLevel: funcByDate.get(date),
+    }
+  })
+
+  const flow = buildRecentFlow(days)
+  return flow.displayable ? flow : null
 }

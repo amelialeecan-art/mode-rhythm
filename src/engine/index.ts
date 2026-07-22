@@ -103,6 +103,14 @@ export {
   type CyclePositionSignal,
 } from './episode'
 export {
+  buildRecentFlow,
+  FLOW_DOMAINS,
+  type FlowDomain,
+  type FlowStatus,
+  type RecentFlowDay,
+  type RecentFlow,
+} from './recentFlow'
+export {
   buildCycleCompare,
   CYCLE_BEFORE,
   CYCLE_AFTER,

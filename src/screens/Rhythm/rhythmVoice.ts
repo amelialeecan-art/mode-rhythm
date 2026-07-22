@@ -4,6 +4,7 @@
    않는다(숫자는 화면 "근거 보기"에만). 새 임계값을 만들지 않고 표시 차이만.
    ===================================================================== */
 import type { RhythmMetric, WeekCompareStat } from '../../data/services/rhythmService'
+import type { FlowDomain, RecentFlow } from '../../engine'
 
 export const RHYTHM_METRIC_LABEL: Record<RhythmMetric, string> = {
   emotional: '감정 흔들림',
@@ -22,6 +23,8 @@ function hasBatchim(word: string): boolean {
   return c >= 0xac00 && c <= 0xd7a3 ? (c - 0xac00) % 28 !== 0 : false
 }
 const iga = (w: string) => w + (hasBatchim(w) ? '이' : '가')
+const eun = (w: string) => w + (hasBatchim(w) ? '은' : '는')
+const gwa = (w: string) => w + (hasBatchim(w) ? '과' : '와')
 
 /** 선택한 metric의 최근 일주일 비교 문장. 표본 부족이면 안내 문장. */
 export function rhythmCompareSentence(metric: RhythmMetric, cmp: WeekCompareStat): string {
@@ -111,4 +114,48 @@ export function cycleCompareSentence(metric: RhythmMetric, c: CycleCurvePoints):
   }
   if (diff <= -DIFF_THRESHOLD) return `이번 주기는 이전보다 ${iga(topic)} 잠잠한 편이에요.`
   return `${topic} 변화는 이전 주기들과 거의 비슷했어요.`
+}
+
+/* ---- 최근 흐름 문장 (9D) ---- */
+const FLOW_LABEL: Record<FlowDomain, string> = {
+  emotional: '감정',
+  appetite: '식욕',
+  sleep: '수면',
+  body: '몸 상태',
+  function: '생활기능',
+}
+
+/** 영역 목록을 "A와 B가"처럼 이어 붙인다(마지막에 조사 붙임). */
+function joinDomains(domains: FlowDomain[], josa: (w: string) => string): string {
+  const labels = domains.map((d) => FLOW_LABEL[d])
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return josa(labels[0])
+  const head = labels.slice(0, -1).map((l) => gwa(l)).join(' ')
+  return `${head} ${josa(labels[labels.length - 1])}`
+}
+
+/**
+ * 최근 흐름 카드 문장. 방향(소모/회복/혼재/안정)과 먼저 변한 영역·유지 영역을
+ * 결정론적으로 한 문장으로. 숫자·신뢰도·방어적 문구는 넣지 않는다.
+ */
+export function recentFlowSentence(flow: RecentFlow): string {
+  const lead = joinDomains(flow.leading, iga)
+  const hold = joinDomains(flow.holding, eun)
+
+  if (flow.status === 'depleting') {
+    const head = `최근 ${flow.lengthDays}일은 조금씩 소모되는 흐름이에요.`
+    const first = lead ? ` ${lead} 먼저 내려갔고,` : ''
+    const kept = hold ? ` ${hold} 평소 범위를 유지하고 있어요.` : first ? ' 나머지는 아직 버티고 있어요.' : ''
+    return `${head}${first}${kept}`.trimEnd().replace(/,$/, '.')
+  }
+  if (flow.status === 'recovering') {
+    const head = `최근 ${flow.lengthDays}일은 조금씩 회복되는 흐름이에요.`
+    const first = lead ? ` ${lead} 먼저 올라왔고,` : ''
+    const kept = hold ? ` ${hold} 평소 범위를 유지하고 있어요.` : first ? ' 나머지도 천천히 따라오고 있어요.' : ''
+    return `${head}${first}${kept}`.trimEnd().replace(/,$/, '.')
+  }
+  if (flow.status === 'mixed') {
+    return `최근 ${flow.lengthDays}일은 영역마다 방향이 달라요. 어떤 영역은 내려가고 어떤 영역은 올라오는 중이에요.`
+  }
+  return '최근에는 큰 변화 없이 안정적인 흐름이에요.'
 }

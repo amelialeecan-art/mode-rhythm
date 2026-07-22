@@ -171,6 +171,13 @@
   color: var(--ink);
   margin-top: 8px;
 }
+.rhythm-flow {
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 8px;
+}
 .rhythm-week-more {
   margin-top: 8px;
 }

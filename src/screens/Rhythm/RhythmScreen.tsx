@@ -3,13 +3,15 @@ import { GlassCard, SectionHeader, RhythmChart, type RhythmSeries } from '../../
 import {
   getRhythmViewModel,
   getCycleCompareViewModel,
+  getRecentFlow,
   type RhythmViewModel,
   type CycleCompareViewModel,
   type RhythmMetric,
   type CyclePhase,
 } from '../../data/services/rhythmService'
+import type { RecentFlow } from '../../engine'
 import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
-import { rhythmCompareSentence, cycleCompareSentence } from './rhythmVoice'
+import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence } from './rhythmVoice'
 import { CycleCompareChart } from './CycleCompareChart'
 import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import './rhythm.css'
@@ -49,6 +51,7 @@ export function RhythmScreen() {
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
   const [cycleVm, setCycleVm] = useState<CycleCompareViewModel | null>(null)
   const [checkpoint, setCheckpoint] = useState<CheckpointCard | null>(null)
+  const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
@@ -73,6 +76,9 @@ export function RhythmScreen() {
     let cancelled = false
     void getCheckpointSignals().then((s) => {
       if (!cancelled) setCheckpoint(buildCheckpoint(s))
+    })
+    void getRecentFlow().then((f) => {
+      if (!cancelled) setRecentFlow(f)
     })
     return () => {
       cancelled = true
@@ -189,6 +195,13 @@ export function RhythmScreen() {
                   </div>
                 )}
               </GlassCard>
+
+              {recentFlow && (
+                <GlassCard tint="mint">
+                  <SectionHeader title="최근 흐름" />
+                  <p className="rhythm-flow">{recentFlowSentence(recentFlow)}</p>
+                </GlassCard>
+              )}
 
               <GlassCard tint="lav">
                 <SectionHeader title="최근 일주일" />
