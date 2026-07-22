@@ -4,14 +4,15 @@ import {
   getRhythmViewModel,
   getCycleCompareViewModel,
   getRecentFlow,
+  getPersonalRhythm,
   type RhythmViewModel,
   type CycleCompareViewModel,
   type RhythmMetric,
   type CyclePhase,
 } from '../../data/services/rhythmService'
-import type { RecentFlow } from '../../engine'
+import type { RecentFlow, PersonalRhythm } from '../../engine'
 import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
-import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence } from './rhythmVoice'
+import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence } from './rhythmVoice'
 import { CycleCompareChart } from './CycleCompareChart'
 import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import './rhythm.css'
@@ -52,6 +53,7 @@ export function RhythmScreen() {
   const [cycleVm, setCycleVm] = useState<CycleCompareViewModel | null>(null)
   const [checkpoint, setCheckpoint] = useState<CheckpointCard | null>(null)
   const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
+  const [personalRhythm, setPersonalRhythm] = useState<PersonalRhythm | null>(null)
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
@@ -79,6 +81,9 @@ export function RhythmScreen() {
     })
     void getRecentFlow().then((f) => {
       if (!cancelled) setRecentFlow(f)
+    })
+    void getPersonalRhythm().then((p) => {
+      if (!cancelled) setPersonalRhythm(p)
     })
     return () => {
       cancelled = true
@@ -200,6 +205,17 @@ export function RhythmScreen() {
                 <GlassCard tint="mint">
                   <SectionHeader title="최근 흐름" />
                   <p className="rhythm-flow">{recentFlowSentence(recentFlow)}</p>
+                </GlassCard>
+              )}
+
+              {personalRhythm && (
+                <GlassCard tint="lav">
+                  <SectionHeader title="나의 반복 흐름" />
+                  {personalRhythmSentence(personalRhythm).map((s, i) => (
+                    <p className="rhythm-flow" key={i}>
+                      {s}
+                    </p>
+                  ))}
                 </GlassCard>
               )}
 

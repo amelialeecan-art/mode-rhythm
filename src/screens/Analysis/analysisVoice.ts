@@ -177,14 +177,23 @@ function joinDomains(domains: FlowDomain[]): string {
  * 소모 흐름 앞에 반복해 쌓인 요인을 한 문장으로. 근거 수치·신뢰도·"추정"은 넣지 않는다.
  * 겹침 > 누적(2일↑) > 단일 순으로 표현.
  */
+/** 사건 라벨을 문장에 자연스럽게. "마감/압박이 있었음" → "마감이나 압박". */
+function cleanDriverLabel(label: string): string {
+  let s = label.trim()
+  s = s.replace(/(이|가|을|를)?\s*(있었음|있었어요|했음|함|됐음|생김|받음)$/, '').trim()
+  s = s.replace(/\s*\/\s*/g, '이나 ')
+  return s || label.trim()
+}
+
 export function flowDriverSentence(card: FlowDriverCard): string {
+  const label = cleanDriverLabel(card.label)
   const lead = joinDomains(card.affectedDomains)
   const tail = lead ? `${lead} 먼저 내려갔어요.` : '소모 흐름이 시작되는 경우가 반복됐어요.'
   if (card.overlapLabels.length > 0) {
-    return `${wa(card.label)} ${iga(card.overlapLabels[0])} 겹친 뒤 ${tail}`
+    return `${wa(label)} ${iga(cleanDriverLabel(card.overlapLabels[0]))} 겹친 뒤 ${tail}`
   }
   if (card.cumulative) {
-    return `${iga(card.label)} 2일 이상 이어진 뒤 ${tail}`
+    return `${iga(label)} 2일 이상 이어진 뒤 ${tail}`
   }
-  return `${card.label} 뒤 ${tail}`
+  return `${label} 뒤 ${tail}`
 }

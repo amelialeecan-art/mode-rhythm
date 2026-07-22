@@ -152,6 +152,27 @@ export function eventOccurrenceDate(timing: string, date: ISODate, occurredOn?: 
   return null
 }
 
+/**
+ * 사건 로그를 사건 식별(key)별 노출 구간으로. 발생일=정확 추정일, 회복성/지난밤 수면 제외.
+ * 누적 노출·흐름 요인·개인 반복 흐름 분석에서 공유한다(중복 구현 방지).
+ */
+export function eventsToExposureRuns(events: EventLog[]): { runs: ExposureRun[]; labelByKey: Map<string, string> } {
+  const inputs: ExposureInput[] = []
+  const labelByKey = new Map<string, string>()
+  for (const e of events) {
+    if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
+    if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
+    const occ = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
+    if (occ === null) continue
+    const label = e.customLabel ?? e.eventLabel
+    const input: ExposureInput = { date: occ, factorGroup: e.mappedFactorGroup, eventCode: e.eventCode, isCustom: e.isCustom, label }
+    inputs.push(input)
+    const key = exposureKey(input)
+    if (!labelByKey.has(key)) labelByKey.set(key, label)
+  }
+  return { runs: buildExposureRuns(inputs), labelByKey }
+}
+
 export interface AnalysisOptions {
   endDate?: ISODate
   analysisDays?: number
@@ -867,25 +888,8 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   }
   const topFactors = factorPatterns.slice(0, 8)
 
-  // 사건 노출 구간(key별)을 만든다. 발생일=정확 추정일, 회복성/지난밤 수면 제외.
-  const buildExposuresFrom = (evs: EventLog[]): { runs: ExposureRun[]; labelByKey: Map<string, string> } => {
-    const inputs: ExposureInput[] = []
-    const labelByKey = new Map<string, string>()
-    for (const e of evs) {
-      if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
-      if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
-      const occ = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
-      if (occ === null) continue
-      const label = e.customLabel ?? e.eventLabel
-      const input: ExposureInput = { date: occ, factorGroup: e.mappedFactorGroup, eventCode: e.eventCode, isCustom: e.isCustom, label }
-      inputs.push(input)
-      const key = exposureKey(input)
-      if (!labelByKey.has(key)) labelByKey.set(key, label)
-    }
-    return { runs: buildExposureRuns(inputs), labelByKey }
-  }
   // 누적 노출은 분석 창(60일)의 사건으로.
-  const { runs: exposureRuns } = buildExposuresFrom(events)
+  const { runs: exposureRuns } = eventsToExposureRuns(events)
 
   // ---- 누적 노출 패턴: 같은 사건이 하루일 때보다 2일↑ 이어졌을 때 결과가 더 큰지 ----
   // 기존 factorGroup 기반 패턴(factorPatterns)은 그대로 두고 이 결과만 추가한다.
@@ -950,7 +954,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
         functionLevel: driverLogByDate.get(s.date)?.functionLevel,
       }))
     const segments = buildFlowSegments(flowDays)
-    const { runs: driverRuns, labelByKey: driverLabels } = buildExposuresFrom(driverEvents)
+    const { runs: driverRuns, labelByKey: driverLabels } = eventsToExposureRuns(driverEvents)
     for (const dr of buildFlowDrivers(segments, driverRuns, driverLabels)) {
       flowDrivers.push({
         eventKey: dr.eventKey,

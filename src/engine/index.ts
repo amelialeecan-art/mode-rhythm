@@ -126,6 +126,7 @@ export {
   type ExposureCumulativeStat,
 } from './exposureRuns'
 export { buildFlowDrivers, MAX_FLOW_DRIVERS, type FlowDriver } from './flowDrivers'
+export { buildPersonalRhythm, type PersonalRhythm, type PersonalRhythmInput, type FlowState } from './personalRhythm'
 export {
   buildCycleCompare,
   CYCLE_BEFORE,

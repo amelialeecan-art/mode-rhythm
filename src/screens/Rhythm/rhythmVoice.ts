@@ -4,7 +4,7 @@
    않는다(숫자는 화면 "근거 보기"에만). 새 임계값을 만들지 않고 표시 차이만.
    ===================================================================== */
 import type { RhythmMetric, WeekCompareStat } from '../../data/services/rhythmService'
-import type { FlowDomain, RecentFlow } from '../../engine'
+import type { FlowDomain, RecentFlow, PersonalRhythm, FlowState } from '../../engine'
 
 export const RHYTHM_METRIC_LABEL: Record<RhythmMetric, string> = {
   emotional: '감정 흔들림',
@@ -158,4 +158,32 @@ export function recentFlowSentence(flow: RecentFlow): string {
     return `최근 ${flow.lengthDays}일은 영역마다 방향이 달라요. 어떤 영역은 내려가고 어떤 영역은 올라오는 중이에요.`
   }
   return '최근에는 큰 변화 없이 안정적인 흐름이에요.'
+}
+
+/* ---- 나의 반복 흐름 문장 (9H) ---- */
+const FLOW_STATE_LABEL: Record<FlowState, string> = {
+  stable: '안정',
+  depleting: '소모',
+  recovering: '회복',
+  mixed: '혼재',
+}
+
+/**
+ * 개인 반복 흐름 카드 문장(1~2문장). 신뢰도 숫자·근거 횟수·"추정"·다음 주기 날짜·
+ * 예측은 넣지 않는다. 기간 범위와 현재 위치(맞을 때만)만 담담하게.
+ */
+export function personalRhythmSentence(r: PersonalRhythm): string[] {
+  const seq = r.sequence.map((s) => FLOW_STATE_LABEL[s]).join(' → ')
+  const lenClause =
+    r.typicalLengthMin === r.typicalLengthMax
+      ? `${r.typicalLengthMin}일 안팎으로`
+      : `${r.typicalLengthMin}~${r.typicalLengthMax}일 사이로`
+  const out: string[] = [`최근 기록에서는 ${seq} 흐름이 ${lenClause} 반복됐어요.`]
+  if (r.cycleRelated) out.push('이 흐름은 생리 주기와 함께 도는 편이에요.')
+  if (r.currentMatch) {
+    let s = `지금은 이 흐름의 ${FLOW_STATE_LABEL[r.currentMatch.currentState]} 구간에 있어요.`
+    if (r.commonLeadingDomains.length > 0) s += ` 이전에는 ${joinDomains(r.commonLeadingDomains, iga)} 먼저 내려갔어요.`
+    out.push(s)
+  }
+  return out
 }
