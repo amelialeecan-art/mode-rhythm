@@ -110,6 +110,7 @@ export {
   type RecentFlowDay,
   type RecentFlow,
 } from './recentFlow'
+export { buildFlowSegments, type FlowSegment } from './flowSegments'
 export {
   buildCycleCompare,
   CYCLE_BEFORE,
