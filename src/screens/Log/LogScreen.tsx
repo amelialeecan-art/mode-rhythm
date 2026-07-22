@@ -32,7 +32,7 @@ import { getTodayISODate, parseISODate, formatMonthDay } from '../../lib/date'
 import { setFormBusy, setFormDirty } from '../../lib/pwaUpdate'
 import { serializeForm } from './dirty'
 import type { EventCategory } from '../../data/types'
-import type { EventTiming, FlowLevel } from '../../data/models'
+import type { EventTiming, EventDuration, FlowLevel } from '../../data/models'
 import './log.css'
 
 // 오늘 있었던 일을 카테고리별로 묶음 (사건/상황 기록 — 원인 추측 아님).
@@ -45,11 +45,19 @@ const EVENT_ORDER: EventCategory[] = ['sleep', 'food', 'work', 'relationship', '
 // 전체/사건 강도 칩 (전체 강도에는 '없음' 제외).
 const INTENSITY_CHIPS = INTENSITY_OPTIONS.filter((o) => o.code !== 'none') as { code: IntensityCode; label: string; value: number }[]
 
+// 정확한 발생일이 정해지는 시점만 남긴다(최근 3일·최근 7일은 lag·누적·흐름 분석에 쓰기 어려워 제외).
+// 옛 기록에 남아 있는 recent3days/recent7days 값은 그대로 열람된다(타입/데이터 삭제 없음).
 const TIMING_OPTIONS: { code: EventTiming; label: string }[] = [
   { code: 'today', label: '오늘' },
   { code: 'yesterday', label: '어제' },
-  { code: 'recent3days', label: '최근 3일' },
-  { code: 'recent7days', label: '최근 7일' },
+  { code: 'exact', label: '날짜 선택' },
+]
+
+// 여러 날 이어진 사건의 지속기간(발생 시점과 별개).
+const DURATION_OPTIONS: { code: EventDuration; label: string }[] = [
+  { code: 'single', label: '하루' },
+  { code: 'few', label: '2~3일' },
+  { code: 'extended', label: '4일 이상' },
 ]
 
 const FLOW_OPTIONS: { code: FlowLevel; label: string }[] = [
@@ -113,6 +121,8 @@ export function LogScreen() {
   const [customCategory, setCustomCategory] = useState<EventCategory>('sleep')
   const [customIntensity, setCustomIntensity] = useState<IntensityCode>('some')
   const [customTiming, setCustomTiming] = useState<EventTiming>('today')
+  const [customOccurredOn, setCustomOccurredOn] = useState('')
+  const [customDuration, setCustomDuration] = useState<EventDuration | undefined>(undefined)
   // 기능 저하 직접 추가 입력
   const [impactCustomText, setImpactCustomText] = useState('')
 
@@ -218,9 +228,14 @@ export function LogScreen() {
       isCustom: true,
       customLabel: name,
       mappedFactorGroup: makeCustomFactorGroup(customCategory, name),
+      occurredOn: customTiming === 'exact' ? customOccurredOn || date : undefined,
+      durationDays: customDuration,
     }
     setDraft((d) => ({ ...d, customEvents: [...d.customEvents, ev] }))
     setCustomName('')
+    setCustomTiming('today')
+    setCustomOccurredOn('')
+    setCustomDuration(undefined)
     setShowCustom(false)
   }
 
@@ -377,6 +392,29 @@ export function LogScreen() {
             <Chip key={t.code} label={t.label} tone="coral" selected={draft.eventTiming === t.code} onToggle={() => setDraft((d) => ({ ...d, eventTiming: t.code }))} />
           ))}
         </ChipGroup>
+        {draft.eventTiming === 'exact' && (
+          <input
+            className="log-date-input"
+            style={{ marginTop: 10 }}
+            type="date"
+            aria-label="사건 발생일"
+            value={draft.eventOccurredOn ?? date}
+            max={getTodayISODate()}
+            onChange={(e) => setDraft((d) => ({ ...d, eventOccurredOn: e.target.value || undefined }))}
+          />
+        )}
+        <p className="event-group__label" style={{ marginTop: 14 }}>며칠 이어졌어요? (선택)</p>
+        <ChipGroup label="사건 지속기간">
+          {DURATION_OPTIONS.map((o) => (
+            <Chip
+              key={o.code}
+              label={o.label}
+              tone="coral"
+              selected={draft.eventDuration === o.code}
+              onToggle={() => setDraft((d) => ({ ...d, eventDuration: d.eventDuration === o.code ? undefined : o.code }))}
+            />
+          ))}
+        </ChipGroup>
         <p className="event-group__label" style={{ marginTop: 14 }}>사건 강도</p>
         <ChipGroup label="사건 강도">
           {INTENSITY_CHIPS.map((o) => (
@@ -440,6 +478,29 @@ export function LogScreen() {
             <ChipGroup label="시점">
               {TIMING_OPTIONS.map((t) => (
                 <Chip key={t.code} label={t.label} tone="coral" selected={customTiming === t.code} onToggle={() => setCustomTiming(t.code)} />
+              ))}
+            </ChipGroup>
+            {customTiming === 'exact' && (
+              <input
+                className="log-date-input"
+                style={{ marginTop: 10 }}
+                type="date"
+                aria-label="사건 발생일"
+                value={customOccurredOn || date}
+                max={getTodayISODate()}
+                onChange={(e) => setCustomOccurredOn(e.target.value)}
+              />
+            )}
+            <p className="event-group__label" style={{ marginTop: 12 }}>며칠 이어졌어요? (선택)</p>
+            <ChipGroup label="지속기간">
+              {DURATION_OPTIONS.map((o) => (
+                <Chip
+                  key={o.code}
+                  label={o.label}
+                  tone="coral"
+                  selected={customDuration === o.code}
+                  onToggle={() => setCustomDuration((prev) => (prev === o.code ? undefined : o.code))}
+                />
               ))}
             </ChipGroup>
             <div className="custom-form__actions">

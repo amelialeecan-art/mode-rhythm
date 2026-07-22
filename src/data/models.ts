@@ -40,8 +40,16 @@ export type EventLogCategory =
   | 'unknown'
   | 'custom'
 
-/** 사건이 언제 일어났는지. */
-export type EventTiming = 'today' | 'yesterday' | 'recent3days' | 'recent7days'
+/**
+ * 사건이 언제 일어났는지.
+ * - today/yesterday/exact: 정확한 발생일이 정해진다(분석에 사용 가능).
+ * - recent3days/recent7days: 옛 기록 호환용으로만 남긴다. 새 입력 UI에서는 고르지 않으며,
+ *   정확한 날짜가 없어 정밀 분석에서는 제외된다(삭제 금지 — 읽기 호환).
+ */
+export type EventTiming = 'today' | 'yesterday' | 'recent3days' | 'recent7days' | 'exact'
+
+/** 여러 날 이어진 사건의 지속기간(발생 시점과 별개). 하루 / 2~3일 / 4일 이상. */
+export type EventDuration = 'single' | 'few' | 'extended'
 
 /** recoveryLogs.category. */
 export type RecoveryLogCategory = 'body' | 'emotional' | 'relationship' | 'reality' | 'custom'
@@ -174,6 +182,10 @@ export interface EventLog {
   isCustom: boolean
   customLabel?: string
   mappedFactorGroup: string
+  /** timing='exact'일 때의 정확한 발생일 (비인덱스 optional — 스키마/마이그레이션 변경 없음). */
+  occurredOn?: ISODate
+  /** 여러 날 이어진 사건의 지속기간 (비인덱스 optional). 미입력=undefined. */
+  durationDays?: EventDuration
   /**
    * 무너짐(기능 저하 큰 날)에서만, 이 사건이 상태 악화의 전/후 어디에 있었는지 (비인덱스 optional — 3단계).
    * today 사건에만 부여한다. 옛 기록/미분류는 undefined(=unknown으로 간주).

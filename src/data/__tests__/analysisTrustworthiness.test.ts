@@ -127,6 +127,10 @@ describe('사건 timing 보수 처리 (15~18)', () => {
     expect(eventOccurrenceDate('recent3days', '2026-08-10')).toBeNull()
     expect(eventOccurrenceDate('recent7days', '2026-08-10')).toBeNull()
   })
+  it('exact 사건은 고른 발생일을 그대로 쓴다(없으면 기록 날짜)', () => {
+    expect(eventOccurrenceDate('exact', '2026-08-10', '2026-08-05')).toBe('2026-08-05')
+    expect(eventOccurrenceDate('exact', '2026-08-10')).toBe('2026-08-10')
+  })
   it('recent 기간 사건은 factor 후보에 나타나지 않는다', async () => {
     // 30일 유효 + 절반 요인 이벤트지만 timing=recent3days → factor에서 제외
     await seed(30, (i) =>

@@ -130,12 +130,14 @@ export function analysisStageFor(validDays: number): AnalysisStage {
  * 사건의 "정확한 발생 추정일". timing을 보수적으로 처리한다.
  * - today: 저장 날짜
  * - yesterday: 저장 날짜 - 1일
+ * - exact: 사용자가 고른 정확한 발생일(occurredOn). 없으면 저장 날짜로 대체.
  * - recent3days/recent7days: 정확한 날짜가 없어 정밀 factor/combo 분석에서 제외(null).
  *   (여러 날짜로 복제하지 않는다 — 원본 기록과 eventLoad/일일 표시에서는 그대로 사용)
  */
-export function eventOccurrenceDate(timing: string, date: ISODate): ISODate | null {
+export function eventOccurrenceDate(timing: string, date: ISODate, occurredOn?: ISODate): ISODate | null {
   if (timing === 'today') return date
   if (timing === 'yesterday') return addDaysISO(date, -1)
+  if (timing === 'exact') return occurredOn ?? date
   return null
 }
 
@@ -676,8 +678,8 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     // 지난밤 수면 코드는 아래 canonical 수면 노출(adapter)에서 단일 출처로 처리 → 여기선 건너뜀
     if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
 
-    // timing 보수 처리: today=당일, yesterday=전날, recent3/7days=정밀 분석 제외
-    const occDate = eventOccurrenceDate(e.timing, e.date)
+    // timing 보수 처리: today=당일, yesterday=전날, exact=발생일, recent3/7days=정밀 분석 제외
+    const occDate = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
     if (occDate === null) continue
 
     addFactor(occDate, e.mappedFactorGroup)
@@ -982,7 +984,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   for (const e of events) {
     if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
     if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
-    const occ = eventOccurrenceDate(e.timing, e.date)
+    const occ = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
     if (occ === null) continue
     episodeEvents.push({
       date: occ,
