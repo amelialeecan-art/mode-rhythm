@@ -4,7 +4,8 @@
    만들지 않는다. 엔진이 이미 준 evidence·시간창·반복 근거를 "문장 강도"에만
    연결한다. 결정론적(랜덤 없음).
    ===================================================================== */
-import type { AnalysisMetric, EffectWindow, EvidenceLevel } from '../../engine'
+import type { AnalysisMetric, EffectWindow, EvidenceLevel, FlowDomain } from '../../engine'
+import type { FlowDriverCard } from '../../data/services/patternAnalysisService'
 
 export type VoiceStrength = 'strong' | 'medium' | 'weak'
 
@@ -154,4 +155,36 @@ export function eventResponseSentence(inp: EventCurveInput): string {
   if (day0Up) return `${inp.title} 당일 ${noun} 가장 크게 ${verb}`
   if (beforeUp) return `${inp.title} 전부터 ${noun} 안 좋은 편이었어요.`
   return '사건 전후로 뚜렷한 변화는 없었어요.'
+}
+
+/* ---- 흐름을 바꾼 누적 요인 문장 (9G) ---- */
+const FLOW_DOMAIN_LABEL: Record<FlowDomain, string> = {
+  emotional: '감정',
+  appetite: '식욕',
+  sleep: '수면',
+  body: '몸 상태',
+  function: '생활기능',
+}
+
+function joinDomains(domains: FlowDomain[]): string {
+  const labels = domains.map((d) => FLOW_DOMAIN_LABEL[d])
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return iga(labels[0])
+  return `${wa(labels[0])} ${iga(labels[labels.length - 1])}`
+}
+
+/**
+ * 소모 흐름 앞에 반복해 쌓인 요인을 한 문장으로. 근거 수치·신뢰도·"추정"은 넣지 않는다.
+ * 겹침 > 누적(2일↑) > 단일 순으로 표현.
+ */
+export function flowDriverSentence(card: FlowDriverCard): string {
+  const lead = joinDomains(card.affectedDomains)
+  const tail = lead ? `${lead} 먼저 내려갔어요.` : '소모 흐름이 시작되는 경우가 반복됐어요.'
+  if (card.overlapLabels.length > 0) {
+    return `${wa(card.label)} ${iga(card.overlapLabels[0])} 겹친 뒤 ${tail}`
+  }
+  if (card.cumulative) {
+    return `${iga(card.label)} 2일 이상 이어진 뒤 ${tail}`
+  }
+  return `${card.label} 뒤 ${tail}`
 }

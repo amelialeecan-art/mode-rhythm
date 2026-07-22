@@ -45,7 +45,9 @@ export interface ExposureCumulativeStat {
 }
 
 /** 같은 사건의 별도 노출 구간이 이만큼은 있어야 누적 결과를 낸다. */
-export const MIN_EXPOSURE_RUNS = 3
+export const MIN_EXPOSURE_RUNS = 5
+/** 하루 노출 구간이 이만큼은 있어야 비교 기준이 된다. */
+export const MIN_SINGLE_RUNS = 2
 /** 여러 날(2일↑) 노출 사례가 이만큼은 있어야 "누적될수록"을 허용한다. */
 export const MIN_MULTIDAY_RUNS = 2
 /** 구간 종료 후 며칠까지의 변화를 결과에 포함할지(1~2일). */
@@ -132,10 +134,11 @@ export function cumulativeExposureEffect(
   metricByDate: Map<ISODate, number>,
   minEffect = 0,
 ): ExposureCumulativeStat | null {
+  // 게이트: 전체 구간 5회↑, 하루 노출 2회↑, 다일 노출 2회↑ (못 채우면 결과 없음)
   if (runs.length < MIN_EXPOSURE_RUNS) return null
   const single = runs.filter((r) => r.days === 1)
   const multi = runs.filter((r) => r.days >= 2)
-  if (multi.length < MIN_MULTIDAY_RUNS) return null
+  if (single.length < MIN_SINGLE_RUNS || multi.length < MIN_MULTIDAY_RUNS) return null
 
   const runResponse = (r: ExposureRun): number | undefined => {
     const dates = [...r.dates]
@@ -145,8 +148,8 @@ export function cumulativeExposureEffect(
   }
   const singleVals = single.map(runResponse).filter((v): v is number => v !== undefined)
   const multiVals = multi.map(runResponse).filter((v): v is number => v !== undefined)
-  // 하루 노출 표본과 다일 노출 표본이 각각 있어야 "하루일 때보다"를 말할 수 있다.
-  if (singleVals.length < 1 || multiVals.length < MIN_MULTIDAY_RUNS) return null
+  // 하루 노출 표본과 다일 노출 표본이 각각 충분해야 "하루일 때보다"를 말할 수 있다.
+  if (singleVals.length < MIN_SINGLE_RUNS || multiVals.length < MIN_MULTIDAY_RUNS) return null
 
   const singleMean = round(mean(singleVals))
   const multiMean = round(mean(multiVals))

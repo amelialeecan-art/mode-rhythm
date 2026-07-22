@@ -13,7 +13,7 @@ import {
 } from '../../data/services/patternAnalysisService'
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
-import { factorPhrase, episodeTrigger, eventResponseSentence, type VoiceStrength } from './analysisVoice'
+import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, type VoiceStrength } from './analysisVoice'
 import { EventResponseChart } from './EventResponseChart'
 import './analysis.css'
 
@@ -148,6 +148,20 @@ export function AnalysisScreen() {
                   </div>
                 </details>
               )}
+            </GlassCard>
+          )}
+
+          {/* ===== 흐름을 바꾼 누적 요인 (최대 2개, 없으면 섹션 숨김) ===== */}
+          {vm.flowDrivers.length > 0 && (
+            <GlassCard>
+              <SectionHeader title="흐름을 바꾼 누적 요인" />
+              <ul className="driver-list">
+                {vm.flowDrivers.map((d) => (
+                  <li className="driver-row" key={d.eventKey}>
+                    {flowDriverSentence(d)}
+                  </li>
+                ))}
+              </ul>
             </GlassCard>
           )}
 

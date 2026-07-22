@@ -119,11 +119,13 @@ export {
   overlapDays,
   cumulativeExposureEffect,
   MIN_EXPOSURE_RUNS,
+  MIN_SINGLE_RUNS,
   MIN_MULTIDAY_RUNS,
   type ExposureRun,
   type ExposureInput,
   type ExposureCumulativeStat,
 } from './exposureRuns'
+export { buildFlowDrivers, MAX_FLOW_DRIVERS, type FlowDriver } from './flowDrivers'
 export {
   buildCycleCompare,
   CYCLE_BEFORE,
