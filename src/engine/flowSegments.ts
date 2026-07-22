@@ -14,7 +14,7 @@ import { FLOW_DOMAINS, type FlowDomain, type FlowStatus, type RecentFlowDay } fr
 const FLOW_DIFF = 8 // 영역 변화로 볼 최소 폭(개인 기준선 대비) — recentFlow와 동일
 const MIN_VALID_TOTAL = 4 // 전체 유효 기록이 이만큼도 없으면 구간을 만들지 않음
 const MIN_SEG_VALID = 2 // 구간 하나의 최소 유효 기록일 수
-const GAP_SPLIT_DAYS = 7 // 연속 기록 사이 공백이 이보다 크면 구간을 분리
+const GAP_SPLIT_MISSING = 3 // 연속 미기록이 이 일수 이상이면 흐름을 분리(3일↑ 공백)
 const LABEL_RECENT = 3 // 일별 방향 라벨: 최근 창(유효일)
 const LABEL_BASE = 4 // 일별 방향 라벨: 직전 기준 창(유효일)
 const SMOOTH = 1 // 3점 중앙값 평활 반경(하루 이상치 완충)
@@ -97,12 +97,14 @@ function toValidDays(days: RecentFlowDay[]): ValidDay[] {
   })
 }
 
-/** 큰 기록 공백을 기준으로 블록을 나눈다(공백이 길면 이전 구간과 분리). */
+/** 기록 공백을 기준으로 블록을 나눈다(연속 미기록 3일↑이면 이전 구간과 분리). */
 function splitBlocks(vd: ValidDay[]): ValidDay[][] {
   const blocks: ValidDay[][] = []
   let cur: ValidDay[] = []
   for (const d of vd) {
-    if (cur.length && daysBetween(cur[cur.length - 1].date, d.date) > GAP_SPLIT_DAYS) {
+    // 두 유효 기록 사이의 '빠진 날' 수 = 달력 간격 - 1.
+    const missing = cur.length ? daysBetween(cur[cur.length - 1].date, d.date) - 1 : 0
+    if (missing >= GAP_SPLIT_MISSING) {
       blocks.push(cur)
       cur = []
     }
@@ -150,18 +152,23 @@ interface Run {
   to: number
 }
 
-/** 라벨 배열을 같은 상태 구간(run)으로 묶는다. 앞쪽 null은 첫 판정 상태로 채운다. */
+/**
+ * 라벨 배열을 같은 상태 구간(run)으로 묶는다.
+ * 앞쪽 판단 불가(null)는 소급해 채우지 않고 제외한다 — 실제 판정 가능한 첫날부터
+ * 구간이 시작한다. 중간의 null은 이어지는 구간에 그대로 포함(방향은 유지).
+ */
 function toRuns(labels: (FlowStatus | null)[]): Run[] {
-  const firstKnown = labels.find((l) => l !== null) ?? 'stable'
-  const filled = labels.map((l) => l ?? firstKnown)
+  const start = labels.findIndex((l) => l !== null)
+  if (start < 0) return []
   const runs: Run[] = []
-  let prev: FlowStatus | null = null
-  for (let i = 0; i < filled.length; i++) {
-    if (runs.length && filled[i] === prev) {
+  let prev: FlowStatus = labels[start] as FlowStatus
+  for (let i = start; i < labels.length; i++) {
+    const l: FlowStatus = labels[i] ?? prev // 중간 null은 진행 중인 상태를 이어감(앞쪽 소급 아님)
+    if (runs.length && l === prev) {
       runs[runs.length - 1].to = i
     } else {
       runs.push({ from: i, to: i })
-      prev = filled[i]
+      prev = l
     }
   }
   return runs
