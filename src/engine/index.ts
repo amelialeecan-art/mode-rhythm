@@ -112,6 +112,19 @@ export {
 } from './recentFlow'
 export { buildFlowSegments, type FlowSegment } from './flowSegments'
 export {
+  buildExposureRuns,
+  groupConsecutiveDates,
+  exposureKey,
+  normalizeEventLabel,
+  overlapDays,
+  cumulativeExposureEffect,
+  MIN_EXPOSURE_RUNS,
+  MIN_MULTIDAY_RUNS,
+  type ExposureRun,
+  type ExposureInput,
+  type ExposureCumulativeStat,
+} from './exposureRuns'
+export {
   buildCycleCompare,
   CYCLE_BEFORE,
   CYCLE_AFTER,
