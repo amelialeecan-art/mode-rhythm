@@ -15,10 +15,17 @@ import {
   FUNCTION_ONSET_OPTIONS,
   isFunctionDetailLevel,
 } from '../../data/catalog/dailyFunction'
-import type { FunctionLevel } from '../../data/models'
+import type { BodySignalCode, FunctionLevel, RhythmExceptionCode } from '../../data/models'
 import { RECOVERY_ACTIONS, RECOVERY_EFFECTS } from '../../data/catalog/recoveryActions'
 import { INTENSITY_OPTIONS } from '../../data/catalog/intensity'
 import { CUSTOM_EVENT_CATEGORIES, makeCustomEventCode, makeCustomFactorGroup } from '../../data/catalog/customEvent'
+import {
+  BODY_ENERGY_OPTIONS,
+  BODY_SIGNAL_OPTIONS,
+  DAY_CONTEXT_OPTIONS,
+  MENTAL_SPACE_OPTIONS,
+  RHYTHM_EXCEPTION_OPTIONS,
+} from '../../data/catalog/dailyCheckIn'
 import {
   saveDailyEntry,
   loadDailyEntry,
@@ -145,6 +152,16 @@ export function LogScreen() {
       ...d,
       appetiteRatings: { ...d.appetiteRatings, [key]: d.appetiteRatings[key] === value ? undefined : value },
     }))
+
+  const toggleExclusive = <T extends string,>(arr: T[], code: T, noneCode: T): T[] => {
+    if (arr.includes(code)) return arr.filter((c) => c !== code)
+    if (code === noneCode) return [noneCode]
+    return [...arr.filter((c) => c !== noneCode), code]
+  }
+  const toggleBodySignal = (code: BodySignalCode) =>
+    setDraft((d) => ({ ...d, bodySignalCodes: toggleExclusive(d.bodySignalCodes, code, 'none') }))
+  const toggleRhythmException = (code: RhythmExceptionCode) =>
+    setDraft((d) => ({ ...d, rhythmExceptionCodes: toggleExclusive(d.rhythmExceptionCodes, code, 'none') }))
 
   const toggleState = (code: string) => setDraft((d) => ({ ...d, stateCodes: toggleInArray(d.stateCodes, code) }))
   // 사건을 해제하면 관련 선후관계도 남지 않게 정리한다(유령 데이터 방지).
@@ -315,7 +332,48 @@ export function LogScreen() {
         </ChipGroup>
       </GlassCard>
 
-      {/* 1-2. 식욕 상태 (직접 입력 — state preset보다 우선) */}
+      {/* 1-2. 몸 에너지·머릿속 여유·몸 신호 (직접 입력) */}
+      <GlassCard tint="mint">
+        <SectionHeader title="몸과 머릿속" subtitle="상태 칩에서 추정하지 않고 직접 남겨요" />
+        <p className="event-group__label">몸 에너지</p>
+        <ChipGroup label="몸 에너지">
+          {BODY_ENERGY_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="mint" selected={draft.bodyEnergyLevel === o.code} onToggle={() => setDraft((d) => ({ ...d, bodyEnergyLevel: d.bodyEnergyLevel === o.code ? undefined : o.code }))} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 16 }}>머릿속 여유</p>
+        <ChipGroup label="머릿속 여유">
+          {MENTAL_SPACE_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="lav" selected={draft.mentalSpaceLevel === o.code} onToggle={() => setDraft((d) => ({ ...d, mentalSpaceLevel: d.mentalSpaceLevel === o.code ? undefined : o.code }))} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 16 }}>오늘의 몸 신호 (여러 개 가능)</p>
+        <ChipGroup label="오늘의 몸 신호">
+          {BODY_SIGNAL_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="mint" selected={draft.bodySignalCodes.includes(o.code)} onToggle={() => toggleBodySignal(o.code)} />
+          ))}
+        </ChipGroup>
+      </GlassCard>
+
+      {/* 1-3. 생활 맥락·평소 리듬 예외 */}
+      <GlassCard>
+        <SectionHeader title="오늘의 맥락" subtitle="원인이 아니라 그날의 생활 조건을 남겨요" />
+        <p className="event-group__label">생활 유형</p>
+        <ChipGroup label="생활 유형">
+          {DAY_CONTEXT_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="sky" selected={draft.dayContext === o.code} onToggle={() => setDraft((d) => ({ ...d, dayContext: d.dayContext === o.code ? undefined : o.code }))} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 16 }}>평소 리듬 밖의 예외 (여러 개 가능)</p>
+        <ChipGroup label="평소 리듬 밖의 예외">
+          {RHYTHM_EXCEPTION_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="neutral" selected={draft.rhythmExceptionCodes.includes(o.code)} onToggle={() => toggleRhythmException(o.code)} />
+          ))}
+        </ChipGroup>
+        <p className="state-hint">예외일은 기록에는 남지만 장기 반복 흐름을 만들 때는 분리해서 봐요.</p>
+      </GlassCard>
+
+      {/* 1-4. 식욕 상태 (직접 입력 — state preset보다 우선) */}
       <GlassCard tint="coral">
         <SectionHeader title="식욕 상태" subtitle="식욕, 단 음식 욕구, 폭식욕을 따로 남겨요" />
         {APPETITE_ITEMS.map((item) => (

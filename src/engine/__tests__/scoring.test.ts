@@ -3,6 +3,7 @@ import {
   calcEmotionalLoad,
   calcAppetiteLoad,
   calcSleepLoad,
+  calcBodyLoad,
   calcEventLoad,
   calcRhythmLoad,
 } from '../scoring'
@@ -20,6 +21,23 @@ describe('calcEmotionalLoad', () => {
     const high = calcEmotionalLoad(makeLog({ anxiety: 9, heaviness: 9 }))
     expect(high).toBeGreaterThan(low)
     expect(high).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('직접 입력 우선', () => {
+  it('머릿속 여유가 가득 참이면 감정 preset이 낮아도 부하에 반영된다', () => {
+    const base = calcEmotionalLoad(makeLog({ calm: 8 }))
+    const overloaded = calcEmotionalLoad(makeLog({ calm: 8, mentalSpaceLevel: 'overloaded' }))
+    expect(overloaded).toBeGreaterThan(base)
+    expect(overloaded).toBeGreaterThanOrEqual(80)
+  })
+
+  it('몸 에너지와 구체적 몸 신호가 몸 부하에 반영된다', () => {
+    const base = calcBodyLoad(makeLog())
+    const empty = calcBodyLoad(makeLog({ bodyEnergyLevel: 'empty' }))
+    const signals = calcBodyLoad(makeLog({ bodySignalCodes: ['malaise', 'head_eye_fatigue'] }))
+    expect(empty).toBeGreaterThan(base)
+    expect(signals).toBeGreaterThan(base)
   })
 })
 

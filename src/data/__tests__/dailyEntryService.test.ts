@@ -35,6 +35,34 @@ describe('saveDailyEntry', () => {
     expect(range).toHaveLength(1) // 중복 없음
   })
 
+  it('몸 에너지·머릿속 여유·생활 맥락·몸 신호·예외를 저장하고 복원한다', async () => {
+    await saveDailyEntry(draftWith({
+      stateCodes: ['calm'],
+      bodyEnergyLevel: 'empty',
+      mentalSpaceLevel: 'overloaded',
+      dayContext: 'office',
+      bodySignalCodes: ['head_eye_fatigue', 'neck_shoulder_tension'],
+      rhythmExceptionCodes: ['illness'],
+    }))
+
+    const log = await dailyLogRepository.getByDate(DATE)
+    expect(log?.bodyEnergyLevel).toBe('empty')
+    expect(log?.mentalSpaceLevel).toBe('overloaded')
+    expect(log?.dayContext).toBe('office')
+    expect(log?.bodySignalCodes).toEqual(['head_eye_fatigue', 'neck_shoulder_tension'])
+    expect(log?.rhythmExceptionCodes).toEqual(['illness'])
+    // 직접 입력이 상태 preset보다 우선한다.
+    expect(log?.energy).toBe(1)
+    expect(log?.focus).toBe(1)
+
+    const loaded = await loadDailyEntry(DATE)
+    expect(loaded?.bodyEnergyLevel).toBe('empty')
+    expect(loaded?.mentalSpaceLevel).toBe('overloaded')
+    expect(loaded?.dayContext).toBe('office')
+    expect(loaded?.bodySignalCodes).toEqual(['head_eye_fatigue', 'neck_shoulder_tension'])
+    expect(loaded?.rhythmExceptionCodes).toEqual(['illness'])
+  })
+
   it('상태 preset이 숫자 필드로 매핑되고 0~10을 넘지 않는다', async () => {
     await saveDailyEntry(draftWith({ stateCodes: ['anxious'], overallIntensity: 'veryMuch' }))
     const log = await dailyLogRepository.getByDate(DATE)

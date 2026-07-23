@@ -26,10 +26,14 @@ import {
 } from '../catalog/recoveryActions'
 import { intensityValue } from '../catalog/intensity'
 import { buildStateNumericFields, inferStateCodes } from '../catalog/statePresets'
+import { bodyEnergyValue, mentalSpaceFocus } from '../catalog/dailyCheckIn'
 import { recalculateDailyScore } from './dailyScoreService'
 import type {
   AppetiteRatings,
+  BodyEnergyLevel,
+  BodySignalCode,
   CycleLogInput,
+  DayContextCode,
   DailyLogInput,
   EventLogCategory,
   EventLogInput,
@@ -39,7 +43,9 @@ import type {
   FunctionLevel,
   ISODate,
   LastNightSleep,
+  MentalSpaceLevel,
   RecoveryEffectValue,
+  RhythmExceptionCode,
   RecoveryLogInput,
 } from '../models'
 
@@ -85,6 +91,14 @@ export interface DailyEntryDraft {
   customEvents: EventDraft[]
   /** 식욕 상태 직접 입력값 (있으면 state preset보다 우선). 항목별 0/3/5/7/9. */
   appetiteRatings: AppetiteRatings
+  /** 몸 에너지·머릿속 여유 직접 입력. */
+  bodyEnergyLevel?: BodyEnergyLevel
+  mentalSpaceLevel?: MentalSpaceLevel
+  /** 생활 맥락(출근/재택/휴일/특별일). */
+  dayContext?: DayContextCode
+  /** 구체적인 몸 신호와 평소 리듬 예외. */
+  bodySignalCodes: BodySignalCode[]
+  rhythmExceptionCodes: RhythmExceptionCode[]
   cycle: CycleDraft
   /** "도움 된 것" 회복 행동. */
   recoveryCodes: string[]
@@ -152,6 +166,8 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
     catalogEventCodes: [],
     customEvents: [],
     appetiteRatings: {},
+    bodySignalCodes: [],
+    rhythmExceptionCodes: [],
     cycle: emptyCycleDraft(),
     recoveryCodes: [],
     recoveryNegativeCodes: [],
@@ -187,6 +203,10 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
   const n = buildStateNumericFields(draft.stateCodes, draft.overallIntensity)
   const memo = draft.memo.trim()
   const ar = draft.appetiteRatings ?? {}
+  const directEnergy = bodyEnergyValue(draft.bodyEnergyLevel)
+  const directFocus = mentalSpaceFocus(draft.mentalSpaceLevel)
+  const bodySignalCodes = draft.bodySignalCodes ?? []
+  const rhythmExceptionCodes = draft.rhythmExceptionCodes ?? []
   // 식욕 상태 직접 입력값이 있으면 preset보다 우선 (spec 우선순위)
   const clamp10 = (x: number) => Math.max(0, Math.min(10, Math.round(x)))
   const pick = (rating: number | undefined, preset: number) => (rating != null ? clamp10(rating) : preset)
@@ -200,8 +220,8 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     sadness: n.sadness,
     heaviness: n.heaviness,
     calm: n.calm,
-    energy: n.energy,
-    focus: n.focus,
+    energy: directEnergy ?? n.energy,
+    focus: directFocus ?? n.focus,
     selfCriticism: n.selfCriticism,
     impulsivity: n.impulsivity,
     appetite: pick(ar.appetite, n.appetite),
@@ -227,6 +247,11 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     functionImpactCodes: detailLevel && draft.functionImpactCodes.length > 0 ? [...draft.functionImpactCodes] : undefined,
     functionImpactCustom: detailLevel && draft.functionImpactCustom.length > 0 ? [...draft.functionImpactCustom] : undefined,
     functionDropOnset: detailLevel ? draft.functionDropOnset : undefined,
+    bodyEnergyLevel: draft.bodyEnergyLevel,
+    mentalSpaceLevel: draft.mentalSpaceLevel,
+    dayContext: draft.dayContext,
+    bodySignalCodes: bodySignalCodes.length > 0 ? [...bodySignalCodes] : undefined,
+    rhythmExceptionCodes: rhythmExceptionCodes.length > 0 ? [...rhythmExceptionCodes] : undefined,
   }
 }
 
@@ -392,6 +417,11 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
         mappedFactorGroup: e.mappedFactorGroup,
       })),
     appetiteRatings,
+    bodyEnergyLevel: dailyLog?.bodyEnergyLevel,
+    mentalSpaceLevel: dailyLog?.mentalSpaceLevel,
+    dayContext: dailyLog?.dayContext,
+    bodySignalCodes: [...(dailyLog?.bodySignalCodes ?? [])],
+    rhythmExceptionCodes: [...(dailyLog?.rhythmExceptionCodes ?? [])],
     cycle: cycle
       ? {
           periodStart: cycle.periodStart,

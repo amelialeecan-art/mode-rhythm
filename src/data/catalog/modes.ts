@@ -1,7 +1,8 @@
 /**
  * 오늘 상태 칩 (기록 화면 1번 질문). 원인 금지 — 몸/감정의 "결과값"만.
  * 예민 ≠ 짜증: 예민은 자극에 민감한 상태, 짜증/화냄은 이미 반응이 터진 상태.
- * '식욕 변동'은 식욕 상태 카드와 중복이라 UI에서 제외 (legacy preset은 유지).
+ * '식욕 변동'은 식욕 카드와, '방전/몸 불편'은 몸 직접 입력과 중복이라 UI에서 제외한다.
+ * legacy preset은 옛 기록 재계산을 위해 유지한다.
  */
 export const STATE_CHIPS: { code: string; label: string }[] = [
   { code: 'calm', label: '안정' },
@@ -13,8 +14,6 @@ export const STATE_CHIPS: { code: string; label: string }[] = [
   { code: 'tearful', label: '울컥/눈물' },
   { code: 'lethargic', label: '무기력' },
   { code: 'unfocused', label: '집중 안 됨' },
-  { code: 'drained', label: '방전' },
-  { code: 'body_discomfort', label: '몸 불편' },
   { code: 'social_fatigue', label: '사회 피로' },
   { code: 'impulsive', label: '충동 증가' },
   { code: 'unknown', label: '이유 모름' },

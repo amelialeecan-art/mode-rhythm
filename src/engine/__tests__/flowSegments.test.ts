@@ -99,6 +99,16 @@ describe('buildFlowSegments', () => {
     expect(one[0].lengthDays).toBe(14) // 달력 지속 일수(빠진 2일 포함)
   })
 
+  it('예외일은 짧은 공백이어도 흐름 구간을 강제로 분리한다', () => {
+    const a = seq('2026-12-01', 12, () => flat(35))
+    const exception: RecentFlowDay = { date: '2026-12-13', ...flat(95), excluded: true }
+    const b = seq('2026-12-14', 12, () => flat(35))
+    const segs = buildFlowSegments([...a, exception, ...b])
+    expect(segs).toHaveLength(2)
+    expect(segs[0].endDate).toBe('2026-12-12')
+    expect(segs[1].startDate).toBe('2026-12-18')
+  })
+
   it('안정 구간은 억지로 소모·회복으로 나누지 않는다', () => {
     const segs = buildFlowSegments(seq('2026-07-01', 20, () => flat(40)))
     expect(segs.length).toBe(1)

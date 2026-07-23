@@ -3,6 +3,7 @@
    입력은 저장 모델 타입(DailyLog/EventLog)이지만 DB는 모른다(타입만 사용).
    ===================================================================== */
 import type { DailyLog, EventLog, EventLogCategory } from '../data/models'
+import { bodyEnergyLoad, bodySignalsLoad, mentalSpaceLoad } from '../data/catalog/dailyCheckIn'
 import { clamp, normalizeTo100, roundScore } from './guards'
 
 /** 사건 카테고리별 기본 가중치 (사건 부하 계산용). */
@@ -42,7 +43,9 @@ export function calcEmotionalLoad(log: DailyLog): number {
     log.selfCriticism * 1.0 +
     log.impulsivity * 0.8 -
     log.calm * 0.8
-  return roundScore(normalizeTo100(Math.max(0, raw), 64))
+  const presetScore = roundScore(normalizeTo100(Math.max(0, raw), 64))
+  // 머릿속 여유 직접 입력이 있으면 상태 칩 추정보다 우선해 최소 부하선을 잡는다.
+  return Math.max(presetScore, mentalSpaceLoad(log.mentalSpaceLevel))
 }
 
 /** 식욕 부하. 사건(식사 거름/야식/과식)이 있으면 가산. */
@@ -120,7 +123,13 @@ export function calcBodyLoad(log: DailyLog, periodPain = 0): number {
     log.headache * 0.9 +
     log.digestion * 0.8 +
     periodPain * 1.2
-  return roundScore(normalizeTo100(Math.max(0, raw), 74))
+  const presetScore = roundScore(normalizeTo100(Math.max(0, raw), 74))
+  // 직접 입력한 몸 에너지와 구체적 몸 신호는 넓은 '몸 불편' 칩보다 우선한다.
+  return Math.max(
+    presetScore,
+    bodyEnergyLoad(log.bodyEnergyLevel),
+    bodySignalsLoad(log.bodySignalCodes),
+  )
 }
 
 /** 사건 부하. category 가중치 × intensity 합. */

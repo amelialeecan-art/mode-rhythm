@@ -127,7 +127,7 @@ function FilledToday({
   onRecord: () => void
 }) {
   const tone = useToneMode()
-  const { classification, scores, factorCandidates, plan, recordedRecovery, cycleContext, eventSummary } = summary
+  const { classification, scores, factorCandidates, plan, recordedRecovery, rhythmExceptions, cycleContext, eventSummary } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
   const cycleDisplay = CYCLE_DISPLAY[cycleContext.confidence] ?? null
 
@@ -139,6 +139,13 @@ function FilledToday({
         body={classification.description}
         mascotMood={mascot}
       />
+
+      {rhythmExceptions.length > 0 && (
+        <GlassCard tint="coral">
+          <SectionHeader title="오늘은 평소 리듬과 분리해서 봐요" subtitle={rhythmExceptions.join(' · ')} />
+          <p className="today-rec-empty">기록은 그대로 남기되, 장기 반복 흐름과 누적 요인을 계산할 때는 예외일로 분리해요.</p>
+        </GlassCard>
+      )}
 
       {/* 오늘의 종합 부하 + 항목별 요약 */}
       <GlassCard>

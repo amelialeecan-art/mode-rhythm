@@ -15,6 +15,7 @@ import {
 } from './scoring'
 import { classifyDay, type DayClassification, type DayScores } from './classify'
 import { buildTodayPlan, type TodayPlan } from './todayPlan'
+import { rhythmExceptionLabels } from '../data/catalog/dailyCheckIn'
 
 export type FactorTier = 'recorded' | 'calculated' | 'watch' | 'not_enough_data'
 
@@ -42,6 +43,8 @@ export interface TodaySummary {
   plan: TodayPlan
   /** 오늘 기록된 회복 행동 라벨(분석 추천 아님 — 단순 기록). */
   recordedRecovery: string[]
+  /** 질병·부상 등 평소 리듬과 분리해 볼 예외 기록. */
+  rhythmExceptions: string[]
 }
 
 export interface TodaySummaryInput {
@@ -133,5 +136,6 @@ export function buildTodaySummary(input: TodaySummaryInput): TodaySummary {
     eventSummary,
     plan,
     recordedRecovery,
+    rhythmExceptions: rhythmExceptionLabels(dailyLog.rhythmExceptionCodes),
   }
 }

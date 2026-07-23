@@ -76,6 +76,7 @@ import {
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS, factorWindowFor } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
+import { hasRhythmException } from '../catalog/dailyCheckIn'
 import { assertGuard } from '../../copy/tone'
 import { getTodayISODate, formatMonthDay, parseISODate } from '../../lib/date'
 import type { DailyLog, DailyScore, EventLog, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
@@ -709,7 +710,11 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
 
   // 저장된 날(dailyScore) vs 실제 상태 입력이 있는 유효 결과일 구분
   const logByDate = new Map<ISODate, DailyLog>()
-  for (const l of dailyLogs) logByDate.set(l.date, l)
+  const exceptionDates = new Set<ISODate>()
+  for (const l of dailyLogs) {
+    logByDate.set(l.date, l)
+    if (hasRhythmException(l.rhythmExceptionCodes)) exceptionDates.add(l.date)
+  }
   const savedDayCount = scores.filter((s) => s.date <= endDate).length
 
   // 유효 결과일: dailyScore가 있고 그날 dailyLog가 실제 상태 입력을 가진 날만
@@ -718,7 +723,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   for (const s of scores) {
     if (s.date > endDate) continue
     const log = logByDate.get(s.date)
-    if (!log || !isValidOutcomeLog(log)) continue
+    if (!log || !isValidOutcomeLog(log) || exceptionDates.has(s.date)) continue
     resultDates.push(s.date)
     scoreByDate.set(s.date, scoreVector(s))
   }
@@ -757,7 +762,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
 
     // timing 보수 처리: today=당일, yesterday=전날, exact=발생일, recent3/7days=정밀 분석 제외
     const occDate = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
-    if (occDate === null) continue
+    if (occDate === null || exceptionDates.has(occDate)) continue
 
     addFactor(occDate, e.mappedFactorGroup)
     const votes = labelVotes.get(e.mappedFactorGroup) ?? new Map<string, number>()
@@ -783,6 +788,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
 
   // 주기 자동 요인 (날짜 기반 계산 — 사용자가 고른 원인이 아님)
   for (let d = factorStart; d <= endDate; d = addDaysISO(d, 1)) {
+    if (exceptionDates.has(d)) continue
     const ctx = buildCycleContext(d, cycleLogs, settings)
     if (ctx.isPeriod) addFactor(d, 'cycle_period')
     if (ctx.isPremenstrualWindow) addFactor(d, 'cycle_premenstrual_window')
@@ -794,7 +800,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   // 다른 경로와 겹쳐도 이중 반영되지 않는다. 신규 수면이 사라지지 않도록 이 경로로 통합한다.
   const sleepDates = new Set<ISODate>([...logByDate.keys(), ...eventsByDate.keys()])
   for (const date of sleepDates) {
-    if (date < factorStart || date > endDate) continue
+    if (date < factorStart || date > endDate || exceptionDates.has(date)) continue
     const exposure = getSleepExposureForDate(logByDate.get(date), eventsByDate.get(date) ?? [])
     for (const g of exposure.factorGroups) {
       addFactor(date, g)
@@ -942,6 +948,9 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       eventLogRepository.listByDateRange(addDaysISO(driverStart, -FACTOR_LOOKBACK), endDate),
     ])
     const driverLogByDate = new Map<ISODate, DailyLog>(driverLogs.map((l) => [l.date, l]))
+    const driverExceptionDates = new Set<ISODate>(
+      driverLogs.filter((l) => hasRhythmException(l.rhythmExceptionCodes)).map((l) => l.date),
+    )
     const flowDays: RecentFlowDay[] = driverScores
       .filter((s) => s.date <= endDate)
       .sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -952,9 +961,14 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
         sleep: s.sleepLoad,
         body: s.bodyLoad,
         functionLevel: driverLogByDate.get(s.date)?.functionLevel,
+        excluded: hasRhythmException(driverLogByDate.get(s.date)?.rhythmExceptionCodes),
       }))
     const segments = buildFlowSegments(flowDays)
-    const { runs: driverRuns, labelByKey: driverLabels } = eventsToExposureRuns(driverEvents)
+    const usableDriverEvents = driverEvents.filter((e) => {
+      const occurrence = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
+      return occurrence !== null && !driverExceptionDates.has(occurrence)
+    })
+    const { runs: driverRuns, labelByKey: driverLabels } = eventsToExposureRuns(usableDriverEvents)
     for (const dr of buildFlowDrivers(segments, driverRuns, driverLabels)) {
       flowDrivers.push({
         eventKey: dr.eventKey,
@@ -1130,6 +1144,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   const episodeDates = new Set<ISODate>([...logByDate.keys(), ...scoreByDate.keys()])
   for (const date of episodeDates) {
     if (date < startDate || date > endDate) continue
+    if (hasRhythmException(logByDate.get(date)?.rhythmExceptionCodes)) continue
     episodeInputs.push({
       date,
       functionLevel: logByDate.get(date)?.functionLevel,
