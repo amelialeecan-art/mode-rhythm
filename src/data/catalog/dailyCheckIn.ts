@@ -27,13 +27,13 @@ export const DAY_CONTEXT_OPTIONS: { code: DayContextCode; label: string }[] = [
   { code: 'special', label: '특별일' },
 ]
 
+// 생리통은 생리 섹션(periodPain), 몸살은 예외일(감기·몸살)을 단일 원천으로 쓴다.
+// period_cramps/malaise 코드·부하값은 옛 기록 호환을 위해 타입/BODY_SIGNAL_LOAD에는 남긴다.
 export const BODY_SIGNAL_OPTIONS: { code: BodySignalCode; label: string }[] = [
   { code: 'heavy_body', label: '몸이 무거움' },
   { code: 'head_eye_fatigue', label: '두통·눈 피로' },
   { code: 'neck_shoulder_tension', label: '목·어깨 긴장' },
   { code: 'bloating_digestive', label: '복부팽만·소화 불편' },
-  { code: 'period_cramps', label: '생리통' },
-  { code: 'malaise', label: '몸살 느낌' },
   { code: 'none', label: '특별한 신호 없음' },
 ]
 

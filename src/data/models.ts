@@ -108,6 +108,34 @@ export type RhythmExceptionCode =
   | 'hangover'
   | 'none'
 
+/** 감정 안정감(단일 선택). 안정↔흔들림을 하나의 축으로 본다. */
+export type EmotionalStabilityLevel =
+  | 'very_stable'
+  | 'mostly_stable'
+  | 'slightly_shaken'
+  | 'quite_shaken'
+  | 'mostly_shaken'
+
+/** 두드러진 감정(복수 선택). 안정감과 상호배타가 아니다. */
+export type EmotionCode =
+  | 'sensitive'
+  | 'irritated'
+  | 'angry'
+  | 'anxious'
+  | 'down'
+  | 'tearful'
+  | 'lethargic'
+  | 'other'
+
+/** 두드러진 감정이 하루에 준 영향 정도(감정을 하나 이상 고른 날에만). */
+export type EmotionImpactLevel = 'passing' | 'brief' | 'repeated' | 'most_day'
+
+/** 집중 가능 정도(단일 선택). */
+export type FocusLevel = 'well' | 'mostly' | 'often_scattered' | 'rarely'
+
+/** 사람을 대할 여유(단일 선택). 사회 피로/혼자 있음과 다른 '현재 상태' 축. */
+export type SocialCapacityLevel = 'enough' | 'okay' | 'low' | 'rarely'
+
 /* ---------------------------------------------------------------------
    1) dailyLogs — 하루 상태 (강도값 0~10). 하루 1행(date unique).
    --------------------------------------------------------------------- */
@@ -175,6 +203,15 @@ export interface DailyLog {
   /** 구체적인 몸 신호와 평소 리듬 예외(비인덱스 optional). */
   bodySignalCodes?: BodySignalCode[]
   rhythmExceptionCodes?: RhythmExceptionCode[]
+  /**
+   * 감정 안정감·두드러진 감정·영향 정도·집중력·사람 대할 여유 직접 입력
+   * (비인덱스 optional — 스키마/인덱스 변경 없음). 옛 stateCodes와 의미를 합치지 않는다.
+   */
+  emotionalStabilityLevel?: EmotionalStabilityLevel
+  emotionCodes?: EmotionCode[]
+  emotionImpactLevel?: EmotionImpactLevel
+  focusLevel?: FocusLevel
+  socialCapacityLevel?: SocialCapacityLevel
   createdAt: string
   updatedAt: string
 }

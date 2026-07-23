@@ -27,6 +27,7 @@ import {
 import { intensityValue } from '../catalog/intensity'
 import { buildStateNumericFields, inferStateCodes } from '../catalog/statePresets'
 import { bodyEnergyValue, mentalSpaceFocus } from '../catalog/dailyCheckIn'
+import { emotionNumericFields, focusLevelValue, legacyStateCodesToEmotion } from '../catalog/emotionInput'
 import { recalculateDailyScore } from './dailyScoreService'
 import type {
   AppetiteRatings,
@@ -35,10 +36,14 @@ import type {
   CycleLogInput,
   DayContextCode,
   DailyLogInput,
+  EmotionalStabilityLevel,
+  EmotionCode,
+  EmotionImpactLevel,
   EventLogCategory,
   EventLogInput,
   EventTiming,
   FlowLevel,
+  FocusLevel,
   EventRelationToShift,
   FunctionLevel,
   ISODate,
@@ -46,6 +51,7 @@ import type {
   MentalSpaceLevel,
   RecoveryEffectValue,
   RhythmExceptionCode,
+  SocialCapacityLevel,
   RecoveryLogInput,
 } from '../models'
 
@@ -99,6 +105,13 @@ export interface DailyEntryDraft {
   /** 구체적인 몸 신호와 평소 리듬 예외. */
   bodySignalCodes: BodySignalCode[]
   rhythmExceptionCodes: RhythmExceptionCode[]
+  /** 감정 안정감·두드러진 감정·영향 정도(감정 있을 때만). */
+  emotionalStabilityLevel?: EmotionalStabilityLevel
+  emotionCodes: EmotionCode[]
+  emotionImpactLevel?: EmotionImpactLevel
+  /** 집중 가능 정도·사람을 대할 여유(직접 입력). */
+  focusLevel?: FocusLevel
+  socialCapacityLevel?: SocialCapacityLevel
   cycle: CycleDraft
   /** "도움 된 것" 회복 행동. */
   recoveryCodes: string[]
@@ -168,6 +181,7 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
     appetiteRatings: {},
     bodySignalCodes: [],
     rhythmExceptionCodes: [],
+    emotionCodes: [],
     cycle: emptyCycleDraft(),
     recoveryCodes: [],
     recoveryNegativeCodes: [],
@@ -200,11 +214,29 @@ export function deriveRelationToShift(
    --------------------------------------------------------------------- */
 
 function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
-  const n = buildStateNumericFields(draft.stateCodes, draft.overallIntensity)
+  // 기본 숫자값 = 옛 stateCodes preset(신규 기록은 비어 있음).
+  // 새 감정 입력이 있으면 감정 관련 필드를 덮어써 최신 입력을 반영한다(공식 불변).
+  // 단, 옛 기록을 열어 감정 UI를 건드리지 않았다면(복원값 그대로) preset 숫자를 그대로 둔다
+  // → 재저장 시 옛 상태값이 감정 매핑으로 다시 계산되어 사라지지 않게 한다.
+  const base = buildStateNumericFields(draft.stateCodes, draft.overallIntensity)
+  const legacyEmotion = legacyStateCodesToEmotion(draft.stateCodes)
+  const sameEmotionCodes = (a: EmotionCode[], b: EmotionCode[]) =>
+    a.length === b.length && a.every((c) => b.includes(c))
+  const emotionUntouched =
+    draft.stateCodes.length > 0 &&
+    draft.emotionalStabilityLevel === legacyEmotion.emotionalStabilityLevel &&
+    draft.emotionImpactLevel == null &&
+    sameEmotionCodes(draft.emotionCodes, legacyEmotion.emotionCodes)
+  const emo = emotionUntouched
+    ? undefined
+    : emotionNumericFields(draft.emotionalStabilityLevel, draft.emotionCodes, draft.emotionImpactLevel)
+  const n: Record<string, number> = { ...base }
+  if (emo) for (const [k, v] of Object.entries(emo)) if (v != null) n[k] = v
   const memo = draft.memo.trim()
   const ar = draft.appetiteRatings ?? {}
   const directEnergy = bodyEnergyValue(draft.bodyEnergyLevel)
-  const directFocus = mentalSpaceFocus(draft.mentalSpaceLevel)
+  // 집중력 직접 입력이 우선, 없으면 머릿속 여유, 그다음 preset.
+  const directFocus = focusLevelValue(draft.focusLevel) ?? mentalSpaceFocus(draft.mentalSpaceLevel)
   const bodySignalCodes = draft.bodySignalCodes ?? []
   const rhythmExceptionCodes = draft.rhythmExceptionCodes ?? []
   // 식욕 상태 직접 입력값이 있으면 preset보다 우선 (spec 우선순위)
@@ -252,6 +284,11 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     dayContext: draft.dayContext,
     bodySignalCodes: bodySignalCodes.length > 0 ? [...bodySignalCodes] : undefined,
     rhythmExceptionCodes: rhythmExceptionCodes.length > 0 ? [...rhythmExceptionCodes] : undefined,
+    emotionalStabilityLevel: draft.emotionalStabilityLevel,
+    emotionCodes: draft.emotionCodes.length > 0 ? [...draft.emotionCodes] : undefined,
+    emotionImpactLevel: draft.emotionCodes.length > 0 ? draft.emotionImpactLevel : undefined,
+    focusLevel: draft.focusLevel,
+    socialCapacityLevel: draft.socialCapacityLevel,
   }
 }
 
@@ -392,6 +429,18 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
   const cycle = cycles[0]
   // 상태 칩 복원: 저장된 메타데이터 우선, 없으면(옛 기록) 숫자값에서 역추론.
   const stateCodes = dailyLog?.stateCodes ?? (dailyLog ? inferStateCodes(dailyLog) : [])
+  // 감정/집중/사회 여유 복원: 새 필드가 있으면 그대로, 없으면 옛 stateCodes에서 가능한 값만.
+  const hasNewEmotion =
+    dailyLog?.emotionalStabilityLevel != null ||
+    (dailyLog?.emotionCodes?.length ?? 0) > 0 ||
+    dailyLog?.focusLevel != null ||
+    dailyLog?.socialCapacityLevel != null
+  const legacyEmotion = legacyStateCodesToEmotion(stateCodes)
+  const emotionalStabilityLevel = hasNewEmotion ? dailyLog?.emotionalStabilityLevel : legacyEmotion.emotionalStabilityLevel
+  const emotionCodes = hasNewEmotion ? [...(dailyLog?.emotionCodes ?? [])] : legacyEmotion.emotionCodes
+  const emotionImpactLevel = hasNewEmotion ? dailyLog?.emotionImpactLevel : undefined
+  const focusLevel = dailyLog?.focusLevel ?? (hasNewEmotion ? undefined : legacyEmotion.focusLevel)
+  const socialCapacityLevel = dailyLog?.socialCapacityLevel ?? (hasNewEmotion ? undefined : legacyEmotion.socialCapacityLevel)
   const overallIntensity = (dailyLog?.overallIntensity as IntensityCode) ?? 'some'
   const appetiteRatings: AppetiteRatings = dailyLog?.appetiteRatings ? { ...dailyLog.appetiteRatings } : {}
   // 회복 방향 분리 (direction 없는 옛 기록은 positive로 간주)
@@ -422,6 +471,11 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
     dayContext: dailyLog?.dayContext,
     bodySignalCodes: [...(dailyLog?.bodySignalCodes ?? [])],
     rhythmExceptionCodes: [...(dailyLog?.rhythmExceptionCodes ?? [])],
+    emotionalStabilityLevel,
+    emotionCodes,
+    emotionImpactLevel,
+    focusLevel,
+    socialCapacityLevel,
     cycle: cycle
       ? {
           periodStart: cycle.periodStart,
