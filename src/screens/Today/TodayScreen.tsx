@@ -224,19 +224,7 @@ function FilledToday({
         ]}
       />
 
-      {/* 내일 참고 (가벼운 참고 — 예측 확정 아님) */}
-      {tomorrow && (
-        <GlassCard tint="sky">
-          <SectionHeader title="내일 참고" subtitle={`참고도 ${tomorrow.confidence}`} />
-          <p className="tmrw-line">
-            내일은 <b>{tomorrow.label}</b> 가능성이 있어요{tomorrow.subLabel ? ` · ${tomorrow.subLabel}` : ''}.
-          </p>
-          <p className="tmrw-hint">{tomorrow.planHint}</p>
-          <p className="tmrw-note">{getToneCopy(tone, 'reference')}</p>
-        </GlassCard>
-      )}
-
-      {/* 오늘 도움이 될 수 있는 것 (효과 후보 기반) */}
+      {/* 오늘 도움이 될 수 있는 것 (효과 후보 기반 — 바로 할 수 있는 행동은 위로) */}
       <GlassCard tint="mint">
         <SectionHeader title="오늘 도움이 될 수 있는 것" subtitle="최근 기록상 비슷한 날에 도움이 된 편이에요" star />
         {recs.length > 0 ? (
@@ -251,6 +239,18 @@ function FilledToday({
           <p className="today-rec-empty">회복 행동 기록이 쌓이면 오늘 도움이 될 수 있는 행동을 추천해볼게요.</p>
         )}
       </GlassCard>
+
+      {/* 최근 변화 신호: 내일 참고 (가벼운 참고 — 예측 확정 아님) */}
+      {tomorrow && (
+        <GlassCard tint="sky">
+          <SectionHeader title="내일 참고" subtitle={`참고도 ${tomorrow.confidence}`} />
+          <p className="tmrw-line">
+            내일은 <b>{tomorrow.label}</b> 가능성이 있어요{tomorrow.subLabel ? ` · ${tomorrow.subLabel}` : ''}.
+          </p>
+          <p className="tmrw-hint">{tomorrow.planHint}</p>
+          <p className="tmrw-note">{getToneCopy(tone, 'reference')}</p>
+        </GlassCard>
+      )}
 
       {/* 오늘 기록된 회복 행동 (있을 때만, 추천과 별개) */}
       {recordedRecovery.length > 0 && (
