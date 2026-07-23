@@ -168,21 +168,62 @@ const FLOW_STATE_LABEL: Record<FlowState, string> = {
   mixed: '혼재',
 }
 
+/** 주기는 원형이라 표시용으로만 stable부터 회전(내부 sequence·currentMatch는 그대로). */
+function rotateToStable(seq: FlowState[]): FlowState[] {
+  const i = seq.indexOf('stable')
+  return i <= 0 ? seq : [...seq.slice(i), ...seq.slice(0, i)]
+}
+
 /**
- * 개인 반복 흐름 카드 문장(1~2문장). 신뢰도 숫자·근거 횟수·"추정"·다음 주기 날짜·
- * 예측은 넣지 않는다. 기간 범위와 현재 위치(맞을 때만)만 담담하게.
+ * 개인 반복 흐름 카드 문장. 주기의 절대 시작점을 단정하지 않는다(다음 상태/날짜 예측 없음,
+ * 신뢰도·근거 횟수 없음). 같은 상태가 두 번 나오면 화살표 대신 자연스럽게 설명한다.
+ * 현재 위치는 내부 currentMatch의 실제 상태를 그대로 쓴다.
+ * 역할: "최근 흐름"은 최근 며칠의 변화, "나의 반복 흐름"은 장기간 반복된 큰 구조.
  */
 export function personalRhythmSentence(r: PersonalRhythm): string[] {
-  const seq = r.sequence.map((s) => FLOW_STATE_LABEL[s]).join(' → ')
-  const lenClause =
+  const seq = r.sequence
+  const distinct = [...new Set(seq)]
+  const out: string[] = []
+
+  if (seq.length === distinct.length) {
+    // 서로 다른 상태만 → 화살표(보기 편하게 stable부터 회전)
+    const disp = rotateToStable(seq).map((s) => FLOW_STATE_LABEL[s])
+    out.push(`최근 기록에서는 ${disp.join(' → ')} 흐름이 반복됐어요.`)
+  } else {
+    // 같은 상태가 반복(구분자) → 자연스럽게 설명. 구분자=가장 자주 반복(동률이면 stable).
+    const count = new Map<FlowState, number>()
+    for (const s of seq) count.set(s, (count.get(s) ?? 0) + 1)
+    let sep = distinct[0]
+    let bestN = -1
+    for (const s of distinct) {
+      const c = count.get(s) ?? 0
+      if (c > bestN || (c === bestN && s === 'stable')) {
+        bestN = c
+        sep = s
+      }
+    }
+    const others: FlowState[] = []
+    for (const s of seq) if (s !== sep && !others.includes(s)) others.push(s)
+    const sepPhrase = sep === 'stable' ? '안정된 기간 사이로' : `${FLOW_STATE_LABEL[sep]} 구간 사이로`
+    const othersPhrase =
+      others.length <= 1
+        ? FLOW_STATE_LABEL[others[0] ?? sep]
+        : `${gwa(FLOW_STATE_LABEL[others[0]])} ${FLOW_STATE_LABEL[others[1]]}`
+    out.push(`최근 기록에서는 ${sepPhrase} ${othersPhrase} 흐름이 반복됐어요.`)
+  }
+
+  // 기간(보조 줄). min===max면 "약 52일"(52~52일 금지), 아니면 "약 18~22일".
+  const dur =
     r.typicalLengthMin === r.typicalLengthMax
-      ? `${r.typicalLengthMin}일 안팎으로`
-      : `${r.typicalLengthMin}~${r.typicalLengthMax}일 사이로`
-  const out: string[] = [`최근 기록에서는 ${seq} 흐름이 ${lenClause} 반복됐어요.`]
+      ? `약 ${r.typicalLengthMin}일`
+      : `약 ${r.typicalLengthMin}~${r.typicalLengthMax}일`
+  out.push(`한 흐름은 ${dur} 이어졌어요.`)
+
   if (r.cycleRelated) out.push('이 흐름은 생리 주기와 함께 도는 편이에요.')
+
   if (r.currentMatch) {
-    let s = `지금은 이 흐름의 ${FLOW_STATE_LABEL[r.currentMatch.currentState]} 구간에 있어요.`
-    if (r.commonLeadingDomains.length > 0) s += ` 이전에는 ${joinDomains(r.commonLeadingDomains, iga)} 먼저 내려갔어요.`
+    let s = `지금은 반복 흐름 중 ${FLOW_STATE_LABEL[r.currentMatch.currentState]} 구간에 있어요.`
+    if (r.commonLeadingDomains.length > 0) s += ` ${joinDomains(r.commonLeadingDomains, iga)} 먼저 내려갔어요.`
     out.push(s)
   }
   return out
