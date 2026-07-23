@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { rhythmCompareSentence, cycleCompareSentence, type CycleCurvePoints } from './rhythmVoice'
+import { rhythmCompareSentence, cycleCompareSentence, personalRhythmSentence, type CycleCurvePoints } from './rhythmVoice'
 import type { WeekCompareStat } from '../../data/services/rhythmService'
+import type { PersonalRhythm } from '../../engine'
 
 /** rel→mean 맵으로 recent/previous 곡선을 만든다(빠진 rel은 undefined). */
 function curve(baseline: number, recent: Record<number, number>, previous: Record<number, number>): CycleCurvePoints {
@@ -78,5 +79,46 @@ describe('cycleCompareSentence — 주기 비교', () => {
   it('같은 날 관계에 새 인과 방향을 만들지 않음(때문에 없음)', () => {
     const c = curve(45, { ...flat(45), [-1]: 80 }, flat(45))
     expect(cycleCompareSentence('emotional', c)).not.toContain('때문에')
+  })
+})
+
+describe('personalRhythmSentence — 표시 정리 (9H)', () => {
+  const base: PersonalRhythm = {
+    sequence: ['depleting', 'stable', 'recovering', 'stable'],
+    occurrenceCount: 3,
+    typicalLengthMin: 52,
+    typicalLengthMax: 52,
+    currentMatch: { matchedStates: ['depleting'], currentState: 'depleting', daysInCurrentFlow: 4 },
+    commonLeadingDomains: ['sleep', 'body'],
+    commonDrivers: [],
+    cycleRelated: false,
+  }
+
+  it('내부 depleting 시작이어도 표시는 안정 중심으로 자연스럽게', () => {
+    const lines = personalRhythmSentence(base)
+    expect(lines[0]).toBe('최근 기록에서는 안정된 기간을 사이에 두고 소모와 회복 흐름이 반복됐어요.')
+    expect(lines[0]).not.toMatch(/^최근 기록에서는 소모/) // 소모를 시작점처럼 보이지 않음
+  })
+
+  it('min===max면 52~52일이 아니라 약 52일', () => {
+    const lines = personalRhythmSentence(base)
+    expect(lines.some((l) => l.includes('한 흐름은 약 52일 이어졌어요.'))).toBe(true)
+    expect(lines.join(' ')).not.toContain('52~52')
+  })
+
+  it('currentMatch 문장은 내부 현재 상태(소모)를 그대로 유지', () => {
+    const lines = personalRhythmSentence(base)
+    expect(lines.some((l) => l.includes('지금은 반복 흐름 중 소모 구간에 있어요'))).toBe(true)
+    expect(lines.some((l) => l.includes('수면과 몸 상태가 먼저 내려갔어요'))).toBe(true)
+  })
+
+  it('서로 다른 상태만이면 화살표(안정부터 회전)', () => {
+    const r: PersonalRhythm = { ...base, sequence: ['depleting', 'recovering', 'stable'], currentMatch: null }
+    expect(personalRhythmSentence(r)[0]).toBe('최근 기록에서는 안정 → 소모 → 회복 흐름이 반복됐어요.')
+  })
+
+  it('기간 차이가 작으면 약 18~22일', () => {
+    const r: PersonalRhythm = { ...base, typicalLengthMin: 18, typicalLengthMax: 22, currentMatch: null }
+    expect(personalRhythmSentence(r).some((l) => l.includes('약 18~22일'))).toBe(true)
   })
 })

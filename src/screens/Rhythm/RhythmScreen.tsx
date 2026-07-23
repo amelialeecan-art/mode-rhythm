@@ -3,15 +3,16 @@ import { GlassCard, SectionHeader, RhythmChart, type RhythmSeries } from '../../
 import {
   getRhythmViewModel,
   getCycleCompareViewModel,
+  getRecentFlow,
+  getPersonalRhythm,
   type RhythmViewModel,
   type CycleCompareViewModel,
   type RhythmMetric,
   type CyclePhase,
 } from '../../data/services/rhythmService'
-import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
-import { rhythmCompareSentence, cycleCompareSentence } from './rhythmVoice'
+import type { RecentFlow, PersonalRhythm } from '../../engine'
+import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence } from './rhythmVoice'
 import { CycleCompareChart } from './CycleCompareChart'
-import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import './rhythm.css'
 
 const RANGES = [
@@ -48,7 +49,8 @@ export function RhythmScreen() {
   const [metric, setMetric] = useState<RhythmMetric>('emotional')
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
   const [cycleVm, setCycleVm] = useState<CycleCompareViewModel | null>(null)
-  const [checkpoint, setCheckpoint] = useState<CheckpointCard | null>(null)
+  const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
+  const [personalRhythm, setPersonalRhythm] = useState<PersonalRhythm | null>(null)
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
@@ -71,8 +73,11 @@ export function RhythmScreen() {
 
   useEffect(() => {
     let cancelled = false
-    void getCheckpointSignals().then((s) => {
-      if (!cancelled) setCheckpoint(buildCheckpoint(s))
+    void getRecentFlow().then((f) => {
+      if (!cancelled) setRecentFlow(f)
+    })
+    void getPersonalRhythm().then((p) => {
+      if (!cancelled) setPersonalRhythm(p)
     })
     return () => {
       cancelled = true
@@ -171,6 +176,27 @@ export function RhythmScreen() {
             </GlassCard>
           ) : (
             <>
+              {/* 최근 며칠의 현재 변화 */}
+              {recentFlow && (
+                <GlassCard tint="mint">
+                  <SectionHeader title="최근 흐름" />
+                  <p className="rhythm-flow">{recentFlowSentence(recentFlow)}</p>
+                </GlassCard>
+              )}
+
+              {/* 월을 넘는 장기 반복 구조 (최근 흐름과 역할 분리) */}
+              {personalRhythm && (
+                <GlassCard tint="lav">
+                  <SectionHeader title="나의 반복 흐름" />
+                  {personalRhythmSentence(personalRhythm).map((s, i) => (
+                    <p className="rhythm-flow" key={i}>
+                      {s}
+                    </p>
+                  ))}
+                </GlassCard>
+              )}
+
+              {/* 장기 그래프 */}
               <GlassCard>
                 <RhythmChart
                   count={vm.buckets.length}
@@ -203,17 +229,6 @@ export function RhythmScreen() {
                   </details>
                 )}
               </GlassCard>
-
-              {checkpoint && (
-                <GlassCard tint="sky">
-                  <SectionHeader title="다가오는 체크포인트" />
-                  {checkpoint.sentences.map((s, i) => (
-                    <p className="cp-say" key={i}>
-                      {s}
-                    </p>
-                  ))}
-                </GlassCard>
-              )}
             </>
           )}
         </>

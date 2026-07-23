@@ -39,9 +39,19 @@ import {
   backtestEarlyWarning,
   compareSimilarEpisodeRecovery,
   buildEventResponse,
+  buildExposureRuns,
+  exposureKey,
+  cumulativeExposureEffect,
+  overlapDays,
+  buildFlowSegments,
+  buildFlowDrivers,
   EVIDENCE_LEVEL_LABEL,
   ANALYSIS_METRIC_LABEL,
   type AnalysisDataset,
+  type ExposureInput,
+  type ExposureRun,
+  type RecentFlowDay,
+  type FlowDomain,
   type AnalysisMetric,
   type EffectWindow,
   type EvidenceLevel,
@@ -73,6 +83,7 @@ import type { DailyLog, DailyScore, EventLog, ISODate, PatternInsight, PatternIn
 const ANALYSIS_DAYS = 60
 const BASELINE_DAYS = 30
 const FACTOR_LOOKBACK = 7 // 시간창 분석용 사전 7일 사건 데이터
+const FLOW_DRIVER_DAYS = 180 // 반복 선행 요인은 여러 소모 구간이 필요 → 더 넓은 기록 창
 
 // 분석 단계 임계 (유효 결과일 수 기준)
 const FACTOR_MIN_DAYS = 30 // factor 카드 노출 시작
@@ -130,13 +141,36 @@ export function analysisStageFor(validDays: number): AnalysisStage {
  * 사건의 "정확한 발생 추정일". timing을 보수적으로 처리한다.
  * - today: 저장 날짜
  * - yesterday: 저장 날짜 - 1일
+ * - exact: 사용자가 고른 정확한 발생일(occurredOn). 없으면 저장 날짜로 대체.
  * - recent3days/recent7days: 정확한 날짜가 없어 정밀 factor/combo 분석에서 제외(null).
  *   (여러 날짜로 복제하지 않는다 — 원본 기록과 eventLoad/일일 표시에서는 그대로 사용)
  */
-export function eventOccurrenceDate(timing: string, date: ISODate): ISODate | null {
+export function eventOccurrenceDate(timing: string, date: ISODate, occurredOn?: ISODate): ISODate | null {
   if (timing === 'today') return date
   if (timing === 'yesterday') return addDaysISO(date, -1)
+  if (timing === 'exact') return occurredOn ?? date
   return null
+}
+
+/**
+ * 사건 로그를 사건 식별(key)별 노출 구간으로. 발생일=정확 추정일, 회복성/지난밤 수면 제외.
+ * 누적 노출·흐름 요인·개인 반복 흐름 분석에서 공유한다(중복 구현 방지).
+ */
+export function eventsToExposureRuns(events: EventLog[]): { runs: ExposureRun[]; labelByKey: Map<string, string> } {
+  const inputs: ExposureInput[] = []
+  const labelByKey = new Map<string, string>()
+  for (const e of events) {
+    if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
+    if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
+    const occ = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
+    if (occ === null) continue
+    const label = e.customLabel ?? e.eventLabel
+    const input: ExposureInput = { date: occ, factorGroup: e.mappedFactorGroup, eventCode: e.eventCode, isCustom: e.isCustom, label }
+    inputs.push(input)
+    const key = exposureKey(input)
+    if (!labelByKey.has(key)) labelByKey.set(key, label)
+  }
+  return { runs: buildExposureRuns(inputs), labelByKey }
 }
 
 export interface AnalysisOptions {
@@ -169,6 +203,47 @@ export interface FactorPatternCard {
   message: string
   /** 사건 전후 변화 곡선(0일 정렬 평균 + 평소 기준선). 표본 부족이면 eligible=false. */
   response: EventResponseCurve
+}
+
+/**
+ * 누적 노출 카드 — 같은 사건이 하루일 때보다 2일 이상 이어졌을 때 결과가 더 큰지.
+ * (이번 단계는 ViewModel/engine 결과까지만. UI 문구·신뢰도 숫자는 붙이지 않는다.)
+ */
+export interface CumulativeExposureCard {
+  factorGroup: string
+  /** 사건 식별 키(같은 group이라도 사건이 다르면 별도). */
+  key: string
+  title: string
+  metric: AnalysisMetric
+  metricLabel: string
+  /** 하루 노출 결과 평균. */
+  singleMean: number
+  /** 2일↑ 연속 노출 결과 평균. */
+  multiMean: number
+  /** multiMean - singleMean. */
+  effectSize: number
+  totalRuns: number
+  multiRuns: number
+  /** 다른 사건 구간과 겹친 날 수(겹침이 많을수록 해석 주의 — overlap penalty 참고). */
+  overlapDays: number
+}
+
+/**
+ * 흐름을 바꾼 누적 요인 카드 — 소모 흐름 시작 전에 반복해 쌓인 사건.
+ * onsetCount/comparisonCount/typicalLeadDays는 근거 수치라 화면에 표시하지 않는다(문장만).
+ */
+export interface FlowDriverCard {
+  eventKey: string
+  factorGroup: string
+  label: string
+  affectedDomains: FlowDomain[]
+  /** 2일↑ 연속 노출이 주로 관여했는지(문장 "이어진 뒤"용). */
+  cumulative: boolean
+  /** 반복해 함께 겹친 다른 사건 문구(있으면 "~와 겹친 뒤"). */
+  overlapLabels: string[]
+  onsetCount: number
+  comparisonCount: number
+  typicalLeadDays: number
 }
 
 /** 분석 화면 combo(같이 겹친 기록) 카드. */
@@ -565,6 +640,10 @@ export interface AnalysisViewModel {
   eventFrequency: FrequencyItem[]
   /** 유효 30일↑에서만 채워짐. */
   factorPatterns: FactorPatternCard[]
+  /** 같은 사건이 며칠 이어졌을 때 결과가 더 큰지(누적 노출). 유효 30일↑ + 반복 근거 충분 시에만. */
+  cumulativeExposures: CumulativeExposureCard[]
+  /** 소모 흐름 시작 전에 반복해 쌓인 사건(최대 2). 결과 없으면 빈 배열(섹션 숨김). */
+  flowDrivers: FlowDriverCard[]
   timeWindowHighlight: { message: string } | null
   /** 유효 45일↑에서만 채워짐. */
   combos: ComboCard[]
@@ -676,8 +755,8 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     // 지난밤 수면 코드는 아래 canonical 수면 노출(adapter)에서 단일 출처로 처리 → 여기선 건너뜀
     if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
 
-    // timing 보수 처리: today=당일, yesterday=전날, recent3/7days=정밀 분석 제외
-    const occDate = eventOccurrenceDate(e.timing, e.date)
+    // timing 보수 처리: today=당일, yesterday=전날, exact=발생일, recent3/7days=정밀 분석 제외
+    const occDate = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
     if (occDate === null) continue
 
     addFactor(occDate, e.mappedFactorGroup)
@@ -746,6 +825,13 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     .sort((a, b) => b.count - a.count)
     .slice(0, 6)
 
+  // 날짜→metric 값 맵(기록된 날만). factor 전후 곡선·누적 노출 분석에서 공유.
+  const metricMapOf = (metric: AnalysisMetric): Map<ISODate, number> => {
+    const m = new Map<ISODate, number>()
+    for (const [d, v] of scoreByDate) m.set(d, v[metric])
+    return m
+  }
+
   // ---- 요인 패턴: 유효 30일↑에서만 ----
   const factorPatterns: FactorPatternCard[] = []
   if (validOutcomeDayCount >= FACTOR_MIN_DAYS) {
@@ -766,12 +852,6 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       if (best) raw.push({ group, r: best })
     }
     raw.sort((a, b) => (b.r?.confidence ?? 0) - (a.r?.confidence ?? 0))
-    // 사건 전후 곡선용: 날짜→metric 값 맵(기록된 날만)
-    const metricMapOf = (metric: AnalysisMetric): Map<ISODate, number> => {
-      const m = new Map<ISODate, number>()
-      for (const [d, v] of scoreByDate) m.set(d, v[metric])
-      return m
-    }
     const occurrenceDatesOf = (group: string): ISODate[] => {
       const out: ISODate[] = []
       for (const [d, set] of factorByDate) if (set.has(group)) out.push(d)
@@ -807,6 +887,88 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     }
   }
   const topFactors = factorPatterns.slice(0, 8)
+
+  // 누적 노출은 분석 창(60일)의 사건으로.
+  const { runs: exposureRuns } = eventsToExposureRuns(events)
+
+  // ---- 누적 노출 패턴: 같은 사건이 하루일 때보다 2일↑ 이어졌을 때 결과가 더 큰지 ----
+  // 기존 factorGroup 기반 패턴(factorPatterns)은 그대로 두고 이 결과만 추가한다.
+  const cumulativeExposures: CumulativeExposureCard[] = []
+  if (validOutcomeDayCount >= FACTOR_MIN_DAYS) {
+    const runsByKey = new Map<string, ExposureRun[]>()
+    for (const r of exposureRuns) {
+      const arr = runsByKey.get(r.key)
+      if (arr) arr.push(r)
+      else runsByKey.set(r.key, [r])
+    }
+    for (const [key, keyRuns] of runsByKey) {
+      const group = keyRuns[0].factorGroup
+      // 여러 지표 중 "이어질수록 더 커진" 효과가 가장 큰 지표를 고른다(자명/순환 지표 제외).
+      let best: { metric: AnalysisMetric; stat: NonNullable<ReturnType<typeof cumulativeExposureEffect>> } | null = null
+      for (const metric of FACTOR_METRICS) {
+        if (isSelfDomain(group, metric)) continue
+        const stat = cumulativeExposureEffect(keyRuns, metricMapOf(metric), MIN_FACTOR_EFFECT)
+        if (stat && (!best || stat.effectSize > best.stat.effectSize)) best = { metric, stat }
+      }
+      if (!best) continue
+      // 다른 사건 구간과 겹친 날 수(겹침이 많으면 해석 주의 — 기존 overlap penalty와 같은 취지).
+      let overlap = 0
+      for (const kr of keyRuns) for (const other of exposureRuns) if (other.key !== key) overlap += overlapDays(kr, other)
+      cumulativeExposures.push({
+        factorGroup: group,
+        key,
+        title: groupTitle(group),
+        metric: best.metric,
+        metricLabel: ANALYSIS_METRIC_LABEL[best.metric],
+        singleMean: best.stat.singleMean,
+        multiMean: best.stat.multiMean,
+        effectSize: best.stat.effectSize,
+        totalRuns: best.stat.totalRuns,
+        multiRuns: best.stat.multiRuns,
+        overlapDays: overlap,
+      })
+    }
+    cumulativeExposures.sort((a, b) => b.effectSize - a.effectSize)
+  }
+
+  // ---- 흐름을 바꾼 누적 요인: 소모 흐름 시작 전에 반복해 쌓인 사건 ----
+  // 반복 선행 요인은 여러 소모 구간이 필요해 분석 창(60일)보다 넓은 기록을 본다.
+  const flowDrivers: FlowDriverCard[] = []
+  if (validOutcomeDayCount >= FACTOR_MIN_DAYS) {
+    const driverStart = addDaysISO(endDate, -(FLOW_DRIVER_DAYS - 1))
+    const [driverScores, driverLogs, driverEvents] = await Promise.all([
+      dailyScoreRepository.listByDateRange(driverStart, endDate),
+      dailyLogRepository.listByDateRange(driverStart, endDate),
+      eventLogRepository.listByDateRange(addDaysISO(driverStart, -FACTOR_LOOKBACK), endDate),
+    ])
+    const driverLogByDate = new Map<ISODate, DailyLog>(driverLogs.map((l) => [l.date, l]))
+    const flowDays: RecentFlowDay[] = driverScores
+      .filter((s) => s.date <= endDate)
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
+      .map((s) => ({
+        date: s.date,
+        emotional: s.emotionalLoad,
+        appetite: s.appetiteLoad,
+        sleep: s.sleepLoad,
+        body: s.bodyLoad,
+        functionLevel: driverLogByDate.get(s.date)?.functionLevel,
+      }))
+    const segments = buildFlowSegments(flowDays)
+    const { runs: driverRuns, labelByKey: driverLabels } = eventsToExposureRuns(driverEvents)
+    for (const dr of buildFlowDrivers(segments, driverRuns, driverLabels)) {
+      flowDrivers.push({
+        eventKey: dr.eventKey,
+        factorGroup: dr.factorGroup,
+        label: dr.label,
+        affectedDomains: dr.affectedDomains,
+        cumulative: dr.cumulative,
+        overlapLabels: dr.overlapEventKeys.map((k) => driverLabels.get(k) ?? k),
+        onsetCount: dr.onsetCount,
+        comparisonCount: dr.comparisonCount,
+        typicalLeadDays: dr.typicalLeadDays,
+      })
+    }
+  }
 
   // ---- 같이 겹친 기록(combo): 유효 45일↑에서만 ----
   const combos: ComboCard[] = []
@@ -982,7 +1144,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   for (const e of events) {
     if (RECOVERY_LIKE_FACTOR_GROUPS.has(e.mappedFactorGroup)) continue
     if (LAST_NIGHT_SLEEP_CODES.has(e.eventCode)) continue
-    const occ = eventOccurrenceDate(e.timing, e.date)
+    const occ = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
     if (occ === null) continue
     episodeEvents.push({
       date: occ,
@@ -1050,6 +1212,8 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
     daysUntilComparison,
     eventFrequency,
     factorPatterns: topFactors,
+    cumulativeExposures,
+    flowDrivers,
     timeWindowHighlight,
     combos,
     unexplained,

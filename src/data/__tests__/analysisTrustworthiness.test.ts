@@ -127,11 +127,24 @@ describe('사건 timing 보수 처리 (15~18)', () => {
     expect(eventOccurrenceDate('recent3days', '2026-08-10')).toBeNull()
     expect(eventOccurrenceDate('recent7days', '2026-08-10')).toBeNull()
   })
-  it('recent 기간 사건은 factor 후보에 나타나지 않는다', async () => {
-    // 30일 유효 + 절반 요인 이벤트지만 timing=recent3days → factor에서 제외
-    await seed(30, (i) =>
-      i % 2 === 0 ? { ...HIGH, catalogEventCodes: ['reply_stress'], eventTiming: 'recent3days' } : { ...LOW },
-    )
+  it('exact 사건은 고른 발생일을 그대로 쓴다(없으면 기록 날짜)', () => {
+    expect(eventOccurrenceDate('exact', '2026-08-10', '2026-08-05')).toBe('2026-08-05')
+    expect(eventOccurrenceDate('exact', '2026-08-10')).toBe('2026-08-10')
+  })
+  it('옛 recent 기간 기록은 정밀 분석(factor)에서 제외된다 (읽기 호환)', async () => {
+    // 새 입력은 recent를 만들지 않는다. 옛 형식(recent3days) 사건을 raw로 주입해
+    // 읽기 호환에서 여전히 factor 후보에서 빠지는지 확인한다.
+    await seed(30, (i) => (i % 2 === 0 ? { ...HIGH } : { ...LOW }))
+    const start = addDaysISO(END, -29)
+    const raw = []
+    for (let i = 0; i < 30; i += 2) {
+      raw.push({
+        date: addDaysISO(start, i), eventCode: 'reply_stress', eventLabel: '연락/답장 때문에 신경 쓰였음',
+        category: 'relationship' as const, timing: 'recent3days' as const, intensity: 6, isCustom: false,
+        mappedFactorGroup: 'reply_stress', createdAt: new Date().toISOString(),
+      })
+    }
+    await db.eventLogs.bulkAdd(raw)
     const vm = await getAnalysisViewModel({ endDate: END })
     expect(vm.factorPatterns.find((f) => f.factorGroup === 'reply_stress')).toBeUndefined()
   }, 30000)

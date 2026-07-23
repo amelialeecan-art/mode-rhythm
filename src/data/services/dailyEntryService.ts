@@ -76,7 +76,7 @@ export interface DailyEntryDraft {
   stateCodes: string[]
   /** 상태 preset에 적용할 전체 강도. */
   overallIntensity: IntensityCode
-  /** 카탈로그 사건에 공통 적용할 시점/강도. */
+  /** 카탈로그 사건에 공통 적용할 시점/강도. (발생일은 항상 기록 날짜와 같다.) */
   eventTiming: EventTiming
   eventIntensity: IntensityCode
   /** 선택된 카탈로그 사건 코드들. */
@@ -243,6 +243,8 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
   const relationFor = (timing: EventTiming, code: string): EventRelationToShift | undefined =>
     detail && timing === 'today' ? deriveRelationToShift(code, draft.eventRelationBefore, draft.eventRelationAfter) : undefined
 
+  // 사건 발생일은 항상 이 기록의 날짜(draft.date)와 같다 → timing='today'로 저장한다.
+  // (별도 발생일/지속기간 입력 없음. 옛 기록의 timing/occurredOn/durationDays는 읽기 호환으로 보존.)
   const catalogEvents: EventLogInput[] = codes
     .map((code) => EVENT_CATALOG.find((e) => e.code === code))
     .filter((e): e is (typeof EVENT_CATALOG)[number] => e != null)
@@ -251,11 +253,11 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
       eventCode: e.code,
       eventLabel: e.label,
       category: e.category, // EventCategory ⊂ EventLogCategory (custom 제외)
-      timing: draft.eventTiming,
+      timing: 'today',
       intensity: intensityValue(draft.eventIntensity),
       isCustom: false,
       mappedFactorGroup: e.factorGroup,
-      relationToShift: relationFor(draft.eventTiming, e.code),
+      relationToShift: relationFor('today', e.code),
     }))
 
   const customEvents: EventLogInput[] = draft.customEvents.map((c) => ({
@@ -263,12 +265,12 @@ function buildEventInputs(draft: DailyEntryDraft): EventLogInput[] {
     eventCode: c.eventCode,
     eventLabel: c.eventLabel,
     category: c.category,
-    timing: c.timing,
+    timing: 'today',
     intensity: c.intensity,
     isCustom: true,
     customLabel: c.customLabel,
     mappedFactorGroup: c.mappedFactorGroup,
-    relationToShift: relationFor(c.timing, c.eventCode),
+    relationToShift: relationFor('today', c.eventCode),
   }))
 
   return [...catalogEvents, ...customEvents]

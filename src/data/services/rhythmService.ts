@@ -6,18 +6,28 @@
    scoring/점수 공식은 건드리지 않는다 — 표시용 집계만.
    ===================================================================== */
 import { dailyScoreRepository } from '../repositories/dailyScoreRepository'
+import { dailyLogRepository } from '../repositories/dailyLogRepository'
 import { cycleLogRepository } from '../repositories/cycleLogRepository'
+import { eventLogRepository } from '../repositories/eventLogRepository'
 import { userSettingsRepository } from '../repositories/userSettingsRepository'
 import {
   addDaysISO,
   buildCycleContext,
   buildCycleCompare,
+  buildRecentFlow,
+  buildFlowSegments,
+  buildFlowDrivers,
+  buildPersonalRhythm,
   CYCLE_BEFORE,
   CYCLE_AFTER,
   MIN_PERIOD_STARTS,
   MIN_COMPARE_CYCLES,
   type CyclePoint,
+  type RecentFlow,
+  type RecentFlowDay,
+  type PersonalRhythm,
 } from '../../engine'
+import { eventsToExposureRuns } from './patternAnalysisService'
 import { getTodayISODate } from '../../lib/date'
 import type { CycleLog, DailyScore, ISODate } from '../models'
 
@@ -340,4 +350,78 @@ export async function getCycleCompareViewModel(opts: RhythmOptions = {}): Promis
     relMax: CYCLE_AFTER,
     byMetric,
   }
+}
+
+/* =====================================================================
+   최근 흐름 (9D)
+   최근 ~35일의 dailyScores(영역별 부하) + dailyLogs(생활기능)를 모아
+   engine.buildRecentFlow에 넘긴다. 판정 규칙/기준선은 engine에만 있고,
+   여기서는 데이터 조합만 한다. 표시 가능(displayable)일 때만 반환.
+   ===================================================================== */
+const RECENT_FLOW_FETCH_DAYS = 35 // 14일 창 + 개인 기준선용 여유
+
+export async function getRecentFlow(opts: { endDate?: ISODate } = {}): Promise<RecentFlow | null> {
+  const endDate = opts.endDate ?? getTodayISODate()
+  const fetchStart = addDaysISO(endDate, -(RECENT_FLOW_FETCH_DAYS - 1))
+
+  const [scores, logs] = await Promise.all([
+    dailyScoreRepository.listByDateRange(fetchStart, endDate),
+    dailyLogRepository.listByDateRange(fetchStart, endDate),
+  ])
+  const funcByDate = new Map<ISODate, number>()
+  for (const l of logs) if (l.functionLevel != null) funcByDate.set(l.date, l.functionLevel)
+
+  const dateSet = new Set<ISODate>()
+  for (const s of scores) dateSet.add(s.date)
+  for (const d of funcByDate.keys()) dateSet.add(d)
+  const scoreByDate = new Map<ISODate, DailyScore>(scores.map((s) => [s.date, s]))
+
+  const days: RecentFlowDay[] = [...dateSet].sort().map((date) => {
+    const s = scoreByDate.get(date)
+    return {
+      date,
+      emotional: s?.emotionalLoad,
+      appetite: s?.appetiteLoad,
+      sleep: s?.sleepLoad,
+      body: s?.bodyLoad,
+      functionLevel: funcByDate.get(date),
+    }
+  })
+
+  const flow = buildRecentFlow(days)
+  return flow.displayable ? flow : null
+}
+
+/* =====================================================================
+   개인 반복 흐름 (9H)
+   사용 가능한 기록 중 최대 365일로 FlowSegment를 만들어, 월/생리주기로
+   자르지 않고 상태 순서가 반복되는지 engine.buildPersonalRhythm에 넘긴다.
+   commonDrivers는 기존 flowDrivers를 재사용한다. 반복 구조 없으면 null.
+   ===================================================================== */
+const PERSONAL_RHYTHM_FETCH_DAYS = 365
+
+export async function getPersonalRhythm(opts: { endDate?: ISODate } = {}): Promise<PersonalRhythm | null> {
+  const endDate = opts.endDate ?? getTodayISODate()
+  const fetchStart = addDaysISO(endDate, -(PERSONAL_RHYTHM_FETCH_DAYS - 1))
+
+  const [scores, logs, events, cycleLogs] = await Promise.all([
+    dailyScoreRepository.listByDateRange(fetchStart, endDate),
+    dailyLogRepository.listByDateRange(fetchStart, endDate),
+    eventLogRepository.listByDateRange(fetchStart, endDate),
+    cycleLogRepository.listByDateRange(CYCLE_HISTORY_FLOOR, endDate),
+  ])
+
+  const funcByDate = new Map<ISODate, number>()
+  for (const l of logs) if (l.functionLevel != null) funcByDate.set(l.date, l.functionLevel)
+  const flowDays: RecentFlowDay[] = scores
+    .filter((s) => s.date <= endDate)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((s) => ({ date: s.date, emotional: s.emotionalLoad, appetite: s.appetiteLoad, sleep: s.sleepLoad, body: s.bodyLoad, functionLevel: funcByDate.get(s.date) }))
+
+  const segments = buildFlowSegments(flowDays)
+  const { runs, labelByKey } = eventsToExposureRuns(events)
+  const drivers = buildFlowDrivers(segments, runs, labelByKey)
+  const periodStarts = cycleLogs.filter((c) => c.periodStart).map((c) => c.date)
+
+  return buildPersonalRhythm(segments, { periodStarts, drivers })
 }

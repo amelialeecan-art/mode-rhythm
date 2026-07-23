@@ -32,7 +32,7 @@ import { getTodayISODate, parseISODate, formatMonthDay } from '../../lib/date'
 import { setFormBusy, setFormDirty } from '../../lib/pwaUpdate'
 import { serializeForm } from './dirty'
 import type { EventCategory } from '../../data/types'
-import type { EventTiming, FlowLevel } from '../../data/models'
+import type { FlowLevel } from '../../data/models'
 import './log.css'
 
 // 오늘 있었던 일을 카테고리별로 묶음 (사건/상황 기록 — 원인 추측 아님).
@@ -44,13 +44,6 @@ const EVENT_ORDER: EventCategory[] = ['sleep', 'food', 'work', 'relationship', '
 
 // 전체/사건 강도 칩 (전체 강도에는 '없음' 제외).
 const INTENSITY_CHIPS = INTENSITY_OPTIONS.filter((o) => o.code !== 'none') as { code: IntensityCode; label: string; value: number }[]
-
-const TIMING_OPTIONS: { code: EventTiming; label: string }[] = [
-  { code: 'today', label: '오늘' },
-  { code: 'yesterday', label: '어제' },
-  { code: 'recent3days', label: '최근 3일' },
-  { code: 'recent7days', label: '최근 7일' },
-]
 
 const FLOW_OPTIONS: { code: FlowLevel; label: string }[] = [
   { code: 'none', label: '없음' },
@@ -112,7 +105,6 @@ export function LogScreen() {
   const [customName, setCustomName] = useState('')
   const [customCategory, setCustomCategory] = useState<EventCategory>('sleep')
   const [customIntensity, setCustomIntensity] = useState<IntensityCode>('some')
-  const [customTiming, setCustomTiming] = useState<EventTiming>('today')
   // 기능 저하 직접 추가 입력
   const [impactCustomText, setImpactCustomText] = useState('')
 
@@ -213,7 +205,8 @@ export function LogScreen() {
       eventCode: makeCustomEventCode(),
       eventLabel: name,
       category: customCategory,
-      timing: customTiming,
+      // 발생일은 이 기록의 날짜와 같다 → timing='today'(occurrenceDate=기록 날짜).
+      timing: 'today',
       intensity: INTENSITY_OPTIONS.find((o) => o.code === customIntensity)?.value ?? 5,
       isCustom: true,
       customLabel: name,
@@ -367,17 +360,11 @@ export function LogScreen() {
         <p className="state-hint">낮잠은 여기가 아니라 아래 "오늘 있었던 일"에 남겨요.</p>
       </GlassCard>
 
-      {/* 2. 오늘 있었던 일 */}
+      {/* 2. 오늘 있었던 일 (발생일 = 이 기록의 날짜) */}
       <GlassCard>
         <SectionHeader title="오늘 있었던 일" subtitle="원인 추측이 아니라 사건·상황 기록이에요" />
 
-        <p className="event-group__label">언제 있었던 일이에요?</p>
-        <ChipGroup label="사건 시점">
-          {TIMING_OPTIONS.map((t) => (
-            <Chip key={t.code} label={t.label} tone="coral" selected={draft.eventTiming === t.code} onToggle={() => setDraft((d) => ({ ...d, eventTiming: t.code }))} />
-          ))}
-        </ChipGroup>
-        <p className="event-group__label" style={{ marginTop: 14 }}>사건 강도</p>
+        <p className="event-group__label">사건 강도</p>
         <ChipGroup label="사건 강도">
           {INTENSITY_CHIPS.map((o) => (
             <Chip key={o.code} label={o.label} tone="coral" selected={draft.eventIntensity === o.code} onToggle={() => setDraft((d) => ({ ...d, eventIntensity: o.code }))} />
@@ -434,12 +421,6 @@ export function LogScreen() {
             <ChipGroup label="강도">
               {INTENSITY_CHIPS.map((o) => (
                 <Chip key={o.code} label={o.label} tone="coral" selected={customIntensity === o.code} onToggle={() => setCustomIntensity(o.code)} />
-              ))}
-            </ChipGroup>
-            <p className="event-group__label" style={{ marginTop: 12 }}>시점</p>
-            <ChipGroup label="시점">
-              {TIMING_OPTIONS.map((t) => (
-                <Chip key={t.code} label={t.label} tone="coral" selected={customTiming === t.code} onToggle={() => setCustomTiming(t.code)} />
               ))}
             </ChipGroup>
             <div className="custom-form__actions">

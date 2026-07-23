@@ -103,16 +103,18 @@ describe('세부 입력은 단계 3·4에서만 (2)', () => {
   })
 })
 
-describe('yesterday/recent 사건은 선후관계 제외', () => {
-  it('eventTiming이 today가 아니면 relation을 부여하지 않는다', async () => {
+describe('사건 발생일은 기록 날짜와 같게 저장', () => {
+  it('저장은 발생일을 기록 날짜로(timing=today) 두고 relation을 부여한다 — 옛 draft.eventTiming 값은 무시', async () => {
     await saveDailyEntry(
       draft('2026-06-06', {
-        stateCodes: ['sad'], functionLevel: 4, eventTiming: 'recent3days',
+        stateCodes: ['sad'], functionLevel: 4, eventTiming: 'recent3days', // 옛 값 — 저장 시 today로 정규화
         catalogEventCodes: ['work_heavy'], eventRelationBefore: ['work_heavy'],
       }),
     )
     const ev = await eventLogRepository.listByDate('2026-06-06')
-    expect(ev.find((e) => e.eventCode === 'work_heavy')!.relationToShift).toBeUndefined()
+    const saved = ev.find((e) => e.eventCode === 'work_heavy')!
+    expect(saved.timing).toBe('today')
+    expect(saved.relationToShift).toBe('before')
   })
 })
 

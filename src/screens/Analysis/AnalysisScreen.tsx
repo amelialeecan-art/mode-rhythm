@@ -13,7 +13,7 @@ import {
 } from '../../data/services/patternAnalysisService'
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
-import { factorPhrase, episodeTrigger, eventResponseSentence, type VoiceStrength } from './analysisVoice'
+import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, type VoiceStrength } from './analysisVoice'
 import { EventResponseChart } from './EventResponseChart'
 import './analysis.css'
 
@@ -92,35 +92,19 @@ export function AnalysisScreen() {
         </GlassCard>
       ) : (
         <>
-          {/* ===== 최근 힘들었던 날 (핵심) ===== */}
-          <GlassCard tint="coral">
-            <SectionHeader title="최근 힘들었던 날" star />
-            {vm.episodes.length === 0 ? (
-              <p className="analysis-empty">
-                아직 묶을 흐름이 없어요. ‘오늘 일상 기능’을 3·4로 기록한 날이 생기면 여기 정리해줄게요.
-              </p>
-            ) : (
-              <div className="ep-list">
-                <EpisodeRow ep={vm.episodes[0]} />
-                {vm.episodes.length > 1 && (
-                  <details className="ep-older">
-                    <summary className="ep-older__sum">이전 힘들었던 날 {vm.episodes.length - 1}개 보기</summary>
-                    <div className="ep-older__body">
-                      {vm.episodes.slice(1).map((ep) => (
-                        <EpisodeRow key={ep.startDate} ep={ep} />
-                      ))}
-                    </div>
-                  </details>
-                )}
-              </div>
-            )}
-          </GlassCard>
-
-          {/* ===== 미리 알아차릴 수 있었을까? ===== */}
-          {vm.earlyWarning && <EarlyWarningCardView ew={vm.earlyWarning} />}
-
-          {/* ===== 비슷한 강도로 힘들었던 날의 회복 ===== */}
-          {vm.recoveryComparison && <RecoveryComparisonCardView rc={vm.recoveryComparison} />}
+          {/* ===== 흐름을 바꾼 누적 요인 (바로 행동으로 이어지는 핵심 — 최상단, 없으면 숨김) ===== */}
+          {vm.flowDrivers.length > 0 && (
+            <GlassCard>
+              <SectionHeader title="흐름을 바꾼 누적 요인" star />
+              <ul className="driver-list">
+                {vm.flowDrivers.map((d) => (
+                  <li className="driver-row" key={d.eventKey}>
+                    {flowDriverSentence(d)}
+                  </li>
+                ))}
+              </ul>
+            </GlassCard>
+          )}
 
           {/* ===== 자주 반복되는 패턴 (핵심 최대 3개) ===== */}
           {showComparison && coreFactors.length > 0 && (
@@ -150,6 +134,36 @@ export function AnalysisScreen() {
               )}
             </GlassCard>
           )}
+
+          {/* ===== 최근 힘들었던 날 ===== */}
+          <GlassCard tint="coral">
+            <SectionHeader title="최근 힘들었던 날" star />
+            {vm.episodes.length === 0 ? (
+              <p className="analysis-empty">
+                아직 묶을 흐름이 없어요. ‘오늘 일상 기능’을 3·4로 기록한 날이 생기면 여기 정리해줄게요.
+              </p>
+            ) : (
+              <div className="ep-list">
+                <EpisodeRow ep={vm.episodes[0]} />
+                {vm.episodes.length > 1 && (
+                  <details className="ep-older">
+                    <summary className="ep-older__sum">이전 힘들었던 날 {vm.episodes.length - 1}개 보기</summary>
+                    <div className="ep-older__body">
+                      {vm.episodes.slice(1).map((ep) => (
+                        <EpisodeRow key={ep.startDate} ep={ep} />
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </GlassCard>
+
+          {/* ===== 미리 알아차릴 수 있었을까? ===== */}
+          {vm.earlyWarning && <EarlyWarningCardView ew={vm.earlyWarning} />}
+
+          {/* ===== 비슷한 강도로 힘들었던 날의 회복 ===== */}
+          {vm.recoveryComparison && <RecoveryComparisonCardView rc={vm.recoveryComparison} />}
 
           {/* ===== 그 밖의 기록 (회복 후보 · 미제 · 초기 빈도) ===== */}
           <details className="more more--block">

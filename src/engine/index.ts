@@ -103,6 +103,31 @@ export {
   type CyclePositionSignal,
 } from './episode'
 export {
+  buildRecentFlow,
+  FLOW_DOMAINS,
+  type FlowDomain,
+  type FlowStatus,
+  type RecentFlowDay,
+  type RecentFlow,
+} from './recentFlow'
+export { buildFlowSegments, type FlowSegment } from './flowSegments'
+export {
+  buildExposureRuns,
+  groupConsecutiveDates,
+  exposureKey,
+  normalizeEventLabel,
+  overlapDays,
+  cumulativeExposureEffect,
+  MIN_EXPOSURE_RUNS,
+  MIN_SINGLE_RUNS,
+  MIN_MULTIDAY_RUNS,
+  type ExposureRun,
+  type ExposureInput,
+  type ExposureCumulativeStat,
+} from './exposureRuns'
+export { buildFlowDrivers, MAX_FLOW_DRIVERS, type FlowDriver } from './flowDrivers'
+export { buildPersonalRhythm, type PersonalRhythm, type PersonalRhythmInput, type FlowState } from './personalRhythm'
+export {
   buildCycleCompare,
   CYCLE_BEFORE,
   CYCLE_AFTER,

@@ -9,6 +9,7 @@
    ===================================================================== */
 import type { ISODate } from '../data/models'
 import { parseISODate, toISODate } from '../lib/date'
+import { groupConsecutiveDates } from './exposureRuns'
 
 export const EVENT_RESPONSE_BEFORE = 3 // -3일
 export const EVENT_RESPONSE_AFTER = 5 // 최대 +5일 (기본 표시는 +3, 표본 있으면 +4/+5)
@@ -40,23 +41,14 @@ function addDays(date: ISODate, n: number): ISODate {
   d.setDate(d.getDate() + n)
   return toISODate(d)
 }
-function daysBetween(a: ISODate, b: ISODate): number {
-  return Math.round((parseISODate(b).getTime() - parseISODate(a).getTime()) / 86400000)
-}
 function round(n: number): number {
   return Math.round(n)
 }
 
-/** 연속(달력상 1일 간격) 발생일을 하나의 노출로 묶어 시작일만 남긴다. */
+/** 연속(달력상 1일 간격) 발생일을 하나의 노출로 묶어 시작일만 남긴다.
+ *  연속-묶기 로직은 exposureRuns.groupConsecutiveDates와 공유한다(중복 구현 방지). */
 export function dedupeExposures(dates: ISODate[]): ISODate[] {
-  const sorted = [...new Set(dates)].sort()
-  const out: ISODate[] = []
-  let prev: ISODate | null = null
-  for (const d of sorted) {
-    if (prev === null || daysBetween(prev, d) > 1) out.push(d)
-    prev = d
-  }
-  return out
+  return groupConsecutiveDates(dates).map((run) => run[0])
 }
 
 /**
