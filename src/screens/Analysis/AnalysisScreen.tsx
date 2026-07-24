@@ -13,7 +13,8 @@ import {
 } from '../../data/services/patternAnalysisService'
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
-import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, type VoiceStrength } from './analysisVoice'
+import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, cumulativeExposureSentence, type VoiceStrength } from './analysisVoice'
+import { suppressRedundantCumulative, strongRecoveryInsights } from '../resultHierarchy'
 import { EventResponseChart } from './EventResponseChart'
 import './analysis.css'
 
@@ -65,25 +66,21 @@ export function AnalysisScreen() {
 
   const showComparison = !!vm && vm.validOutcomeDayCount >= 30
 
-  // 제목 아래 메타 한 줄 (저장일=비교가능일이면 하나로)
-  const meta =
-    vm && vm.savedDayCount === vm.validOutcomeDayCount
-      ? `${vm.validOutcomeDayCount}일 기록`
-      : vm
-        ? `저장 ${vm.savedDayCount}일 · 비교 가능 ${vm.validOutcomeDayCount}일`
-        : ''
-
   // 장기 패턴: 약한 결과(evidence reference)는 기본 화면에서 숨김, 핵심 최대 3개.
   const voiced = (vm?.factorPatterns ?? []).map((f) => ({ f, ...factorPhrase(f) }))
   const coreFactors = voiced.filter((x) => x.strength !== 'weak').slice(0, 3)
   const coreSet = new Set(coreFactors.map((x) => x.f))
   const otherFactors = voiced.filter((x) => !coreSet.has(x.f))
 
+  // 중복 억제: flowDrivers가 이미 말한 사건은 누적 노출에서 감춘다.
+  const extraCumulative = vm ? suppressRedundantCumulative(vm.flowDrivers, vm.cumulativeExposures) : []
+  // 실제 도움 된 회복 행동 = 대표 회복 카드(약한 tier·방어 메시지 제외).
+  const strongRecs = vm ? strongRecoveryInsights(vm.recoveryEffects) : []
+
   return (
     <>
       <header className="screen-head">
         <h1 className="screen-head__title">분석</h1>
-        {meta && <p className="analysis-meta">{meta}</p>}
       </header>
 
       {loading || !vm ? (
@@ -92,40 +89,38 @@ export function AnalysisScreen() {
         </GlassCard>
       ) : (
         <>
-          {/* ===== 최근 힘들었던 날 (핵심) ===== */}
-          <GlassCard tint="coral">
-            <SectionHeader title="최근 힘들었던 날" star />
-            {vm.episodes.length === 0 ? (
-              <p className="analysis-empty">
-                아직 묶을 흐름이 없어요. ‘오늘 일상 기능’을 3·4로 기록한 날이 생기면 여기 정리해줄게요.
-              </p>
-            ) : (
-              <div className="ep-list">
-                <EpisodeRow ep={vm.episodes[0]} />
-                {vm.episodes.length > 1 && (
-                  <details className="ep-older">
-                    <summary className="ep-older__sum">이전 힘들었던 날 {vm.episodes.length - 1}개 보기</summary>
-                    <div className="ep-older__body">
-                      {vm.episodes.slice(1).map((ep) => (
-                        <EpisodeRow key={ep.startDate} ep={ep} />
-                      ))}
-                    </div>
-                  </details>
-                )}
-              </div>
-            )}
-          </GlassCard>
+          {/* ===== 1. 흐름을 바꾼 누적 요인 (없으면 섹션 전체 숨김) ===== */}
+          {vm.flowDrivers.length > 0 && (
+            <GlassCard tint="coral">
+              <SectionHeader title="흐름을 바꾼 누적 요인" star />
+              <ul className="driver-list">
+                {vm.flowDrivers.map((d) => (
+                  <li className="driver-row" key={d.eventKey}>
+                    {flowDriverSentence(d)}
+                  </li>
+                ))}
+              </ul>
+            </GlassCard>
+          )}
 
-          {/* ===== 미리 알아차릴 수 있었을까? ===== */}
-          {vm.earlyWarning && <EarlyWarningCardView ew={vm.earlyWarning} />}
+          {/* ===== 2. 누적 노출 차이 (flowDrivers와 겹치면 감춤 · 추가 정보일 때만) ===== */}
+          {extraCumulative.length > 0 && (
+            <GlassCard>
+              <SectionHeader title="여러 날 이어졌을 때" />
+              <ul className="driver-list">
+                {extraCumulative.map((c) => (
+                  <li className="driver-row" key={c.key}>
+                    {cumulativeExposureSentence(c)}
+                  </li>
+                ))}
+              </ul>
+            </GlassCard>
+          )}
 
-          {/* ===== 비슷한 강도로 힘들었던 날의 회복 ===== */}
-          {vm.recoveryComparison && <RecoveryComparisonCardView rc={vm.recoveryComparison} />}
-
-          {/* ===== 자주 반복되는 패턴 (핵심 최대 3개) ===== */}
+          {/* ===== 3. 반복되는 조건과 결과 (핵심 최대 3개) ===== */}
           {showComparison && coreFactors.length > 0 && (
             <GlassCard>
-              <SectionHeader title="자주 반복되는 패턴" />
+              <SectionHeader title="반복되는 조건과 결과" />
               <ul className="pat-list">
                 {coreFactors.map(({ f, strength }) => (
                   <FactorRow key={f.factorGroup} f={f} strength={strength} />
@@ -151,87 +146,83 @@ export function AnalysisScreen() {
             </GlassCard>
           )}
 
-          {/* ===== 흐름을 바꾼 누적 요인 (최대 2개, 없으면 섹션 숨김) ===== */}
-          {vm.flowDrivers.length > 0 && (
-            <GlassCard>
-              <SectionHeader title="흐름을 바꾼 누적 요인" />
-              <ul className="driver-list">
-                {vm.flowDrivers.map((d) => (
-                  <li className="driver-row" key={d.eventKey}>
-                    {flowDriverSentence(d)}
+          {/* ===== 4. 실제 도움이 된 회복 행동 (대표 회복 카드 · 강한 결과만) ===== */}
+          {strongRecs.length > 0 && (
+            <GlassCard tint="mint">
+              <SectionHeader title="실제 도움이 된 회복 행동" star />
+              <ul className="pat-list">
+                {strongRecs.map((r) => (
+                  <li className="pat" key={r.actionCode}>
+                    <div className="pat__head">
+                      <span className="pat__name">{r.actionLabel}</span>
+                      <span className={`pat__tier rectier--${r.confidenceTier}`}>{RECOVERY_TIER_LABEL[r.confidenceTier]}</span>
+                    </div>
+                    <p className="pat__say">{r.message}</p>
                   </li>
                 ))}
               </ul>
             </GlassCard>
           )}
 
-          {/* ===== 그 밖의 기록 (회복 후보 · 미제 · 초기 빈도) ===== */}
-          <details className="more more--block">
-            <summary className="more__sum">그 밖의 기록</summary>
-            <div className="more__body">
-              {!showComparison && vm.eventFrequency.length > 0 && (
-                <GlassCard>
-                  <SectionHeader title="자주 기록한 사건" />
-                  <div className="recfreq">
-                    {vm.eventFrequency.map((e) => (
-                      <span className="recfreq__chip" key={e.label}>
-                        {e.label} {e.count}일
-                      </span>
-                    ))}
-                  </div>
-                </GlassCard>
-              )}
+          {/* ===== 5. 상태 전이·이어진 변화 (힘들었던 흐름 · 없으면 숨김) ===== */}
+          {vm.episodes.length > 0 && (
+            <GlassCard tint="coral">
+              <SectionHeader title="힘들었던 흐름" />
+              <div className="ep-list">
+                <EpisodeRow ep={vm.episodes[0]} />
+                {vm.episodes.length > 1 && (
+                  <details className="ep-older">
+                    <summary className="ep-older__sum">이전 힘들었던 날 {vm.episodes.length - 1}개 보기</summary>
+                    <div className="ep-older__body">
+                      {vm.episodes.slice(1).map((ep) => (
+                        <EpisodeRow key={ep.startDate} ep={ep} />
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            </GlassCard>
+          )}
 
-              <GlassCard tint="mint">
-                <SectionHeader title="나를 살린 것들" star />
-                {vm.recoveryEffects.length > 0 ? (
-                  <ul className="pat-list">
-                    {vm.recoveryEffects.map((r) => (
-                      <li className="pat" key={r.actionCode}>
-                        <div className="pat__head">
-                          <span className="pat__name">{r.actionLabel}</span>
-                          <span className={`pat__tier rectier--${r.confidenceTier}`}>{RECOVERY_TIER_LABEL[r.confidenceTier]}</span>
-                        </div>
-                        <p className="pat__say">{r.message}</p>
-                        <details className="pat__more">
-                          <summary>근거 보기</summary>
-                          <div className="pat__nums">
-                            <span>회복 후보 {r.combinedScore} · {r.supportCount}회 기록</span>
-                          </div>
-                        </details>
-                      </li>
-                    ))}
-                  </ul>
-                ) : vm.recoveryFrequency.length > 0 ? (
-                  <>
-                    <p className="analysis-empty">뭐 했더니 나아졌는지 몇 번 더 남기면 개인 회복템이 보여요.</p>
+          {/* 조기경보·비슷한 강도 회복 경로: 근거가 충분할 때만(약하면 카드 자체 숨김) */}
+          {vm.earlyWarning && vm.earlyWarning.eligible && <EarlyWarningCardView ew={vm.earlyWarning} />}
+          {vm.recoveryComparison && vm.recoveryComparison.enoughSample && (
+            <RecoveryComparisonCardView rc={vm.recoveryComparison} shownActions={strongRecs} />
+          )}
+
+          {/* ===== 6. 그 밖의 기록 (초기 빈도 · 미제) — 결과 있을 때만 노출 ===== */}
+          {((!showComparison && vm.eventFrequency.length > 0) || vm.unexplained.length > 0) && (
+            <details className="more more--block">
+              <summary className="more__sum">그 밖의 기록</summary>
+              <div className="more__body">
+                {!showComparison && vm.eventFrequency.length > 0 && (
+                  <GlassCard>
+                    <SectionHeader title="자주 기록한 사건" />
                     <div className="recfreq">
-                      {vm.recoveryFrequency.map((r) => (
-                        <span className="recfreq__chip" key={r.label}>
-                          {r.label} {r.count}회
+                      {vm.eventFrequency.map((e) => (
+                        <span className="recfreq__chip" key={e.label}>
+                          {e.label} {e.count}일
                         </span>
                       ))}
                     </div>
-                  </>
-                ) : (
-                  <p className="analysis-empty">뭐 했더니 나아졌는지 기록하면 개인 회복템을 찾아줄게요.</p>
+                  </GlassCard>
                 )}
-              </GlassCard>
 
-              {vm.unexplained.length > 0 && (
-                <GlassCard tint="yellow">
-                  <SectionHeader title="설명되지 않은 날" />
-                  <div className="unexplained">
-                    {vm.unexplained.map((u) => (
-                      <span className="unexplained__chip" key={u.date}>
-                        {fmt(u.date)}
-                      </span>
-                    ))}
-                  </div>
-                </GlassCard>
-              )}
-            </div>
-          </details>
+                {vm.unexplained.length > 0 && (
+                  <GlassCard tint="yellow">
+                    <SectionHeader title="설명되지 않은 날" />
+                    <div className="unexplained">
+                      {vm.unexplained.map((u) => (
+                        <span className="unexplained__chip" key={u.date}>
+                          {fmt(u.date)}
+                        </span>
+                      ))}
+                    </div>
+                  </GlassCard>
+                )}
+              </div>
+            </details>
+          )}
         </>
       )}
 
@@ -242,101 +233,61 @@ export function AnalysisScreen() {
   )
 }
 
-/** 조기경보 백테스트 카드. 기본 3문장 + "계산 근거 보기" 접힘. */
+/** 조기경보 백테스트 카드(3문장). eligible일 때만 렌더된다. 내부 표본 수·추정 노출 없음. */
 function EarlyWarningCardView({ ew }: { ew: EarlyWarningCard }) {
   return (
     <GlassCard tint="sky">
       <SectionHeader title="미리 알아차릴 수 있었을까?" />
-      {!ew.eligible ? (
-        <p className="analysis-body">{ew.gatingSentence}</p>
-      ) : (
-        <>
-          <div className="ew-lines">
-            <p className="ew-line">{ew.prevNightSentence}</p>
-            <p className="ew-line">{ew.morningSentence}</p>
-            <p className="ew-line ew-line--balance">{ew.balanceSentence}</p>
-          </div>
-          <details className="ew-more">
-            <summary className="ew-more-sum">계산 근거 보기</summary>
-            <div className="ew-more-body">
-              <MatrixTable title="전날 밤 (D-1까지)" cm={ew.prevNight} />
-              <MatrixTable title="당일 아침 (지난밤 수면 포함)" cm={ew.morning} />
-              {ew.estimatedExcludedCount > 0 && (
-                <p className="ew-note">추정만으로 잡힌 구간 {ew.estimatedExcludedCount}개는 핵심 표본에서 제외했어요.</p>
-              )}
-              {ew.signalLabelsUsed.length > 0 && <p className="ew-note">사용된 신호: {ew.signalLabelsUsed.join(', ')}</p>}
-            </div>
-          </details>
-        </>
-      )}
+      <div className="ew-lines">
+        <p className="ew-line">{ew.prevNightSentence}</p>
+        <p className="ew-line">{ew.morningSentence}</p>
+        <p className="ew-line ew-line--balance">{ew.balanceSentence}</p>
+      </div>
     </GlassCard>
   )
 }
 
-function MatrixTable({ title, cm }: { title: string; cm: EarlyWarningCard['prevNight'] }) {
-  return (
-    <div className="ew-matrix">
-      <span className="ew-matrix__title">{title}</span>
-      <div className="ew-grid">
-        <span>힘들었던 날 · 신호 있었음</span>
-        <b>{cm.hit}</b>
-        <span>힘들었던 날 · 신호 놓침</span>
-        <b>{cm.miss}</b>
-        <span>괜찮았는데 신호 있었음</span>
-        <b>{cm.falseAlarm}</b>
-        <span>괜찮았고 신호도 없었음</span>
-        <b>{cm.correctRejection}</b>
-      </div>
-    </div>
-  )
-}
-
-/** 비슷한 강도로 힘들었던 날의 회복 카드. */
-function RecoveryComparisonCardView({ rc }: { rc: RecoveryComparisonCard }) {
-  const hasDetail = rc.positiveActions.length > 0 || rc.negativeActions.length > 0
+/** 비슷한 강도로 힘들었던 날의 회복 경로(회복까지 걸린 시간 중심). enoughSample일 때만 렌더된다.
+ *  대표 회복 카드(shownActions)가 이미 다룬 행동은 여기서 반복하지 않는다. */
+function RecoveryComparisonCardView({ rc, shownActions }: { rc: RecoveryComparisonCard; shownActions: { actionCode: string }[] }) {
+  const shown = new Set(shownActions.map((a) => a.actionCode))
+  const positive = rc.positiveActions.filter((a) => !shown.has(a.actionCode))
+  const negative = rc.negativeActions.filter((a) => !shown.has(a.actionCode))
+  const hasDetail = positive.length > 0 || negative.length > 0
   return (
     <GlassCard tint="mint">
       <SectionHeader title="비슷한 강도로 힘들었던 날의 회복" />
       <p className="rc-line rc-line--head">{rc.headlineSentence}</p>
-      {!rc.enoughSample ? (
-        <p className="rc-line rc-line--muted">{rc.gatingSentence}</p>
-      ) : (
-        <div className="rc-lines">
-          {rc.durationSentence && <p className="rc-line">{rc.durationSentence}</p>}
-          {rc.positiveSentence && <p className="rc-line">{rc.positiveSentence}</p>}
-          {rc.negativeSentence && <p className="rc-line rc-line--muted">{rc.negativeSentence}</p>}
-          {hasDetail && (
-            <details className="rc-more">
-              <summary className="rc-more-sum">함께 기록된 행동 보기</summary>
-              <div className="rc-more-body">
-                {rc.positiveActions.length > 0 && (
-                  <div className="rc-tally">
-                    <span className="rc-tally__head rc-tally__head--pos">도움이 됐다고 적음</span>
-                    {rc.positiveActions.map((a) => (
-                      <div className="rc-tally__row" key={`p-${a.actionCode}`}>
-                        <span>{a.actionLabel}</span>
-                        <b>{a.episodeCount}번</b>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {rc.negativeActions.length > 0 && (
-                  <div className="rc-tally">
-                    <span className="rc-tally__head rc-tally__head--neg">안 맞았다고 적음</span>
-                    {rc.negativeActions.map((a) => (
-                      <div className="rc-tally__row" key={`n-${a.actionCode}`}>
-                        <span>{a.actionLabel}</span>
-                        <b>{a.episodeCount}번</b>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className="rc-note">기능 저하 강도를 기준으로, 회복 구간에 함께 기록된 횟수예요.</p>
-              </div>
-            </details>
-          )}
-        </div>
-      )}
+      <div className="rc-lines">
+        {rc.durationSentence && <p className="rc-line">{rc.durationSentence}</p>}
+        {hasDetail && (
+          <details className="rc-more">
+            <summary className="rc-more-sum">함께 기록된 행동 보기</summary>
+            <div className="rc-more-body">
+              {positive.length > 0 && (
+                <div className="rc-tally">
+                  <span className="rc-tally__head rc-tally__head--pos">도움이 됐다고 적음</span>
+                  {positive.map((a) => (
+                    <div className="rc-tally__row" key={`p-${a.actionCode}`}>
+                      <span>{a.actionLabel}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {negative.length > 0 && (
+                <div className="rc-tally">
+                  <span className="rc-tally__head rc-tally__head--neg">안 맞았다고 적음</span>
+                  {negative.map((a) => (
+                    <div className="rc-tally__row" key={`n-${a.actionCode}`}>
+                      <span>{a.actionLabel}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </details>
+        )}
+      </div>
     </GlassCard>
   )
 }
@@ -444,55 +395,33 @@ function ChipRow({ items }: { items: MergedSignal[] }) {
   )
 }
 
-/** 요인 패턴: 제목 + 자연어 한 문장. 숫자는 "근거 보기" 안에만. */
+/** 요인 패턴: 제목 + 자연어 한 문장 + 흐름 그림(내부 점수·표본 수·evidence 배지는 노출하지 않음). */
 function FactorRow({ f, strength }: { f: FactorPatternCard; strength: VoiceStrength }) {
+  void strength
   const { text } = factorPhrase(f)
   return (
     <li className="pat">
       <div className="pat__head">
         <span className="pat__name">{f.title}</span>
-        <span className={`pat__str pat__str--${strength}`}>{f.evidenceLabel}</span>
       </div>
       <p className="pat__say">{text}</p>
 
-      <details className="pat__flow">
-        <summary>흐름 보기</summary>
-        {f.response.eligible ? (
+      {f.response.eligible && (
+        <details className="pat__flow">
+          <summary>흐름 보기</summary>
           <div className="pat__flow-body">
             <p className="pat__flow-say">
               {eventResponseSentence({ title: f.title, metric: f.metric, points: f.response.points, baseline: f.response.baseline })}
             </p>
             <EventResponseChart points={f.response.points} baseline={f.response.baseline} color={METRIC_COLOR[f.metric] ?? '#A985E8'} />
-            <details className="pat__more">
-              <summary>근거 보기</summary>
-              <div className="pat__nums">
-                <span>평소 기준선 {f.response.baseline} · 노출 {f.response.exposures}회</span>
-                {f.response.points.map((p) => (
-                  <span key={p.rel}>
-                    {p.rel === 0 ? '당일' : p.rel < 0 ? `${-p.rel}일 전` : `${p.rel}일 후`}: {p.mean ?? '—'} (기록 {p.n}일)
-                  </span>
-                ))}
-              </div>
-            </details>
           </div>
-        ) : (
-          <p className="pat__flow-empty">아직 흐름을 그릴 만큼 반복 기록이 없어요.</p>
-        )}
-      </details>
-
-      <details className="pat__more">
-        <summary>근거 보기</summary>
-        <div className="pat__nums">
-          <span>{f.metricLabel} · {f.windowPhrase}</span>
-          <span>평균 차이 +{f.effectSize}점</span>
-          <span>있는 날 {f.supportCount}일(평균 {f.withFactorMean}) · 없는 날 {f.comparisonCount}일(평균 {f.withoutFactorMean})</span>
-        </div>
-      </details>
+        </details>
+      )}
     </li>
   )
 }
 
-/** combo: 두 기록이 같은 날 겹친 경우. 숫자는 근거 안에. */
+/** combo: 두 기록이 같은 날 겹친 경우. 내부 숫자는 노출하지 않는다. */
 function ComboRow({ c }: { c: ComboCard }) {
   return (
     <li className="pat">
@@ -500,13 +429,6 @@ function ComboRow({ c }: { c: ComboCard }) {
         <span className="pat__name">{c.titleA} + {c.titleB}</span>
       </div>
       <p className="pat__say">둘이 겹친 날 {c.metricLabel.replace(/ 정도$/, '')}가 유독 더 힘들었어요.</p>
-      <details className="pat__more">
-        <summary>근거 보기</summary>
-        <div className="pat__nums">
-          <span>함께 있던 날 {c.supportCount}일 · 한쪽만 {c.comparisonCount}일</span>
-          <span>평균 차이 +{c.comboEffect}점</span>
-        </div>
-      </details>
     </li>
   )
 }

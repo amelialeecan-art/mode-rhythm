@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GlassCard, SectionHeader, ModeHeroCard, PlanCard, Mascot } from '../../design'
+import { GlassCard, SectionHeader, ModeHeroCard, Mascot } from '../../design'
 import { getTodaySummary } from '../../data/services/dailyScoreService'
 import { getTodayPatternContext, type TodayPatternContext } from '../../data/services/patternAnalysisService'
 import { getRecentFlow } from '../../data/services/rhythmService'
 import { getRhythmForecastViewModel } from '../../data/services/rhythmForecastService'
-import { selectTodayDecision, type TodaySummary, type FactorTier, type RhythmForecastDay, type RecentFlow, type TodayDecision } from '../../engine'
+import { selectTodayDecision, type TodaySummary, type RhythmForecastDay, type RecentFlow, type TodayDecision } from '../../engine'
 import { recentChangeSentence, followUpSentence } from './todayVoice'
 import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import { useToneMode } from '../../lib/useToneMode'
@@ -24,13 +24,6 @@ const MASCOT_BY_DAYTYPE: Record<string, 'happy' | 'teary' | 'sleepy' | 'hungry' 
   recovery_priority: 'sleepy',
   unknown_cause: 'confused',
   mixed_load: 'teary',
-}
-
-const TIER_LABEL: Record<FactorTier, string> = {
-  recorded: '오늘 기록',
-  calculated: '계산 높음',
-  watch: '관찰',
-  not_enough_data: '데이터 부족',
 }
 
 // 사건 부하(0~100)는 오해 소지가 커서 항목 막대에서 제외하고 개수·주요 사건으로 표시.
@@ -135,10 +128,12 @@ function FilledToday({
   onRecord: () => void
 }) {
   const tone = useToneMode()
-  const { classification, scores, stateDomains, stateNarrative, factorCandidates, plan, recordedRecovery, rhythmExceptions, cycleContext, eventSummary } = summary
+  const { classification, scores, stateDomains, stateNarrative, factorCandidates, recordedRecovery, rhythmExceptions, cycleContext, eventSummary } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
   const cycleDisplay = CYCLE_DISPLAY[cycleContext.confidence] ?? null
   const isException = rhythmExceptions.length > 0
+  // 근거가 약한 요인 후보(데이터 부족·관찰)는 노출하지 않는다.
+  const strongFactors = factorCandidates.filter((f) => f.tier === 'recorded' || f.tier === 'calculated')
 
   // 오늘의 대표 행동 1개 (예외일 안전 → 기본 기능 → 소모 흐름 → 개인 회복 → 기본).
   const decision: TodayDecision | null = selectTodayDecision({
@@ -184,19 +179,14 @@ function FilledToday({
         </GlassCard>
       )}
 
-      {/* 4. 최근 변화 신호 — 강한 결과 1개 (약하면 카드 자체를 숨김) */}
-      {recentSentence && (
+      {/* 4·5. 흐름 보조 한 줄 (오늘 결정과 관련된 최근 변화 / 자주 이어진 변화).
+              전체 흐름 설명은 리듬 화면에 있으니 여기선 한 줄만, 약하면 통째로 숨김. */}
+      {(recentSentence || followUp) && (
         <GlassCard tint="sky">
-          <SectionHeader title="최근 변화 신호" />
-          <p className="today-flow-line">{recentSentence}</p>
-        </GlassCard>
-      )}
-
-      {/* 5. 다음에 자주 이어진 변화 — 기존 근거 충분할 때만 1개 */}
-      {followUp && (
-        <GlassCard>
-          <SectionHeader title="다음에 자주 이어진 변화" />
-          <p className="today-flow-line">{followUp}</p>
+          <p className="today-flow-note">
+            {recentSentence && <span className="today-flow-line">{recentSentence}</span>}
+            {followUp && <span className="today-flow-line today-flow-line--soft">{followUp}</span>}
+          </p>
         </GlassCard>
       )}
 
@@ -251,32 +241,23 @@ function FilledToday({
           )}
         </GlassCard>
 
-        {/* 오늘 기록 기반 요인 후보 */}
-        <GlassCard>
-          <SectionHeader title="오늘 기록 기반 요인 후보" subtitle="원인이 아니라, 오늘 기록에서 함께 관찰된 요소예요" />
-          <ul className="factor-list">
-            {factorCandidates.map((f, i) => (
-              <li className="factor" key={`${f.label}-${i}`}>
-                <span className="factor__no">{i + 1}</span>
-                <div className="factor__body">
-                  <span className="factor__name">{f.label}</span>
-                  <span className="factor__detail">{f.detail}</span>
-                </div>
-                <span className={`factor-tier factor-tier--${f.tier}`}>{TIER_LABEL[f.tier]}</span>
-              </li>
-            ))}
-          </ul>
-        </GlassCard>
-
-        {/* 오늘 계획(참고) — 대표 행동은 위 '오늘의 결정' 하나, 여기서는 상세로만 */}
-        <PlanCard
-          lines={[
-            { tag: '일정', text: plan.schedule },
-            { tag: '식사', text: plan.food },
-            { tag: '운동', text: plan.movement },
-            { tag: '관계', text: plan.relationship },
-          ]}
-        />
+        {/* 오늘 기록 기반 요인 후보 — 근거가 약한 후보(데이터 부족·관찰)는 노출하지 않는다 */}
+        {strongFactors.length > 0 && (
+          <GlassCard>
+            <SectionHeader title="오늘 기록 기반 요인 후보" subtitle="원인이 아니라, 오늘 기록에서 함께 관찰된 요소예요" />
+            <ul className="factor-list">
+              {strongFactors.map((f, i) => (
+                <li className="factor" key={`${f.label}-${i}`}>
+                  <span className="factor__no">{i + 1}</span>
+                  <div className="factor__body">
+                    <span className="factor__name">{f.label}</span>
+                    <span className="factor__detail">{f.detail}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </GlassCard>
+        )}
 
         {/* 내일 참고 */}
         {tomorrow && (

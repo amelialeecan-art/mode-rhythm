@@ -5,7 +5,7 @@
    연결한다. 결정론적(랜덤 없음).
    ===================================================================== */
 import type { AnalysisMetric, EffectWindow, EvidenceLevel, FlowDomain } from '../../engine'
-import type { FlowDriverCard } from '../../data/services/patternAnalysisService'
+import type { FlowDriverCard, CumulativeExposureCard } from '../../data/services/patternAnalysisService'
 
 export type VoiceStrength = 'strong' | 'medium' | 'weak'
 
@@ -196,4 +196,11 @@ export function flowDriverSentence(card: FlowDriverCard): string {
     return `${iga(label)} 2일 이상 이어진 뒤 ${tail}`
   }
   return `${label} 뒤 ${tail}`
+}
+
+/** 누적 노출 차이 한 문장(숫자·표본 수 없이). 하루보다 여러 날 이어졌을 때 결과가 더 컸다. */
+export function cumulativeExposureSentence(card: CumulativeExposureCard): string {
+  const label = cleanDriverLabel(card.title)
+  const metric = card.metricLabel.replace(/ 정도$/, '')
+  return `${iga(label)} 하루보다 여러 날 이어졌을 때 ${metric}가 더 크게 나타난 편이에요.`
 }

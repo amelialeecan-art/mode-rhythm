@@ -289,13 +289,22 @@
   line-height: 1.55;
   margin-top: 12px;
 }
-/* 최근 변화 / 다음 이어진 변화 */
+/* 최근 변화 / 다음 이어진 변화 (보조 한 줄, 간결하게) */
+.today-flow-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
 .today-flow-line {
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink);
-  line-height: 1.55;
-  margin-top: 10px;
+  line-height: 1.5;
+}
+.today-flow-line--soft {
+  color: var(--ink-2);
+  font-size: 13.5px;
 }
 /* 나머지 상세 접기 */
 .today-detail {

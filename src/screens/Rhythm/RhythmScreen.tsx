@@ -182,6 +182,27 @@ export function RhythmScreen() {
             </GlassCard>
           ) : (
             <>
+              {/* 1. 최근 흐름 (최근 며칠~2주 방향) — 약하면 카드 숨김 */}
+              {recentFlow && (
+                <GlassCard tint="mint">
+                  <SectionHeader title="최근 흐름" />
+                  <p className="rhythm-flow">{recentFlowSentence(recentFlow)}</p>
+                </GlassCard>
+              )}
+
+              {/* 2. 나의 반복 흐름 (장기 반복 구조) — 없으면 카드 전체 숨김 */}
+              {personalRhythm && (
+                <GlassCard tint="lav">
+                  <SectionHeader title="나의 반복 흐름" />
+                  {personalRhythmSentence(personalRhythm).map((s, i) => (
+                    <p className="rhythm-flow" key={i}>
+                      {s}
+                    </p>
+                  ))}
+                </GlassCard>
+              )}
+
+              {/* 3. 장기 그래프 (사용자가 직접 변화 확인) */}
               <GlassCard>
                 <RhythmChart
                   count={vm.buckets.length}
@@ -201,24 +222,7 @@ export function RhythmScreen() {
                 )}
               </GlassCard>
 
-              {recentFlow && (
-                <GlassCard tint="mint">
-                  <SectionHeader title="최근 흐름" />
-                  <p className="rhythm-flow">{recentFlowSentence(recentFlow)}</p>
-                </GlassCard>
-              )}
-
-              {personalRhythm && (
-                <GlassCard tint="lav">
-                  <SectionHeader title="나의 반복 흐름" />
-                  {personalRhythmSentence(personalRhythm).map((s, i) => (
-                    <p className="rhythm-flow" key={i}>
-                      {s}
-                    </p>
-                  ))}
-                </GlassCard>
-              )}
-
+              {/* 5. 기존 기간 비교 (최근 일주일) */}
               <GlassCard tint="lav">
                 <SectionHeader title="최근 일주일" />
                 <p className="rhythm-week">{rhythmCompareSentence(metric, vm.weekCompare[metric])}</p>

@@ -11,8 +11,14 @@ import {
 } from '../../data/services/calendarService'
 import { DAY_TYPE_LABEL } from '../../engine'
 import { startOfMonthISO, parseISODate, formatMonthDay, formatWeekday } from '../../lib/date'
-import type { FlowLevel } from '../../data/models'
+import { BODY_SIGNAL_OPTIONS, RHYTHM_EXCEPTION_OPTIONS } from '../../data/catalog/dailyCheckIn'
+import type { FlowLevel, BodySignalCode, RhythmExceptionCode } from '../../data/models'
 import './calendar.css'
+
+const BODY_SIGNAL_LABEL = new Map<string, string>(BODY_SIGNAL_OPTIONS.map((o) => [o.code, o.label]))
+const RHYTHM_EXCEPTION_LABEL = new Map<string, string>(RHYTHM_EXCEPTION_OPTIONS.map((o) => [o.code, o.label]))
+const bodySignalLabels = (codes?: BodySignalCode[]) => (codes ?? []).filter((c) => c !== 'none').map((c) => BODY_SIGNAL_LABEL.get(c) ?? c)
+const exceptionLabels = (codes?: RhythmExceptionCode[]) => (codes ?? []).filter((c) => c !== 'none').map((c) => RHYTHM_EXCEPTION_LABEL.get(c) ?? c)
 
 // 사건(eventLoad 0~100)은 점수로 노출하지 않는다 → 렌즈/막대에서 제외.
 // 사건은 개수·주요 기록 형태로만 보여준다(day 상세). eventLoad는 내부 계산에만 유지.
@@ -168,34 +174,7 @@ function DayDetailSheet({
           </>
         ) : (
           <div className="sheet__body">
-            {score ? (
-              <>
-                <div className="sheet__moderow">
-                  <p className="sheet__mode">{DAY_TYPE_LABEL[score.dayType]}</p>
-                  {score.dayTypeSubLabel && <span className="sheet__paren">{score.dayTypeSubLabel}</span>}
-                  <span className="sheet__rhythm">{score.rhythmLoad}</span>
-                </div>
-
-                <div className="sheet-bars">
-                  {DETAIL_BARS.map((b) => {
-                    const v = lensScore(score, b.key)
-                    return (
-                      <div className="sheet-bar" key={b.key}>
-                        <span className="sheet-bar__label">{b.label}</span>
-                        <span className="sheet-bar__track">
-                          <i style={{ width: `${v}%`, background: b.color }} />
-                        </span>
-                        <span className="sheet-bar__val">{v}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            ) : (
-              <p className="sheet__hint">이 날은 점수 계산 기록이 없어요.</p>
-            )}
-
-            {/* 오늘 상태 (원인 아님 — 상태 기록) */}
+            {/* 원본 입력 우선: 사용자가 실제 남긴 기록을 먼저 보여준다(분석 요약은 아래로). */}
             <Section title="오늘 상태">
               {detail.stateLabels.length > 0 ? (
                 <div className="sheet-chips">
@@ -216,6 +195,30 @@ function DayDetailSheet({
                   {detail.eventLogs.map((e) => (
                     <span className="sheet-chip" key={e.id ?? e.eventCode}>
                       {e.eventLabel}
+                    </span>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {bodySignalLabels(detail.dailyLog?.bodySignalCodes).length > 0 && (
+              <Section title="몸 신호">
+                <div className="sheet-chips">
+                  {bodySignalLabels(detail.dailyLog?.bodySignalCodes).map((l) => (
+                    <span className="sheet-chip" key={l}>
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {exceptionLabels(detail.dailyLog?.rhythmExceptionCodes).length > 0 && (
+              <Section title="예외 기록">
+                <div className="sheet-chips">
+                  {exceptionLabels(detail.dailyLog?.rhythmExceptionCodes).map((l) => (
+                    <span className="sheet-chip sheet-chip--exc" key={l}>
+                      {l}
                     </span>
                   ))}
                 </div>
@@ -260,9 +263,29 @@ function DayDetailSheet({
               </Section>
             )}
 
-            <p className="sheet__note">
-              이 요약은 해당 날짜에 저장된 기록과 계산 점수 기준이에요. 장기 패턴 분석은 아직 포함되지 않았어요.
-            </p>
+            {/* 상태 요약(모드·부하)은 원본 기록 아래에 접어둔다 — Calendar는 원본 우선. */}
+            {score && (
+              <details className="sheet-summary">
+                <summary className="sheet-summary__sum">이 날의 상태 요약</summary>
+                <div className="sheet__moderow">
+                  <p className="sheet__mode">{DAY_TYPE_LABEL[score.dayType]}</p>
+                  {score.dayTypeSubLabel && <span className="sheet__paren">{score.dayTypeSubLabel}</span>}
+                </div>
+                <div className="sheet-bars">
+                  {DETAIL_BARS.map((b) => {
+                    const v = lensScore(score, b.key)
+                    return (
+                      <div className="sheet-bar" key={b.key}>
+                        <span className="sheet-bar__label">{b.label}</span>
+                        <span className="sheet-bar__track">
+                          <i style={{ width: `${v}%`, background: b.color }} />
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </details>
+            )}
           </div>
         )}
 
