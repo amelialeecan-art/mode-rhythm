@@ -65,35 +65,49 @@ function daysInclusive(start: ISODate, end: ISODate): number {
   return Math.round((parseISODate(end).getTime() - parseISODate(start).getTime()) / 86400000) + 1
 }
 
-/**
- * 비교 기간 계산. targetDate가 그 달 말일이 아니면 "진행 중" → 지난달 같은 일자 범위와 비교.
- * 말일(=완료된 달·과거 달 선택)이면 그 달 전체 vs 이전 달 전체.
- */
-export function monthlyComparePeriods(targetDate: ISODate): MonthlyPeriods {
-  const d = parseISODate(targetDate)
-  const monthEnd = endOfMonthISO(d)
-  const partialMonth = targetDate !== monthEnd
-  const prev = addMonths(d, -1)
+/** targetDate가 today보다 미래의 달인지(미래 달은 분석하지 않는다). */
+export function isFutureMonth(targetDate: ISODate, today: ISODate): boolean {
+  const t = parseISODate(targetDate)
+  const n = parseISODate(today)
+  return t.getFullYear() > n.getFullYear() || (t.getFullYear() === n.getFullYear() && t.getMonth() > n.getMonth())
+}
 
-  if (!partialMonth) {
+/**
+ * 비교 기간 계산. "말일 여부"가 아니라 target 달이 실제 현재 달인지로 판정한다.
+ * - target 달 == 현재 달(today 기준): 1일~오늘 vs 지난달 같은 일자 범위(진행 중).
+ * - target 달 < 현재 달(과거 달): 그 달 중간 날짜를 골라도 선택 월 전체 vs 이전 달 전체.
+ * (미래 달은 buildMonthlyComparison에서 제외한다.) 윤년·30/31일은 클램프로 안전 처리.
+ */
+export function monthlyComparePeriods(targetDate: ISODate, today: ISODate = targetDate): MonthlyPeriods {
+  const d = parseISODate(targetDate)
+  const now = parseISODate(today)
+  const isCurrentMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  const monthStart = startOfMonth(d)
+  const prev = addMonths(d, -1)
+  const prevStart = startOfMonth(prev)
+
+  if (isCurrentMonth) {
+    // 진행 중: currentEnd = 오늘. 오늘이 말일이면 사실상 완료된 달(partialMonth=false).
+    const day = now.getDate()
+    const monthLen = endOfMonth(d).getDate()
+    const prevLen = endOfMonth(prev).getDate()
+    const prevDay = Math.min(day, prevLen)
     return {
       currentStart: startOfMonthISO(d),
-      currentEnd: monthEnd,
-      previousStart: startOfMonthISO(prev),
-      previousEnd: endOfMonthISO(prev),
-      partialMonth: false,
+      currentEnd: toISODate(new Date(d.getFullYear(), d.getMonth(), day)),
+      previousStart: toISODate(prevStart),
+      previousEnd: toISODate(new Date(prevStart.getFullYear(), prevStart.getMonth(), prevDay)),
+      partialMonth: day < monthLen,
     }
   }
-  const day = d.getDate()
-  const prevLen = endOfMonth(prev).getDate()
-  const prevDay = Math.min(day, prevLen)
-  const prevStart = startOfMonth(prev)
+  // 과거 달: 선택 월 전체 vs 이전 달 전체 (선택 날짜와 무관).
+  void monthStart
   return {
     currentStart: startOfMonthISO(d),
-    currentEnd: targetDate,
+    currentEnd: endOfMonthISO(d),
     previousStart: toISODate(prevStart),
-    previousEnd: toISODate(new Date(prevStart.getFullYear(), prevStart.getMonth(), prevDay)),
-    partialMonth: true,
+    previousEnd: endOfMonthISO(prev),
+    partialMonth: false,
   }
 }
 
@@ -264,9 +278,11 @@ const KIND_PRIORITY: Record<MonthlyInsightKind, number> = { state: 0, sleep: 0, 
 
 /**
  * 월간 비교. 근거가 부족하거나 의미 있는 차이가 없으면 null(카드 전체 숨김).
+ * 미래 달(today 기준)은 분석하지 않는다. today 미지정 시 targetDate를 현재로 본다(하위 호환).
  */
-export function buildMonthlyComparison(logs: DailyLog[], targetDate: ISODate): MonthlyComparison | null {
-  const periods = monthlyComparePeriods(targetDate)
+export function buildMonthlyComparison(logs: DailyLog[], targetDate: ISODate, today: ISODate = targetDate): MonthlyComparison | null {
+  if (isFutureMonth(targetDate, today)) return null
+  const periods = monthlyComparePeriods(targetDate, today)
   const cur = collectPeriod(logs, periods.currentStart, periods.currentEnd)
   const prev = collectPeriod(logs, periods.previousStart, periods.previousEnd)
 

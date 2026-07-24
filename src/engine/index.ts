@@ -142,6 +142,7 @@ export { buildPersonalRhythm, type PersonalRhythm, type PersonalRhythmInput, typ
 export {
   buildMonthlyComparison,
   monthlyComparePeriods,
+  isFutureMonth,
   MONTHLY_MIN_VALID_DAYS,
   MONTHLY_MIN_COVERAGE,
   MONTHLY_MIN_DOMAIN_DAYS,

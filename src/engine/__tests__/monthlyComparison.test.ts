@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMonthlyComparison, monthlyComparePeriods, addDaysISO } from '..'
+import { buildMonthlyComparison, monthlyComparePeriods, isFutureMonth, addDaysISO } from '..'
 import type { DailyLog } from '../../data/models'
 import { makeLog } from './factories'
 
@@ -29,6 +29,39 @@ describe('monthlyComparePeriods', () => {
     // 진행 중 3/30이면 2/28로 클램프
     const q = monthlyComparePeriods('2026-03-30')
     expect(q).toMatchObject({ currentEnd: '2026-03-30', previousEnd: '2026-02-28', partialMonth: true })
+  })
+
+  it('(11) partialMonth는 말일 여부가 아니라 현재 달 여부(today 기준)로 판정한다', () => {
+    // 과거 달의 중간 날짜를 골라도 선택 월 전체 vs 이전 달 전체
+    const past = monthlyComparePeriods('2026-06-15', '2026-07-24')
+    expect(past).toMatchObject({ currentStart: '2026-06-01', currentEnd: '2026-06-30', previousStart: '2026-05-01', previousEnd: '2026-05-31', partialMonth: false })
+    // 현재 달 중간 날짜면 1일~오늘 vs 지난달 같은 기간
+    const cur = monthlyComparePeriods('2026-07-10', '2026-07-24')
+    expect(cur).toMatchObject({ currentStart: '2026-07-01', currentEnd: '2026-07-24', previousEnd: '2026-06-24', partialMonth: true })
+  })
+
+  it('(11) 윤년 2월 경계를 안전 처리한다', () => {
+    // 2028은 윤년: 3/30(현재 달) → 이전 2월 29일로 클램프
+    const leap = monthlyComparePeriods('2028-03-30', '2028-03-30')
+    expect(leap).toMatchObject({ previousStart: '2028-02-01', previousEnd: '2028-02-29', partialMonth: true })
+  })
+
+  it('(11) 미래 달은 분석하지 않는다(null)', () => {
+    expect(isFutureMonth('2026-08-01', '2026-07-24')).toBe(true)
+    const cur = periodLogs('2026-08-01', 16, () => ({ bodyEnergyLevel: 'charged' }))
+    const prev = periodLogs('2026-07-01', 16, () => ({ bodyEnergyLevel: 'empty' }))
+    expect(buildMonthlyComparison([...prev, ...cur], '2026-08-15', '2026-07-24')).toBeNull()
+  })
+
+  it('(2) 과거 달 전체 비교는 그 달 중간 날짜로도 동일하다', () => {
+    // 6월 데이터, today가 7월 → 6월 전체 vs 5월 전체
+    const jun = periodLogs('2026-06-01', 20, (i) => ({ bodyEnergyLevel: i < 3 ? 'empty' : 'charged' }))
+    const may = periodLogs('2026-05-01', 20, (i) => ({ bodyEnergyLevel: i < 14 ? 'empty' : 'charged' }))
+    const mc = buildMonthlyComparison([...may, ...jun], '2026-06-15', '2026-07-24')!
+    expect(mc.partialMonth).toBe(false)
+    expect(mc.currentStart).toBe('2026-06-01')
+    expect(mc.currentEnd).toBe('2026-06-30')
+    expect(mc.insights.find((x) => x.domain === 'bodyEnergy')).toMatchObject({ direction: 'better' })
   })
 })
 

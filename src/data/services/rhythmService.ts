@@ -453,8 +453,10 @@ export async function getPersonalRhythm(opts: { endDate?: ISODate } = {}): Promi
    판정 규칙·임계값은 engine에만 있고 여기서는 데이터 조합만 한다. 결과 없으면 null.
    ===================================================================== */
 export async function getMonthlyComparison(opts: { targetDate?: ISODate } = {}): Promise<MonthlyComparison | null> {
-  const targetDate = opts.targetDate ?? getTodayISODate()
-  const { previousStart, currentEnd } = monthlyComparePeriods(targetDate)
+  const today = getTodayISODate()
+  const targetDate = opts.targetDate ?? today
+  // target 달이 실제 현재 달인지(today 기준)로 진행 중/완료를 판정한다.
+  const { previousStart, currentEnd } = monthlyComparePeriods(targetDate, today)
   const logs = await dailyLogRepository.listByDateRange(previousStart, currentEnd)
-  return buildMonthlyComparison(logs, targetDate)
+  return buildMonthlyComparison(logs, targetDate, today)
 }
