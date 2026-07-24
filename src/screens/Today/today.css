@@ -273,6 +273,52 @@
   margin-top: 12px;
 }
 
+/* 오늘 상태 설명 (영역 대비) */
+.today-state-line {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.6;
+  margin-top: 10px;
+}
+/* 오늘의 결정 — 대표 행동 1개 (가장 눈에 띄게) */
+.today-decision {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.55;
+  margin-top: 12px;
+}
+/* 최근 변화 / 다음 이어진 변화 */
+.today-flow-line {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.55;
+  margin-top: 10px;
+}
+/* 나머지 상세 접기 */
+.today-detail {
+  margin-top: 4px;
+}
+.today-detail__summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.4px dashed rgba(120, 120, 140, 0.35);
+  text-align: center;
+}
+.today-detail__summary::-webkit-details-marker {
+  display: none;
+}
+.today-detail[open] .today-detail__summary {
+  margin-bottom: 4px;
+}
+
 /* 내일 참고 카드 */
 .tmrw-line {
   font-size: 15px;

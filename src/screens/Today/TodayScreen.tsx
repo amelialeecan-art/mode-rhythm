@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GlassCard, SectionHeader, ModeHeroCard, PlanCard, Mascot } from '../../design'
 import { getTodaySummary } from '../../data/services/dailyScoreService'
-import { getRecoveryRecommendations } from '../../data/services/patternAnalysisService'
+import { getTodayPatternContext, type TodayPatternContext } from '../../data/services/patternAnalysisService'
+import { getRecentFlow } from '../../data/services/rhythmService'
 import { getRhythmForecastViewModel } from '../../data/services/rhythmForecastService'
-import type { TodaySummary, FactorTier, RecoveryActionInsight, RhythmForecastDay } from '../../engine'
+import { selectTodayDecision, type TodaySummary, type FactorTier, type RhythmForecastDay, type RecentFlow, type TodayDecision } from '../../engine'
+import { recentChangeSentence, followUpSentence } from './todayVoice'
 import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import { useToneMode } from '../../lib/useToneMode'
 import { getToneCopy } from '../../copy/tone'
@@ -32,7 +34,6 @@ const TIER_LABEL: Record<FactorTier, string> = {
 }
 
 // 사건 부하(0~100)는 오해 소지가 커서 항목 막대에서 제외하고 개수·주요 사건으로 표시.
-// 주기는 데이터 유무에 따라 별도 렌더(숫자 대신 "데이터 없음" 등).
 const LOAD_ROWS: { key: keyof TodaySummary['scores']; label: string; color: string }[] = [
   { key: 'emotionalLoad', label: '감정 흔들림', color: 'var(--lav)' },
   { key: 'appetiteLoad', label: '식욕 흔들림', color: 'var(--coral)' },
@@ -52,21 +53,26 @@ export function TodayScreen() {
   const navigate = useNavigate()
   const now = new Date()
   const [summary, setSummary] = useState<TodaySummary | null>(null)
-  const [recs, setRecs] = useState<RecoveryActionInsight[]>([])
+  const [pattern, setPattern] = useState<TodayPatternContext>({ recoveryRecs: [], topFlowDriver: null })
+  const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
   const [tomorrow, setTomorrow] = useState<RhythmForecastDay | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([getTodaySummary(getTodayISODate()), getRecoveryRecommendations(), getRhythmForecastViewModel()]).then(
-      ([s, r, f]) => {
-        if (cancelled) return
-        setSummary(s)
-        setRecs(r)
-        setTomorrow(f.tomorrow)
-        setLoading(false)
-      },
-    )
+    void Promise.all([
+      getTodaySummary(getTodayISODate()),
+      getTodayPatternContext(),
+      getRecentFlow(),
+      getRhythmForecastViewModel(),
+    ]).then(([s, p, rf, f]) => {
+      if (cancelled) return
+      setSummary(s)
+      setPattern(p)
+      setRecentFlow(rf)
+      setTomorrow(f.tomorrow)
+      setLoading(false)
+    })
     return () => {
       cancelled = true
     }
@@ -94,7 +100,7 @@ export function TodayScreen() {
       ) : !summary ? (
         <EmptyToday onRecord={() => navigate('/log')} />
       ) : (
-        <FilledToday summary={summary} recs={recs} tomorrow={tomorrow} onRecord={() => navigate('/log')} />
+        <FilledToday summary={summary} pattern={pattern} recentFlow={recentFlow} tomorrow={tomorrow} onRecord={() => navigate('/log')} />
       )}
     </>
   )
@@ -117,80 +123,124 @@ function EmptyToday({ onRecord }: { onRecord: () => void }) {
 
 function FilledToday({
   summary,
-  recs,
+  pattern,
+  recentFlow,
   tomorrow,
   onRecord,
 }: {
   summary: TodaySummary
-  recs: RecoveryActionInsight[]
+  pattern: TodayPatternContext
+  recentFlow: RecentFlow | null
   tomorrow: RhythmForecastDay | null
   onRecord: () => void
 }) {
   const tone = useToneMode()
-  const { classification, scores, factorCandidates, plan, recordedRecovery, rhythmExceptions, cycleContext, eventSummary } = summary
+  const { classification, scores, stateDomains, stateNarrative, factorCandidates, plan, recordedRecovery, rhythmExceptions, cycleContext, eventSummary } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
   const cycleDisplay = CYCLE_DISPLAY[cycleContext.confidence] ?? null
+  const isException = rhythmExceptions.length > 0
+
+  // 오늘의 대표 행동 1개 (예외일 안전 → 기본 기능 → 소모 흐름 → 개인 회복 → 기본).
+  const decision: TodayDecision | null = selectTodayDecision({
+    domains: stateDomains,
+    isExceptionDay: isException,
+    exceptionLabels: rhythmExceptions,
+    recentFlow,
+    recoveryRecs: pattern.recoveryRecs,
+  })
+
+  // 최근 변화 신호 / 다음에 이어진 변화 — 결과가 약하면 문장이 null → 카드 숨김.
+  const recentSentence = recentChangeSentence(recentFlow)
+  const followUp = isException ? null : followUpSentence(pattern.topFlowDriver)
 
   return (
     <>
-      <ModeHeroCard
-        modeName={classification.label}
-        subLabel={classification.subLabel}
-        body={classification.description}
-        mascotMood={mascot}
-      />
-
-      {rhythmExceptions.length > 0 && (
+      {/* 1. 예외일 배너 (해당할 때만, 최상단) */}
+      {isException && (
         <GlassCard tint="coral">
           <SectionHeader title="오늘은 평소 리듬과 분리해서 봐요" subtitle={rhythmExceptions.join(' · ')} />
-          <p className="today-rec-empty">기록은 그대로 남기되, 장기 반복 흐름과 누적 요인을 계산할 때는 예외일로 분리해요.</p>
+          <p className="today-rec-empty">기록은 그대로 남기되, 오늘은 평소 소모나 주기로 해석하지 않고 회복·기본 생활 중심으로 봐요.</p>
         </GlassCard>
       )}
 
-      {/* 오늘의 종합 부하 + 항목별 요약 */}
-      <GlassCard>
-        <SectionHeader title="오늘의 버거움" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
-        <p className="load-explain">
-          오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱 내부 가중치로 합친 값이에요. 진단 점수나 호르몬 수치가 아니에요.
-        </p>
-        <div className="loadbars">
-          {LOAD_ROWS.map((r) => (
-            <div className="loadbar" key={r.key}>
-              <span className="loadbar__label">{r.label}</span>
-              <span className="loadbar__track">
-                <i style={{ width: `${scores[r.key]}%`, background: r.color }} />
-              </span>
-              <span className="loadbar__val">{scores[r.key]}</span>
-            </div>
+      {/* 2. 오늘 상태 구조 (영역 대비 설명) */}
+      <ModeHeroCard modeName={classification.label} subLabel={classification.subLabel} body={classification.description} mascotMood={mascot} />
+      {stateNarrative.length > 0 && (
+        <GlassCard>
+          <SectionHeader title="오늘 상태" subtitle="유지되는 영역과 떨어진 영역을 나눠 봤어요" />
+          {stateNarrative.map((line, i) => (
+            <p className="today-state-line" key={i}>
+              {line}
+            </p>
           ))}
-          {/* 주기: 데이터 상태에 따라 정직하게 표시 */}
-          <div className="loadbar" key="cycle">
-            <span className="loadbar__label">주기</span>
-            {cycleDisplay && cycleDisplay.value ? (
-              <span className="loadbar__nodata">{cycleDisplay.value}</span>
-            ) : (
-              <>
-                <span className="loadbar__track">
-                  <i style={{ width: `${scores.cycleLoad}%`, background: 'var(--rose)' }} />
-                </span>
-                <span className="loadbar__val">{scores.cycleLoad}</span>
-              </>
-            )}
-          </div>
-        </div>
-        {cycleDisplay && <p className="load-explain load-explain--soft">주기: {cycleDisplay.hint}</p>}
-        <p className="load-explain load-explain--soft">
-          감정 점수는 선택한 불안·짜증·슬픔·무거움 등의 강도를 앱 내부 공식으로 합친 값이에요.
-        </p>
-      </GlassCard>
+        </GlassCard>
+      )}
 
-      {/* 오늘 있었던 일 (사건 부하 숫자 대신 개수·주요 사건) */}
-      <GlassCard>
-        <SectionHeader title="오늘 있었던 일" subtitle={`오늘 있었던 일 ${eventSummary.count}개`} />
-        {eventSummary.count === 0 ? (
-          <p className="today-rec-empty">오늘 기록된 사건이 없어요.</p>
-        ) : (
-          <>
+      {/* 3. 오늘의 결정 — 최대 1개 */}
+      {decision && (
+        <GlassCard tint="mint">
+          <SectionHeader title="오늘의 결정" subtitle={decision.source === 'personal' ? '비슷한 상태의 기록을 참고했어요' : '오늘 상태를 기준으로 한 가지만 골랐어요'} star />
+          <p className="today-decision">{decision.text}</p>
+        </GlassCard>
+      )}
+
+      {/* 4. 최근 변화 신호 — 강한 결과 1개 (약하면 카드 자체를 숨김) */}
+      {recentSentence && (
+        <GlassCard tint="sky">
+          <SectionHeader title="최근 변화 신호" />
+          <p className="today-flow-line">{recentSentence}</p>
+        </GlassCard>
+      )}
+
+      {/* 5. 다음에 자주 이어진 변화 — 기존 근거 충분할 때만 1개 */}
+      {followUp && (
+        <GlassCard>
+          <SectionHeader title="다음에 자주 이어진 변화" />
+          <p className="today-flow-line">{followUp}</p>
+        </GlassCard>
+      )}
+
+      {/* 6. 나머지 상세 — 접어두고 우선순위를 낮춤 */}
+      <details className="today-detail">
+        <summary className="today-detail__summary">오늘 상세 더 보기</summary>
+
+        {/* 오늘의 종합 부하 + 항목별 요약 */}
+        <GlassCard>
+          <SectionHeader title="오늘의 버거움" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
+          <p className="load-explain">오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱 내부 가중치로 합친 값이에요. 진단 점수나 호르몬 수치가 아니에요.</p>
+          <div className="loadbars">
+            {LOAD_ROWS.map((r) => (
+              <div className="loadbar" key={r.key}>
+                <span className="loadbar__label">{r.label}</span>
+                <span className="loadbar__track">
+                  <i style={{ width: `${scores[r.key]}%`, background: r.color }} />
+                </span>
+                <span className="loadbar__val">{scores[r.key]}</span>
+              </div>
+            ))}
+            <div className="loadbar" key="cycle">
+              <span className="loadbar__label">주기</span>
+              {cycleDisplay && cycleDisplay.value ? (
+                <span className="loadbar__nodata">{cycleDisplay.value}</span>
+              ) : (
+                <>
+                  <span className="loadbar__track">
+                    <i style={{ width: `${scores.cycleLoad}%`, background: 'var(--rose)' }} />
+                  </span>
+                  <span className="loadbar__val">{scores.cycleLoad}</span>
+                </>
+              )}
+            </div>
+          </div>
+          {cycleDisplay && <p className="load-explain load-explain--soft">주기: {cycleDisplay.hint}</p>}
+        </GlassCard>
+
+        {/* 오늘 있었던 일 */}
+        <GlassCard>
+          <SectionHeader title="오늘 있었던 일" subtitle={`오늘 있었던 일 ${eventSummary.count}개`} />
+          {eventSummary.count === 0 ? (
+            <p className="today-rec-empty">오늘 기록된 사건이 없어요.</p>
+          ) : (
             <div className="recovery-rec">
               {eventSummary.top.map((e, i) => (
                 <span className="recovery-rec__chip recovery-rec__chip--plain" key={`${e.label}-${i}`}>
@@ -198,80 +248,62 @@ function FilledToday({
                 </span>
               ))}
             </div>
-            {eventSummary.count > 3 && <p className="load-explain load-explain--soft">사건 기록이 많았어요.</p>}
-          </>
-        )}
-      </GlassCard>
-
-      {/* 오늘 기록 기반 요인 후보 */}
-      <GlassCard>
-        <SectionHeader title="오늘 기록 기반 요인 후보" subtitle="원인이 아니라, 오늘 기록에서 함께 관찰된 요소예요" />
-        <ul className="factor-list">
-          {factorCandidates.map((f, i) => (
-            <li className="factor" key={`${f.label}-${i}`}>
-              <span className="factor__no">{i + 1}</span>
-              <div className="factor__body">
-                <span className="factor__name">{f.label}</span>
-                <span className="factor__detail">{f.detail}</span>
-              </div>
-              <span className={`factor-tier factor-tier--${f.tier}`}>{TIER_LABEL[f.tier]}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="factor-note">아직 장기 패턴 분석 전이에요. 단정이 아니라 오늘 기록 기준이에요.</p>
-      </GlassCard>
-
-      {/* 오늘의 4줄 설계 */}
-      <PlanCard
-        lines={[
-          { tag: '일정', text: plan.schedule },
-          { tag: '식사', text: plan.food },
-          { tag: '운동', text: plan.movement },
-          { tag: '관계', text: plan.relationship },
-        ]}
-      />
-
-      {/* 내일 참고 (가벼운 참고 — 예측 확정 아님) */}
-      {tomorrow && (
-        <GlassCard tint="sky">
-          <SectionHeader title="내일 참고" subtitle={`참고도 ${tomorrow.confidence}`} />
-          <p className="tmrw-line">
-            내일은 <b>{tomorrow.label}</b> 가능성이 있어요{tomorrow.subLabel ? ` · ${tomorrow.subLabel}` : ''}.
-          </p>
-          <p className="tmrw-hint">{tomorrow.planHint}</p>
-          <p className="tmrw-note">{getToneCopy(tone, 'reference')}</p>
+          )}
         </GlassCard>
-      )}
 
-      {/* 오늘 도움이 될 수 있는 것 (효과 후보 기반) */}
-      <GlassCard tint="mint">
-        <SectionHeader title="오늘 도움이 될 수 있는 것" subtitle="최근 기록상 비슷한 날에 도움이 된 편이에요" star />
-        {recs.length > 0 ? (
-          <div className="recovery-rec">
-            {recs.map((r) => (
-              <span className="recovery-rec__chip" key={r.actionCode}>
-                {r.actionLabel}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="today-rec-empty">회복 행동 기록이 쌓이면 오늘 도움이 될 수 있는 행동을 추천해볼게요.</p>
-        )}
-      </GlassCard>
-
-      {/* 오늘 기록된 회복 행동 (있을 때만, 추천과 별개) */}
-      {recordedRecovery.length > 0 && (
+        {/* 오늘 기록 기반 요인 후보 */}
         <GlassCard>
-          <SectionHeader title="오늘 기록된 회복 행동" subtitle="오늘 남긴 기록이에요" />
-          <div className="recovery-rec">
-            {recordedRecovery.map((r) => (
-              <span className="recovery-rec__chip recovery-rec__chip--plain" key={r}>
-                {r}
-              </span>
+          <SectionHeader title="오늘 기록 기반 요인 후보" subtitle="원인이 아니라, 오늘 기록에서 함께 관찰된 요소예요" />
+          <ul className="factor-list">
+            {factorCandidates.map((f, i) => (
+              <li className="factor" key={`${f.label}-${i}`}>
+                <span className="factor__no">{i + 1}</span>
+                <div className="factor__body">
+                  <span className="factor__name">{f.label}</span>
+                  <span className="factor__detail">{f.detail}</span>
+                </div>
+                <span className={`factor-tier factor-tier--${f.tier}`}>{TIER_LABEL[f.tier]}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </GlassCard>
-      )}
+
+        {/* 오늘 계획(참고) — 대표 행동은 위 '오늘의 결정' 하나, 여기서는 상세로만 */}
+        <PlanCard
+          lines={[
+            { tag: '일정', text: plan.schedule },
+            { tag: '식사', text: plan.food },
+            { tag: '운동', text: plan.movement },
+            { tag: '관계', text: plan.relationship },
+          ]}
+        />
+
+        {/* 내일 참고 */}
+        {tomorrow && (
+          <GlassCard tint="sky">
+            <SectionHeader title="내일 참고" subtitle={`참고도 ${tomorrow.confidence}`} />
+            <p className="tmrw-line">
+              내일은 <b>{tomorrow.label}</b> 가능성이 있어요{tomorrow.subLabel ? ` · ${tomorrow.subLabel}` : ''}.
+            </p>
+            <p className="tmrw-hint">{tomorrow.planHint}</p>
+            <p className="tmrw-note">{getToneCopy(tone, 'reference')}</p>
+          </GlassCard>
+        )}
+
+        {/* 오늘 기록된 회복 행동 */}
+        {recordedRecovery.length > 0 && (
+          <GlassCard>
+            <SectionHeader title="오늘 기록된 회복 행동" subtitle="오늘 남긴 기록이에요" />
+            <div className="recovery-rec">
+              {recordedRecovery.map((r) => (
+                <span className="recovery-rec__chip recovery-rec__chip--plain" key={r}>
+                  {r}
+                </span>
+              ))}
+            </div>
+          </GlassCard>
+        )}
+      </details>
 
       <button className="quick-record" onClick={onRecord}>
         <span className="quick-record__plus">＋</span>

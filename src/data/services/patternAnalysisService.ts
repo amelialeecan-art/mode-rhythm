@@ -1272,3 +1272,22 @@ export async function getRecoveryRecommendations(opts: AnalysisOptions = {}, lim
   const { vm } = await computeAnalysis(opts)
   return vm.recoveryEffects.slice(0, limit)
 }
+
+export interface TodayPatternContext {
+  /** 오늘의 결정에 쓸 개인 회복 후보(기존 분석 결과, 기준 통과분). */
+  recoveryRecs: RecoveryActionInsight[]
+  /** '다음에 자주 이어진 변화' 카드용 — 근거가 충분한 최상위 반복 요인 1개(없으면 null). */
+  topFlowDriver: FlowDriverCard | null
+}
+
+/**
+ * Today 상단용 패턴 컨텍스트. computeAnalysis를 한 번만 돌려 회복 후보 + 최상위 flowDriver를
+ * 함께 돌려준다(기존 결과 재사용 — 새 분석 기준 없음, 저장 안 함).
+ */
+export async function getTodayPatternContext(opts: AnalysisOptions = {}): Promise<TodayPatternContext> {
+  const { vm } = await computeAnalysis(opts)
+  return {
+    recoveryRecs: vm.recoveryEffects.slice(0, 3),
+    topFlowDriver: vm.flowDrivers[0] ?? null,
+  }
+}
