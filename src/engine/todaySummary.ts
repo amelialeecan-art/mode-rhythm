@@ -15,6 +15,9 @@ import {
 } from './scoring'
 import { classifyDay, type DayClassification, type DayScores } from './classify'
 import { buildTodayPlan, type TodayPlan } from './todayPlan'
+import { resolveDailyStateDomains, type DailyStateDomains } from './stateDomains'
+import { describeTodayState } from './todayDecision'
+import { rhythmExceptionLabels } from '../data/catalog/dailyCheckIn'
 
 export type FactorTier = 'recorded' | 'calculated' | 'watch' | 'not_enough_data'
 
@@ -35,6 +38,13 @@ export interface TodaySummary {
   hasEntry: boolean
   classification: DayClassification
   scores: DayScores
+  /**
+   * 영역별로 분리해 읽은 상태(감정 안정감/부담 두 축 포함). 전체 점수를 나눈 게 아니라
+   * 직접 입력값을 우선순위대로 해석한 값. Today 문장은 이걸 쓴다(원본 보존).
+   */
+  stateDomains: DailyStateDomains
+  /** stateDomains 대비로 만든 오늘 상태 설명(1~2문장). 입력이 거의 없으면 빈 배열. */
+  stateNarrative: string[]
   cycleContext: CycleContext
   factorCandidates: FactorCandidate[]
   /** 오늘 있었던 일 개수 + 주요 사건 (사건 부하 숫자 노출 대체). */
@@ -42,6 +52,8 @@ export interface TodaySummary {
   plan: TodayPlan
   /** 오늘 기록된 회복 행동 라벨(분석 추천 아님 — 단순 기록). */
   recordedRecovery: string[]
+  /** 질병·부상 등 평소 리듬과 분리해 볼 예외 기록. */
+  rhythmExceptions: string[]
 }
 
 export interface TodaySummaryInput {
@@ -108,6 +120,8 @@ export function buildTodaySummary(input: TodaySummaryInput): TodaySummary {
   const rhythmLoad = calcRhythmLoad({ emotionalLoad, appetiteLoad, sleepLoad, bodyLoad, cycleLoad, eventLoad })
 
   const scores: DayScores = { emotionalLoad, appetiteLoad, sleepLoad, bodyLoad, cycleLoad, eventLoad, rhythmLoad }
+  const stateDomains = resolveDailyStateDomains(dailyLog)
+  const stateNarrative = describeTodayState(stateDomains, dailyLog)
 
   const classification = classifyDay({ scores, log: dailyLog, events, cycle: cycleContext, periodPain })
   const plan = buildTodayPlan({ scores, log: dailyLog, events })
@@ -128,10 +142,13 @@ export function buildTodaySummary(input: TodaySummaryInput): TodaySummary {
     hasEntry: true,
     classification,
     scores,
+    stateDomains,
+    stateNarrative,
     cycleContext,
     factorCandidates,
     eventSummary,
     plan,
     recordedRecovery,
+    rhythmExceptions: rhythmExceptionLabels(dailyLog.rhythmExceptionCodes),
   }
 }

@@ -76,6 +76,7 @@ import {
 } from '../../engine'
 import { FACTOR_GROUP_DISPLAY, RECOVERY_LIKE_FACTOR_GROUPS, factorWindowFor } from '../catalog/events'
 import { LAST_NIGHT_SLEEP_CODES, getSleepExposureForDate } from '../catalog/lastNightSleep'
+import { hasRhythmException } from '../catalog/dailyCheckIn'
 import { assertGuard } from '../../copy/tone'
 import { getTodayISODate, formatMonthDay, parseISODate } from '../../lib/date'
 import type { DailyLog, DailyScore, EventLog, ISODate, PatternInsight, PatternInsightInput, TargetMetric } from '../models'
@@ -709,7 +710,11 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
 
   // 저장된 날(dailyScore) vs 실제 상태 입력이 있는 유효 결과일 구분
   const logByDate = new Map<ISODate, DailyLog>()
-  for (const l of dailyLogs) logByDate.set(l.date, l)
+  const exceptionDates = new Set<ISODate>()
+  for (const l of dailyLogs) {
+    logByDate.set(l.date, l)
+    if (hasRhythmException(l.rhythmExceptionCodes)) exceptionDates.add(l.date)
+  }
   const savedDayCount = scores.filter((s) => s.date <= endDate).length
 
   // 유효 결과일: dailyScore가 있고 그날 dailyLog가 실제 상태 입력을 가진 날만
@@ -718,7 +723,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   for (const s of scores) {
     if (s.date > endDate) continue
     const log = logByDate.get(s.date)
-    if (!log || !isValidOutcomeLog(log)) continue
+    if (!log || !isValidOutcomeLog(log) || exceptionDates.has(s.date)) continue
     resultDates.push(s.date)
     scoreByDate.set(s.date, scoreVector(s))
   }
@@ -757,7 +762,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
 
     // timing 보수 처리: today=당일, yesterday=전날, exact=발생일, recent3/7days=정밀 분석 제외
     const occDate = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
-    if (occDate === null) continue
+    if (occDate === null || exceptionDates.has(occDate)) continue
 
     addFactor(occDate, e.mappedFactorGroup)
     const votes = labelVotes.get(e.mappedFactorGroup) ?? new Map<string, number>()
@@ -783,6 +788,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
 
   // 주기 자동 요인 (날짜 기반 계산 — 사용자가 고른 원인이 아님)
   for (let d = factorStart; d <= endDate; d = addDaysISO(d, 1)) {
+    if (exceptionDates.has(d)) continue
     const ctx = buildCycleContext(d, cycleLogs, settings)
     if (ctx.isPeriod) addFactor(d, 'cycle_period')
     if (ctx.isPremenstrualWindow) addFactor(d, 'cycle_premenstrual_window')
@@ -794,7 +800,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   // 다른 경로와 겹쳐도 이중 반영되지 않는다. 신규 수면이 사라지지 않도록 이 경로로 통합한다.
   const sleepDates = new Set<ISODate>([...logByDate.keys(), ...eventsByDate.keys()])
   for (const date of sleepDates) {
-    if (date < factorStart || date > endDate) continue
+    if (date < factorStart || date > endDate || exceptionDates.has(date)) continue
     const exposure = getSleepExposureForDate(logByDate.get(date), eventsByDate.get(date) ?? [])
     for (const g of exposure.factorGroups) {
       addFactor(date, g)
@@ -888,8 +894,13 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   }
   const topFactors = factorPatterns.slice(0, 8)
 
-  // 누적 노출은 분석 창(60일)의 사건으로.
-  const { runs: exposureRuns } = eventsToExposureRuns(events)
+  // 누적 노출은 분석 창(60일)의 사건으로. 예외일(질병·부상 등)에 발생한 사건은 제외한다
+  // — 예외일은 일반 반복 노출 표본으로 쓰지 않는다(다른 흐름·요인 경로와 동일 기준).
+  const usableEvents = events.filter((e) => {
+    const occ = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
+    return occ !== null && !exceptionDates.has(occ)
+  })
+  const { runs: exposureRuns } = eventsToExposureRuns(usableEvents)
 
   // ---- 누적 노출 패턴: 같은 사건이 하루일 때보다 2일↑ 이어졌을 때 결과가 더 큰지 ----
   // 기존 factorGroup 기반 패턴(factorPatterns)은 그대로 두고 이 결과만 추가한다.
@@ -942,6 +953,9 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       eventLogRepository.listByDateRange(addDaysISO(driverStart, -FACTOR_LOOKBACK), endDate),
     ])
     const driverLogByDate = new Map<ISODate, DailyLog>(driverLogs.map((l) => [l.date, l]))
+    const driverExceptionDates = new Set<ISODate>(
+      driverLogs.filter((l) => hasRhythmException(l.rhythmExceptionCodes)).map((l) => l.date),
+    )
     const flowDays: RecentFlowDay[] = driverScores
       .filter((s) => s.date <= endDate)
       .sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -952,9 +966,14 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
         sleep: s.sleepLoad,
         body: s.bodyLoad,
         functionLevel: driverLogByDate.get(s.date)?.functionLevel,
+        excluded: hasRhythmException(driverLogByDate.get(s.date)?.rhythmExceptionCodes),
       }))
     const segments = buildFlowSegments(flowDays)
-    const { runs: driverRuns, labelByKey: driverLabels } = eventsToExposureRuns(driverEvents)
+    const usableDriverEvents = driverEvents.filter((e) => {
+      const occurrence = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
+      return occurrence !== null && !driverExceptionDates.has(occurrence)
+    })
+    const { runs: driverRuns, labelByKey: driverLabels } = eventsToExposureRuns(usableDriverEvents)
     for (const dr of buildFlowDrivers(segments, driverRuns, driverLabels)) {
       flowDrivers.push({
         eventKey: dr.eventKey,
@@ -1130,6 +1149,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   const episodeDates = new Set<ISODate>([...logByDate.keys(), ...scoreByDate.keys()])
   for (const date of episodeDates) {
     if (date < startDate || date > endDate) continue
+    if (hasRhythmException(logByDate.get(date)?.rhythmExceptionCodes)) continue
     episodeInputs.push({
       date,
       functionLevel: logByDate.get(date)?.functionLevel,
@@ -1251,4 +1271,23 @@ export async function getAnalysisViewModel(opts: AnalysisOptions = {}): Promise<
 export async function getRecoveryRecommendations(opts: AnalysisOptions = {}, limit = 3): Promise<RecoveryActionInsight[]> {
   const { vm } = await computeAnalysis(opts)
   return vm.recoveryEffects.slice(0, limit)
+}
+
+export interface TodayPatternContext {
+  /** 오늘의 결정에 쓸 개인 회복 후보(기존 분석 결과, 기준 통과분). */
+  recoveryRecs: RecoveryActionInsight[]
+  /** '다음에 자주 이어진 변화' 카드용 — 근거가 충분한 최상위 반복 요인 1개(없으면 null). */
+  topFlowDriver: FlowDriverCard | null
+}
+
+/**
+ * Today 상단용 패턴 컨텍스트. computeAnalysis를 한 번만 돌려 회복 후보 + 최상위 flowDriver를
+ * 함께 돌려준다(기존 결과 재사용 — 새 분석 기준 없음, 저장 안 함).
+ */
+export async function getTodayPatternContext(opts: AnalysisOptions = {}): Promise<TodayPatternContext> {
+  const { vm } = await computeAnalysis(opts)
+  return {
+    recoveryRecs: vm.recoveryEffects.slice(0, 3),
+    topFlowDriver: vm.flowDrivers[0] ?? null,
+  }
 }

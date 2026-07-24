@@ -12,7 +12,7 @@
    - mixed는 회차 안에 넣지 않고 구분자로 둔다(서로 다른 흐름이 합쳐지지 않게).
    - 우선순위: 반복 횟수 → 순서 길이 → 회차 길이 일관성 → 기록 점유 비율.
    ===================================================================== */
-import type { ISODate } from '../data/models'
+import type { DayContextCode, ISODate } from '../data/models'
 import type { FlowDomain, FlowStatus } from './recentFlow'
 import type { FlowSegment } from './flowSegments'
 import type { FlowDriver } from './flowDrivers'
@@ -40,6 +40,8 @@ export interface PersonalRhythm {
 export interface PersonalRhythmInput {
   periodStarts?: ISODate[]
   drivers?: FlowDriver[]
+  /** 출근/재택/휴일 같은 생활 맥락. 짧은 생활 일정 반복을 개인 주기로 오인하지 않게 쓴다. */
+  dayContextByDate?: ReadonlyMap<ISODate, DayContextCode>
 }
 
 const MIN_RECORD_DAYS = 90 // 이만큼 기록이 없으면 분석하지 않음
@@ -148,7 +150,11 @@ interface Candidate {
 }
 
 /** 겹치지 않는 연속 반복 motif 후보를 모은다(motif별 최장 체인). */
-function collectCandidates(units: Unit[], totalSpan: number): Candidate[] {
+function collectCandidates(
+  units: Unit[],
+  totalSpan: number,
+  dayContextByDate?: ReadonlyMap<ISODate, DayContextCode>,
+): Candidate[] {
   const byMotif = new Map<string, { motif: FlowState[]; occStarts: number[] }>()
   for (let k = 2; k <= Math.min(MAX_MOTIF_LEN, units.length); k++) {
     for (let p = 0; p + k <= units.length; p++) {
@@ -182,8 +188,12 @@ function collectCandidates(units: Unit[], totalSpan: number): Candidate[] {
     })
     const need = motif.length === 2 ? MIN_OCCURRENCES_2STATE : MIN_OCCURRENCES
     if (keep.length < need) continue
-    // 단순 주말/요일 반복 제외: 짧은(주 단위) 주기가 늘 같은 요일에 시작하면 뺀다.
-    if (median(keepLens) <= WEEKLY_MAX_LEN && new Set(keep.map((os) => weekday(units[os].startDate))).size <= 1) continue
+    // 단순 주말/요일·생활유형 반복 제외: 짧은 주기가 같은 요일 또는 같은 생활 맥락에서만 시작하면 뺀다.
+    if (median(keepLens) <= WEEKLY_MAX_LEN) {
+      if (new Set(keep.map((os) => weekday(units[os].startDate))).size <= 1) continue
+      const contexts = keep.map((os) => dayContextByDate?.get(units[os].startDate)).filter((x): x is DayContextCode => !!x)
+      if (contexts.length === keep.length && new Set(contexts).size <= 1) continue
+    }
     cands.push({
       motif,
       occStarts: keep,
@@ -226,7 +236,7 @@ export function buildPersonalRhythm(segments: FlowSegment[], input: PersonalRhyt
   const units = buildUnits(segments)
   if (units.length < 2) return null
 
-  const cands = collectCandidates(units, totalSpan)
+  const cands = collectCandidates(units, totalSpan, input.dayContextByDate)
   if (cands.length === 0) return null
 
   // 긴 순서가 3회↑ 온전히 반복되면 그 부분(짧은) 순서는 대표로 쓰지 않는다.

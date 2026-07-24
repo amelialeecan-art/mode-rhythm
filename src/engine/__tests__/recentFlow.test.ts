@@ -71,6 +71,21 @@ describe('buildRecentFlow', () => {
     expect(buildRecentFlow(days).displayable).toBe(false)
   })
 
+  it('예외일은 최근 흐름의 경계가 되어 전후 기록을 이어 붙이지 않는다', () => {
+    const before = build(16, () => base(35))
+    const exceptionDate = addDaysISO(END, 1)
+    const after = Array.from({ length: 6 }, (_, i) => ({ date: addDaysISO(exceptionDate, i + 1), ...base(35) }))
+    const flow = buildRecentFlow([
+      ...before,
+      { date: exceptionDate, emotional: 100, appetite: 100, sleep: 100, body: 100, functionLevel: 4, excluded: true },
+      ...after,
+    ])
+    expect(flow.status).toBe('stable')
+    expect(flow.displayable).toBe(true)
+    expect(flow.startDate).toBe(after[0].date)
+    expect(flow.lengthDays).toBe(6)
+  })
+
   it('단일 영역 변화만으로는 depleting 선언 안 함(→ stable)', () => {
     const days = build(16, (i) => ({
       emotional: i < 10 ? 30 : 30 + (i - 9) * 12,

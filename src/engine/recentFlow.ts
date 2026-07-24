@@ -27,6 +27,8 @@ export interface RecentFlowDay {
   body?: number
   /** 생활기능 1~4 (4=가장 저하). 내부에서 0~100로 환산. */
   functionLevel?: number
+  /** 질병·부상 등 평소 리듬과 분리할 예외일. */
+  excluded?: boolean
 }
 
 export interface RecentFlow {
@@ -110,14 +112,19 @@ function assess(dom: FlowDomain, days: RecentFlowDay[], endDate: ISODate, window
 
 export function buildRecentFlow(days: RecentFlowDay[]): RecentFlow {
   const empty: RecentFlow = { status: 'stable', startDate: '', lengthDays: 0, leading: [], holding: [], displayable: false }
-  const withAny = days.filter((d) => FLOW_DOMAINS.some((dom) => domainValue(d, dom) !== undefined))
+  const lastExcludedDate = days.filter((d) => d.excluded).map((d) => d.date).sort().at(-1)
+  // 예외일은 단순히 한 점만 빼는 것이 아니라 흐름 경계다. 예외 전 기록과 이후 기록을 이어 붙이지 않는다.
+  const usableDays = days.filter((d) => !d.excluded && (!lastExcludedDate || d.date > lastExcludedDate))
+  const withAny = usableDays.filter((d) => FLOW_DOMAINS.some((dom) => domainValue(d, dom) !== undefined))
   if (withAny.length === 0) return empty
   const endDate = withAny.reduce((a, b) => (b.date > a ? b.date : a), withAny[0].date)
   const windowStart = addDays(endDate, -(WINDOW - 1))
+  const firstUsableDate = withAny.reduce((a, b) => (b.date < a ? b.date : a), withAny[0].date)
+  const analysisStart = firstUsableDate > windowStart ? firstUsableDate : windowStart
 
   const scoredDays = new Set(withAny.filter((d) => d.date >= windowStart).map((d) => d.date)).size
 
-  const verdicts = FLOW_DOMAINS.map((dom) => assess(dom, days, endDate, windowStart))
+  const verdicts = FLOW_DOMAINS.map((dom) => assess(dom, usableDays, endDate, windowStart))
   const judgeable = verdicts.filter((v) => v.judgeable)
   const worse = verdicts.filter((v) => v.dir === 'worse')
   const better = verdicts.filter((v) => v.dir === 'better')
@@ -142,7 +149,7 @@ export function buildRecentFlow(days: RecentFlowDay[]): RecentFlow {
   const holding = judgeable.filter((v) => v.dir === 'flat').map((v) => v.domain)
 
   const onsets = changing.map((v) => v.onset).filter((x): x is ISODate => !!x)
-  const startDate = onsets.length ? onsets.reduce((a, b) => (b < a ? b : a)) : windowStart
+  const startDate = onsets.length ? onsets.reduce((a, b) => (b < a ? b : a)) : analysisStart
   const lengthDays = daysBetween(startDate, endDate) + 1
 
   const displayable = judgeable.length >= MIN_JUDGEABLE && scoredDays >= MIN_SCORED_DAYS

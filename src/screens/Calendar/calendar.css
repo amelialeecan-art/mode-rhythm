@@ -149,6 +149,27 @@
   line-height: 1.5;
   margin-top: 16px;
 }
+/* 상태 요약 접기 (원본 기록 아래, 분석 결과는 후순위) */
+.sheet-summary {
+  margin-top: 16px;
+}
+.sheet-summary__sum {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.sheet-summary__sum::-webkit-details-marker {
+  display: none;
+}
+.sheet-summary .sheet__moderow {
+  margin-top: 10px;
+}
+.sheet-chip--exc {
+  background: rgba(255, 149, 118, 0.16);
+  color: var(--coral-ink);
+}
 .sheet__close {
   margin-top: 18px;
 }

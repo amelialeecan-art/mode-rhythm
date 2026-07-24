@@ -29,6 +29,18 @@ export {
 } from './classify'
 export { buildTodayPlan, type TodayPlan, type TodayPlanInput } from './todayPlan'
 export {
+  resolveDailyStateDomains,
+  type DailyStateDomains,
+  type DomainReading,
+  type DomainSource,
+} from './stateDomains'
+export {
+  describeTodayState,
+  selectTodayDecision,
+  type TodayDecision,
+  type TodayDecisionInput,
+} from './todayDecision'
+export {
   buildTodaySummary,
   type TodaySummary,
   type TodaySummaryInput,
@@ -127,6 +139,20 @@ export {
 } from './exposureRuns'
 export { buildFlowDrivers, MAX_FLOW_DRIVERS, type FlowDriver } from './flowDrivers'
 export { buildPersonalRhythm, type PersonalRhythm, type PersonalRhythmInput, type FlowState } from './personalRhythm'
+export {
+  buildMonthlyComparison,
+  monthlyComparePeriods,
+  isFutureMonth,
+  MONTHLY_MIN_VALID_DAYS,
+  MONTHLY_MIN_COVERAGE,
+  MONTHLY_MIN_DOMAIN_DAYS,
+  MONTHLY_MIN_RATIO_DIFF,
+  MONTHLY_MIN_RECOVERY_CASES,
+  type MonthlyComparison,
+  type MonthlyComparisonInsight,
+  type MonthlyInsightKind,
+  type MonthlyPeriods,
+} from './monthlyComparison'
 export {
   buildCycleCompare,
   CYCLE_BEFORE,

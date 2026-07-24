@@ -82,6 +82,20 @@ describe('buildPersonalRhythm', () => {
     expect(buildPersonalRhythm(segsFrom('2026-01-05', specs))).toBeNull()
   })
 
+
+  it('짧은 반복이 같은 생활 유형에서만 시작하면 개인 주기로 만들지 않는다', () => {
+    // 8일 주기는 시작 요일이 계속 바뀌지만, 모든 회차 시작을 출근일로 기록한 생활 일정 반복.
+    const specs: Spec[] = []
+    for (let i = 0; i < 12; i++) specs.push(
+      { status: 'stable', days: 3 },
+      { status: 'depleting', days: 3, leading: D },
+      { status: 'recovering', days: 2 },
+    )
+    const segments = segsFrom('2026-01-05', specs)
+    const contexts = new Map(segments.map((s) => [s.startDate, 'office' as const]))
+    expect(buildPersonalRhythm(segments, { dayContextByDate: contexts })).toBeNull()
+  })
+
   it('생리 시작일에 맞춰 반복되면 cycleRelated=true', () => {
     const segs = cycles(4)
     const starts = [0, 27, 54, 81].map((d) => addDaysISO('2026-01-05', d)) // 각 회차 시작(27일 주기)

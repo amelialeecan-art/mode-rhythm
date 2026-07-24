@@ -5,14 +5,17 @@ import {
   getCycleCompareViewModel,
   getRecentFlow,
   getPersonalRhythm,
+  getMonthlyComparison,
   type RhythmViewModel,
   type CycleCompareViewModel,
   type RhythmMetric,
   type CyclePhase,
 } from '../../data/services/rhythmService'
-import type { RecentFlow, PersonalRhythm } from '../../engine'
-import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence } from './rhythmVoice'
+import type { RecentFlow, PersonalRhythm, MonthlyComparison } from '../../engine'
+import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
+import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence, monthlyComparisonView } from './rhythmVoice'
 import { CycleCompareChart } from './CycleCompareChart'
+import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import './rhythm.css'
 
 const RANGES = [
@@ -49,8 +52,10 @@ export function RhythmScreen() {
   const [metric, setMetric] = useState<RhythmMetric>('emotional')
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
   const [cycleVm, setCycleVm] = useState<CycleCompareViewModel | null>(null)
+  const [checkpoint, setCheckpoint] = useState<CheckpointCard | null>(null)
   const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
   const [personalRhythm, setPersonalRhythm] = useState<PersonalRhythm | null>(null)
+  const [monthly, setMonthly] = useState<MonthlyComparison | null>(null)
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
@@ -73,11 +78,17 @@ export function RhythmScreen() {
 
   useEffect(() => {
     let cancelled = false
+    void getCheckpointSignals().then((s) => {
+      if (!cancelled) setCheckpoint(buildCheckpoint(s))
+    })
     void getRecentFlow().then((f) => {
       if (!cancelled) setRecentFlow(f)
     })
     void getPersonalRhythm().then((p) => {
       if (!cancelled) setPersonalRhythm(p)
+    })
+    void getMonthlyComparison().then((m) => {
+      if (!cancelled) setMonthly(m)
     })
     return () => {
       cancelled = true
@@ -176,7 +187,7 @@ export function RhythmScreen() {
             </GlassCard>
           ) : (
             <>
-              {/* 최근 며칠의 현재 변화 */}
+              {/* 1. 최근 흐름 (최근 며칠~2주 방향) — 약하면 카드 숨김 */}
               {recentFlow && (
                 <GlassCard tint="mint">
                   <SectionHeader title="최근 흐름" />
@@ -184,7 +195,7 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 월을 넘는 장기 반복 구조 (최근 흐름과 역할 분리) */}
+              {/* 2. 나의 반복 흐름 (장기 반복 구조) — 없으면 카드 전체 숨김 */}
               {personalRhythm && (
                 <GlassCard tint="lav">
                   <SectionHeader title="나의 반복 흐름" />
@@ -196,7 +207,7 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 장기 그래프 */}
+              {/* 3. 장기 그래프 (사용자가 직접 변화 확인) */}
               <GlassCard>
                 <RhythmChart
                   count={vm.buckets.length}
@@ -216,6 +227,29 @@ export function RhythmScreen() {
                 )}
               </GlassCard>
 
+              {/* 5. 월간 비교 (달 단위 생활 변화) — 결과 없으면 제목·카드 전체 숨김 */}
+              {monthly && (
+                <GlassCard tint="coral">
+                  <SectionHeader title="월간 비교" />
+                  {(() => {
+                    const view = monthlyComparisonView(monthly)
+                    return (
+                      <>
+                        <p className="rhythm-month-lead">{view.lead}</p>
+                        <ul className="rhythm-month-list">
+                          {view.lines.map((line, i) => (
+                            <li className="rhythm-month-line" key={i}>
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )
+                  })()}
+                </GlassCard>
+              )}
+
+              {/* 6. 기존 짧은 기간 비교 (최근 일주일 — 보조) */}
               <GlassCard tint="lav">
                 <SectionHeader title="최근 일주일" />
                 <p className="rhythm-week">{rhythmCompareSentence(metric, vm.weekCompare[metric])}</p>
@@ -229,6 +263,17 @@ export function RhythmScreen() {
                   </details>
                 )}
               </GlassCard>
+
+              {checkpoint && (
+                <GlassCard tint="sky">
+                  <SectionHeader title="다가오는 체크포인트" />
+                  {checkpoint.sentences.map((s, i) => (
+                    <p className="cp-say" key={i}>
+                      {s}
+                    </p>
+                  ))}
+                </GlassCard>
+              )}
             </>
           )}
         </>

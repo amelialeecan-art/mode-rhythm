@@ -18,6 +18,8 @@ import {
   buildFlowSegments,
   buildFlowDrivers,
   buildPersonalRhythm,
+  buildMonthlyComparison,
+  monthlyComparePeriods,
   CYCLE_BEFORE,
   CYCLE_AFTER,
   MIN_PERIOD_STARTS,
@@ -26,10 +28,12 @@ import {
   type RecentFlow,
   type RecentFlowDay,
   type PersonalRhythm,
+  type MonthlyComparison,
 } from '../../engine'
-import { eventsToExposureRuns } from './patternAnalysisService'
+import { eventOccurrenceDate, eventsToExposureRuns } from './patternAnalysisService'
+import { hasRhythmException } from '../catalog/dailyCheckIn'
 import { getTodayISODate } from '../../lib/date'
-import type { CycleLog, DailyScore, ISODate } from '../models'
+import type { CycleLog, DailyLog, DailyScore, ISODate } from '../models'
 
 export type CyclePhase = 'period' | 'premenstrual' | 'ovulation'
 export type RhythmMetric = 'emotional' | 'appetite' | 'sleep' | 'body' | 'recovery'
@@ -369,7 +373,13 @@ export async function getRecentFlow(opts: { endDate?: ISODate } = {}): Promise<R
     dailyLogRepository.listByDateRange(fetchStart, endDate),
   ])
   const funcByDate = new Map<ISODate, number>()
-  for (const l of logs) if (l.functionLevel != null) funcByDate.set(l.date, l.functionLevel)
+  const exceptionByDate = new Set<ISODate>()
+  for (const l of logs) {
+    if (l.functionLevel != null) funcByDate.set(l.date, l.functionLevel)
+    if (hasRhythmException(l.rhythmExceptionCodes)) exceptionByDate.add(l.date)
+  }
+  // 오늘이 질병·부상 등 예외일이면 이전 흐름을 오늘 상태처럼 보여주지 않는다.
+  if (exceptionByDate.has(endDate)) return null
 
   const dateSet = new Set<ISODate>()
   for (const s of scores) dateSet.add(s.date)
@@ -385,6 +395,7 @@ export async function getRecentFlow(opts: { endDate?: ISODate } = {}): Promise<R
       sleep: s?.sleepLoad,
       body: s?.bodyLoad,
       functionLevel: funcByDate.get(date),
+      excluded: exceptionByDate.has(date),
     }
   })
 
@@ -412,16 +423,40 @@ export async function getPersonalRhythm(opts: { endDate?: ISODate } = {}): Promi
   ])
 
   const funcByDate = new Map<ISODate, number>()
-  for (const l of logs) if (l.functionLevel != null) funcByDate.set(l.date, l.functionLevel)
+  const dayContextByDate = new Map<ISODate, NonNullable<DailyLog['dayContext']>>()
+  const exceptionByDate = new Set<ISODate>()
+  for (const l of logs) {
+    if (l.functionLevel != null) funcByDate.set(l.date, l.functionLevel)
+    if (l.dayContext) dayContextByDate.set(l.date, l.dayContext)
+    if (hasRhythmException(l.rhythmExceptionCodes)) exceptionByDate.add(l.date)
+  }
   const flowDays: RecentFlowDay[] = scores
     .filter((s) => s.date <= endDate)
     .sort((a, b) => (a.date < b.date ? -1 : 1))
-    .map((s) => ({ date: s.date, emotional: s.emotionalLoad, appetite: s.appetiteLoad, sleep: s.sleepLoad, body: s.bodyLoad, functionLevel: funcByDate.get(s.date) }))
+    .map((s) => ({ date: s.date, emotional: s.emotionalLoad, appetite: s.appetiteLoad, sleep: s.sleepLoad, body: s.bodyLoad, functionLevel: funcByDate.get(s.date), excluded: exceptionByDate.has(s.date) }))
 
   const segments = buildFlowSegments(flowDays)
-  const { runs, labelByKey } = eventsToExposureRuns(events)
+  const usableEvents = events.filter((e) => {
+    const occurrence = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
+    return occurrence !== null && !exceptionByDate.has(occurrence)
+  })
+  const { runs, labelByKey } = eventsToExposureRuns(usableEvents)
   const drivers = buildFlowDrivers(segments, runs, labelByKey)
   const periodStarts = cycleLogs.filter((c) => c.periodStart).map((c) => c.date)
 
-  return buildPersonalRhythm(segments, { periodStarts, drivers })
+  return buildPersonalRhythm(segments, { periodStarts, drivers, dayContextByDate })
+}
+
+/* =====================================================================
+   월간 비교 (step5)
+   이번 달(또는 선택한 달)과 이전 달 같은 기간의 dailyLogs를 모아 engine에 넘긴다.
+   판정 규칙·임계값은 engine에만 있고 여기서는 데이터 조합만 한다. 결과 없으면 null.
+   ===================================================================== */
+export async function getMonthlyComparison(opts: { targetDate?: ISODate } = {}): Promise<MonthlyComparison | null> {
+  const today = getTodayISODate()
+  const targetDate = opts.targetDate ?? today
+  // target 달이 실제 현재 달인지(today 기준)로 진행 중/완료를 판정한다.
+  const { previousStart, currentEnd } = monthlyComparePeriods(targetDate, today)
+  const logs = await dailyLogRepository.listByDateRange(previousStart, currentEnd)
+  return buildMonthlyComparison(logs, targetDate, today)
 }

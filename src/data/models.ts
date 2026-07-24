@@ -80,6 +80,62 @@ export type TargetMetric =
 /** 톤 모드 (저장값). */
 export type ToneModeValue = 'calm' | 'witty' | 'direct'
 
+/** 몸 에너지 직접 입력. 상태 칩에서 추정하지 않고 이 값이 있으면 우선한다. */
+export type BodyEnergyLevel = 'charged' | 'okay' | 'low' | 'empty'
+
+/** 머릿속 여유 직접 입력. */
+export type MentalSpaceLevel = 'spacious' | 'okay' | 'busy' | 'overloaded'
+
+/** 그날의 생활 맥락. 요일과 생활 유형을 구분하기 위한 사실 기록. */
+export type DayContextCode = 'office' | 'remote' | 'off' | 'special'
+
+/** 구체적인 오늘의 몸 신호. */
+export type BodySignalCode =
+  | 'heavy_body'
+  | 'head_eye_fatigue'
+  | 'neck_shoulder_tension'
+  | 'bloating_digestive'
+  | 'period_cramps'
+  | 'malaise'
+  | 'none'
+
+/** 평소 리듬과 분리해 볼 예외 상태. */
+export type RhythmExceptionCode =
+  | 'illness'
+  | 'injury'
+  | 'medication_change'
+  | 'vaccination'
+  | 'hangover'
+  | 'none'
+
+/** 감정 안정감(단일 선택). 안정↔흔들림을 하나의 축으로 본다. */
+export type EmotionalStabilityLevel =
+  | 'very_stable'
+  | 'mostly_stable'
+  | 'slightly_shaken'
+  | 'quite_shaken'
+  | 'mostly_shaken'
+
+/** 두드러진 감정(복수 선택). 안정감과 상호배타가 아니다. */
+export type EmotionCode =
+  | 'sensitive'
+  | 'irritated'
+  | 'angry'
+  | 'anxious'
+  | 'down'
+  | 'tearful'
+  | 'lethargic'
+  | 'other'
+
+/** 두드러진 감정이 하루에 준 영향 정도(감정을 하나 이상 고른 날에만). */
+export type EmotionImpactLevel = 'passing' | 'brief' | 'repeated' | 'most_day'
+
+/** 집중 가능 정도(단일 선택). */
+export type FocusLevel = 'well' | 'mostly' | 'often_scattered' | 'rarely'
+
+/** 사람을 대할 여유(단일 선택). 사회 피로/혼자 있음과 다른 '현재 상태' 축. */
+export type SocialCapacityLevel = 'enough' | 'okay' | 'low' | 'rarely'
+
 /* ---------------------------------------------------------------------
    1) dailyLogs — 하루 상태 (강도값 0~10). 하루 1행(date unique).
    --------------------------------------------------------------------- */
@@ -130,7 +186,7 @@ export interface DailyLog {
   lastNightSleep?: LastNightSleep
   /**
    * 오늘 일상 기능 (비인덱스 optional — 3단계). 사용자가 직접 고르는 기능 저하 라벨이며
-   * 의료 진단이 아니다. 점수 공식/분석에는 아직 반영하지 않는다(기록·복원만).
+   * 의료 진단이 아니다. 전체 부하 점수에는 직접 합산하지 않지만 최근·장기 흐름 분석에 사용한다.
    * 1 유지됨 / 2 버거웠지만 할 일은 함 / 3 중요한 것 몇 개를 못 함 / 4 거의 멈춤·무너짐.
    */
   functionLevel?: FunctionLevel
@@ -140,6 +196,22 @@ export interface DailyLog {
   functionImpactCustom?: string[]
   /** 무너짐 시작 시점 코드 (level 3·4에서만). */
   functionDropOnset?: string
+  /** 몸 에너지·머릿속 여유·생활 맥락 직접 입력(비인덱스 optional). */
+  bodyEnergyLevel?: BodyEnergyLevel
+  mentalSpaceLevel?: MentalSpaceLevel
+  dayContext?: DayContextCode
+  /** 구체적인 몸 신호와 평소 리듬 예외(비인덱스 optional). */
+  bodySignalCodes?: BodySignalCode[]
+  rhythmExceptionCodes?: RhythmExceptionCode[]
+  /**
+   * 감정 안정감·두드러진 감정·영향 정도·집중력·사람 대할 여유 직접 입력
+   * (비인덱스 optional — 스키마/인덱스 변경 없음). 옛 stateCodes와 의미를 합치지 않는다.
+   */
+  emotionalStabilityLevel?: EmotionalStabilityLevel
+  emotionCodes?: EmotionCode[]
+  emotionImpactLevel?: EmotionImpactLevel
+  focusLevel?: FocusLevel
+  socialCapacityLevel?: SocialCapacityLevel
   createdAt: string
   updatedAt: string
 }

@@ -3,6 +3,7 @@ import {
   calcEmotionalLoad,
   calcAppetiteLoad,
   calcSleepLoad,
+  calcBodyLoad,
   calcEventLoad,
   calcRhythmLoad,
 } from '../scoring'
@@ -20,6 +21,23 @@ describe('calcEmotionalLoad', () => {
     const high = calcEmotionalLoad(makeLog({ anxiety: 9, heaviness: 9 }))
     expect(high).toBeGreaterThan(low)
     expect(high).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('직접 입력 우선', () => {
+  it('머릿속 여유가 가득 참이면 감정 preset이 낮아도 부하에 반영된다', () => {
+    const base = calcEmotionalLoad(makeLog({ calm: 8 }))
+    const overloaded = calcEmotionalLoad(makeLog({ calm: 8, mentalSpaceLevel: 'overloaded' }))
+    expect(overloaded).toBeGreaterThan(base)
+    expect(overloaded).toBeGreaterThanOrEqual(80)
+  })
+
+  it('몸 에너지와 구체적 몸 신호가 몸 부하에 반영된다', () => {
+    const base = calcBodyLoad(makeLog())
+    const empty = calcBodyLoad(makeLog({ bodyEnergyLevel: 'empty' }))
+    const signals = calcBodyLoad(makeLog({ bodySignalCodes: ['malaise', 'head_eye_fatigue'] }))
+    expect(empty).toBeGreaterThan(base)
+    expect(signals).toBeGreaterThan(base)
   })
 })
 
@@ -82,9 +100,17 @@ describe('calcEventLoad', () => {
     expect(rel).toBeGreaterThan(env)
   })
 
-  it('movement만 있으면 부하가 낮다(음수→0 처리)', () => {
+  it('movement 사건은 부하를 자동으로 낮추지도 높이지도 않는다(중립 0)', () => {
+    // 운동/산책 같은 움직임 사건은 "했다는 사실"만으로 상태·부하를 개선하지 않는다.
     const load = calcEventLoad([makeEvent({ category: 'movement', intensity: 8 })])
     expect(load).toBe(0)
+    // 다른 사건과 함께 있어도 movement가 그 사건 부하를 깎지 않는다.
+    const withRel = calcEventLoad([
+      makeEvent({ category: 'relationship', intensity: 8 }),
+      makeEvent({ category: 'movement', intensity: 8 }),
+    ])
+    const relOnly = calcEventLoad([makeEvent({ category: 'relationship', intensity: 8 })])
+    expect(withRel).toBe(relOnly)
   })
 })
 

@@ -302,7 +302,20 @@ function segmentBlock(block: ValidDay[]): FlowSegment[] {
  * 구간은 날짜순이며, 큰 공백에서만 분리된다(달 경계로는 끊지 않음).
  */
 export function buildFlowSegments(days: RecentFlowDay[]): FlowSegment[] {
-  const vd = toValidDays(days)
-  if (vd.length < MIN_VALID_TOTAL) return []
-  return splitBlocks(vd).flatMap((block) => segmentBlock(block))
+  const sorted = [...days].sort((a, b) => (a.date < b.date ? -1 : 1))
+  const inputBlocks: RecentFlowDay[][] = []
+  let current: RecentFlowDay[] = []
+  for (const day of sorted) {
+    if (day.excluded) {
+      if (current.length) inputBlocks.push(current)
+      current = []
+      continue
+    }
+    current.push(day)
+  }
+  if (current.length) inputBlocks.push(current)
+
+  const validTotal = inputBlocks.reduce((n, block) => n + toValidDays(block).length, 0)
+  if (validTotal < MIN_VALID_TOTAL) return []
+  return inputBlocks.flatMap((input) => splitBlocks(toValidDays(input)).flatMap((block) => segmentBlock(block)))
 }

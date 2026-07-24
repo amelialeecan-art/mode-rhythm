@@ -27,7 +27,7 @@ export const EVENT_CATALOG: EventCatalogItem[] = [
   { code: 'no_morning_light', label: '아침 햇빛 못 봄', category: 'sleep', factorGroup: 'morning_light' },
   { code: 'irregular_sleep', label: '기상/취침 불규칙', category: 'sleep', factorGroup: 'sleep_schedule' },
 
-  // ---- 식사/혈당 ("먹고 싶음"은 식욕 상태 카드, "실제로 먹음"은 여기 사건으로) ----
+  // ---- 식사 ("먹고 싶음"은 식욕 상태 카드, "실제로 먹음"은 여기 사건으로. 혈당·CGM 입력은 없다) ----
   { code: 'meal_skipped', label: '식사를 거름', category: 'food', factorGroup: 'meal_skip' },
   { code: 'meal_overeat', label: '과식함', category: 'food', factorGroup: 'overeat' },
   { code: 'meal_latenight', label: '야식 먹음', category: 'food', factorGroup: 'late_night_eating' },
@@ -93,6 +93,13 @@ export const EVENT_CATALOG: EventCatalogItem[] = [
  * 이 그룹들은 recoveryLogs 기반 회복 분석에서만 평가된다. (원본 eventLog는 그대로 보존)
  */
 export const RECOVERY_LIKE_FACTOR_GROUPS: ReadonlySet<string> = new Set(['exercise', 'walk', 'self_care'])
+
+/**
+ * 회복 행동과 겹치는 사건 코드. 운동·산책·씻음(샤워/목욕)은 회복 행동에서만 새로 입력한다.
+ * 새 기록 UI의 '오늘 있었던 일' 목록에서는 감추되, 옛 기록의 이 코드는 계속 읽고 재저장할 수
+ * 있도록 EVENT_CATALOG 항목 자체는 남긴다(라벨·factorGroup 조회 호환).
+ */
+export const RECOVERY_DUP_EVENT_CODES: ReadonlySet<string> = new Set(['exercised', 'walked', 'washed'])
 
 /**
  * factor 그룹 표준 표시(분석 화면용). 최빈 eventLabel 하나를 제목으로 쓰는 대신,
@@ -219,7 +226,7 @@ export function isLagWithinWindow(group: string, lag: number): boolean {
 /** 카테고리별 그룹핑 (기록 화면에서 섹션 표시용). */
 export const EVENT_CATEGORY_LABEL: Record<EventCategory, string> = {
   sleep: '수면/리듬',
-  food: '식사/혈당',
+  food: '식사',
   relationship: '관계/사회',
   work: '일',
   body: '몸',
