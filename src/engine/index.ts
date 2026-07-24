@@ -140,6 +140,19 @@ export {
 export { buildFlowDrivers, MAX_FLOW_DRIVERS, type FlowDriver } from './flowDrivers'
 export { buildPersonalRhythm, type PersonalRhythm, type PersonalRhythmInput, type FlowState } from './personalRhythm'
 export {
+  buildMonthlyComparison,
+  monthlyComparePeriods,
+  MONTHLY_MIN_VALID_DAYS,
+  MONTHLY_MIN_COVERAGE,
+  MONTHLY_MIN_DOMAIN_DAYS,
+  MONTHLY_MIN_RATIO_DIFF,
+  MONTHLY_MIN_RECOVERY_CASES,
+  type MonthlyComparison,
+  type MonthlyComparisonInsight,
+  type MonthlyInsightKind,
+  type MonthlyPeriods,
+} from './monthlyComparison'
+export {
   buildCycleCompare,
   CYCLE_BEFORE,
   CYCLE_AFTER,

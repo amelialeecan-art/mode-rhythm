@@ -4,7 +4,7 @@
    않는다(숫자는 화면 "근거 보기"에만). 새 임계값을 만들지 않고 표시 차이만.
    ===================================================================== */
 import type { RhythmMetric, WeekCompareStat } from '../../data/services/rhythmService'
-import type { FlowDomain, RecentFlow, PersonalRhythm, FlowState } from '../../engine'
+import type { FlowDomain, RecentFlow, PersonalRhythm, FlowState, MonthlyComparison, MonthlyComparisonInsight } from '../../engine'
 
 export const RHYTHM_METRIC_LABEL: Record<RhythmMetric, string> = {
   emotional: '감정 흔들림',
@@ -227,4 +227,59 @@ export function personalRhythmSentence(r: PersonalRhythm): string[] {
     out.push(s)
   }
   return out
+}
+
+/* =====================================================================
+   월간 비교 (step5) — engine 데이터(MonthlyComparison)를 문장으로.
+   신뢰도·근거 횟수·내부 점수·백분율·"추정/가능성/부족"은 넣지 않는다.
+   생활 맥락은 좋고 나쁨 없이 사실로만 표현한다.
+   ===================================================================== */
+
+/** 영역 → "힘든 날" 표현(strain/capacity 방향은 engine이 이미 direction으로 정리). */
+const MONTHLY_DOMAIN_PHRASE: Record<string, string> = {
+  bodyEnergy: '몸 에너지가 떨어진 날',
+  functionLevel: '생활기능이 버거운 날',
+  emotionalStability: '감정이 크게 흔들린 날',
+  emotionalBurden: '감정 부담이 큰 날',
+  mentalSpace: '머릿속 여유가 낮은 날',
+  focus: '집중이 어려운 날',
+  socialCapacity: '사람을 대할 여유가 낮은 날',
+  bodyDiscomfort: '몸이 불편한 날',
+  sleep: '수면이 부족한 날',
+  appetite: '식욕이 흔들린 날',
+  sweetCraving: '단것 당김이 강한 날',
+}
+const MONTHLY_CONTEXT_LABEL: Record<string, string> = {
+  office: '출근일 비중',
+  remote: '재택일 비중',
+  off: '휴일 비중',
+  special: '특별일 비중',
+}
+
+function monthlyInsightClause(i: MonthlyComparisonInsight): string {
+  if (i.kind === 'context') {
+    const label = MONTHLY_CONTEXT_LABEL[i.domain.replace('context:', '')] ?? '생활 맥락'
+    return `${iga(label)} ${i.trend === 'up' ? '늘었어요' : '줄었어요'}`
+  }
+  if (i.kind === 'recovery') {
+    return `소모에서 회복까지 걸린 기간이 ${i.trend === 'down' ? '짧아진' : '길어진'} 편이에요`
+  }
+  const phrase = MONTHLY_DOMAIN_PHRASE[i.domain] ?? '힘든 날'
+  // better=줄었(down), worse=늘었(up) — "힘든 날" 기준.
+  return `${iga(phrase)} ${i.trend === 'down' ? '줄었어요' : '늘었어요'}`
+}
+
+export interface MonthlyComparisonView {
+  /** 공통 앞머리(한 번만 표시). 진행 중이면 "지난달 같은 기간" 표현. */
+  lead: string
+  /** 인사이트별 짧은 절(최대 3). */
+  lines: string[]
+}
+
+/** MonthlyComparison → 화면 표시용 문장(앞머리 1 + 절 최대 3). */
+export function monthlyComparisonView(mc: MonthlyComparison): MonthlyComparisonView {
+  const lead = mc.partialMonth
+    ? '이번 달 현재까지는 지난달 같은 기간보다'
+    : `${parseInt(mc.currentStart.slice(5, 7), 10)}월은 ${parseInt(mc.previousStart.slice(5, 7), 10)}월보다`
+  return { lead, lines: mc.insights.map(monthlyInsightClause) }
 }

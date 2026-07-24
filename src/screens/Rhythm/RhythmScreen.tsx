@@ -5,14 +5,15 @@ import {
   getCycleCompareViewModel,
   getRecentFlow,
   getPersonalRhythm,
+  getMonthlyComparison,
   type RhythmViewModel,
   type CycleCompareViewModel,
   type RhythmMetric,
   type CyclePhase,
 } from '../../data/services/rhythmService'
-import type { RecentFlow, PersonalRhythm } from '../../engine'
+import type { RecentFlow, PersonalRhythm, MonthlyComparison } from '../../engine'
 import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
-import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence } from './rhythmVoice'
+import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence, monthlyComparisonView } from './rhythmVoice'
 import { CycleCompareChart } from './CycleCompareChart'
 import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import './rhythm.css'
@@ -54,6 +55,7 @@ export function RhythmScreen() {
   const [checkpoint, setCheckpoint] = useState<CheckpointCard | null>(null)
   const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
   const [personalRhythm, setPersonalRhythm] = useState<PersonalRhythm | null>(null)
+  const [monthly, setMonthly] = useState<MonthlyComparison | null>(null)
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
@@ -84,6 +86,9 @@ export function RhythmScreen() {
     })
     void getPersonalRhythm().then((p) => {
       if (!cancelled) setPersonalRhythm(p)
+    })
+    void getMonthlyComparison().then((m) => {
+      if (!cancelled) setMonthly(m)
     })
     return () => {
       cancelled = true
@@ -222,7 +227,29 @@ export function RhythmScreen() {
                 )}
               </GlassCard>
 
-              {/* 5. 기존 기간 비교 (최근 일주일) */}
+              {/* 5. 월간 비교 (달 단위 생활 변화) — 결과 없으면 제목·카드 전체 숨김 */}
+              {monthly && (
+                <GlassCard tint="coral">
+                  <SectionHeader title="월간 비교" />
+                  {(() => {
+                    const view = monthlyComparisonView(monthly)
+                    return (
+                      <>
+                        <p className="rhythm-month-lead">{view.lead}</p>
+                        <ul className="rhythm-month-list">
+                          {view.lines.map((line, i) => (
+                            <li className="rhythm-month-line" key={i}>
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )
+                  })()}
+                </GlassCard>
+              )}
+
+              {/* 6. 기존 짧은 기간 비교 (최근 일주일 — 보조) */}
               <GlassCard tint="lav">
                 <SectionHeader title="최근 일주일" />
                 <p className="rhythm-week">{rhythmCompareSentence(metric, vm.weekCompare[metric])}</p>

@@ -18,6 +18,8 @@ import {
   buildFlowSegments,
   buildFlowDrivers,
   buildPersonalRhythm,
+  buildMonthlyComparison,
+  monthlyComparePeriods,
   CYCLE_BEFORE,
   CYCLE_AFTER,
   MIN_PERIOD_STARTS,
@@ -26,6 +28,7 @@ import {
   type RecentFlow,
   type RecentFlowDay,
   type PersonalRhythm,
+  type MonthlyComparison,
 } from '../../engine'
 import { eventOccurrenceDate, eventsToExposureRuns } from './patternAnalysisService'
 import { hasRhythmException } from '../catalog/dailyCheckIn'
@@ -442,4 +445,16 @@ export async function getPersonalRhythm(opts: { endDate?: ISODate } = {}): Promi
   const periodStarts = cycleLogs.filter((c) => c.periodStart).map((c) => c.date)
 
   return buildPersonalRhythm(segments, { periodStarts, drivers, dayContextByDate })
+}
+
+/* =====================================================================
+   월간 비교 (step5)
+   이번 달(또는 선택한 달)과 이전 달 같은 기간의 dailyLogs를 모아 engine에 넘긴다.
+   판정 규칙·임계값은 engine에만 있고 여기서는 데이터 조합만 한다. 결과 없으면 null.
+   ===================================================================== */
+export async function getMonthlyComparison(opts: { targetDate?: ISODate } = {}): Promise<MonthlyComparison | null> {
+  const targetDate = opts.targetDate ?? getTodayISODate()
+  const { previousStart, currentEnd } = monthlyComparePeriods(targetDate)
+  const logs = await dailyLogRepository.listByDateRange(previousStart, currentEnd)
+  return buildMonthlyComparison(logs, targetDate)
 }

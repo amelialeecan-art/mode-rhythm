@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { rhythmCompareSentence, cycleCompareSentence, personalRhythmSentence, type CycleCurvePoints } from './rhythmVoice'
+import { rhythmCompareSentence, cycleCompareSentence, personalRhythmSentence, monthlyComparisonView, type CycleCurvePoints } from './rhythmVoice'
 import type { WeekCompareStat } from '../../data/services/rhythmService'
-import type { PersonalRhythm } from '../../engine'
+import type { PersonalRhythm, MonthlyComparison } from '../../engine'
 
 /** rel→mean 맵으로 recent/previous 곡선을 만든다(빠진 rel은 undefined). */
 function curve(baseline: number, recent: Record<number, number>, previous: Record<number, number>): CycleCurvePoints {
@@ -120,5 +120,52 @@ describe('personalRhythmSentence — 표시 정리 (9H)', () => {
   it('기간 차이가 작으면 약 18~22일', () => {
     const r: PersonalRhythm = { ...base, typicalLengthMin: 18, typicalLengthMax: 22, currentMatch: null }
     expect(personalRhythmSentence(r).some((l) => l.includes('약 18~22일'))).toBe(true)
+  })
+})
+
+describe('monthlyComparisonView (step5)', () => {
+  const mk = (partial: boolean, insights: MonthlyComparison['insights']): MonthlyComparison => ({
+    currentStart: '2026-07-01',
+    currentEnd: partial ? '2026-07-24' : '2026-07-31',
+    previousStart: '2026-06-01',
+    previousEnd: partial ? '2026-06-24' : '2026-06-30',
+    partialMonth: partial,
+    insights,
+  })
+
+  it('(17) 진행 중인 달 문장에 "지난달 같은 기간"을 쓴다', () => {
+    const v = monthlyComparisonView(mk(true, [{ key: 'state:bodyEnergy', domain: 'bodyEnergy', direction: 'better', kind: 'state', trend: 'down', magnitude: 0.4 }]))
+    expect(v.lead).toContain('지난달 같은 기간')
+    expect(v.lines[0]).toBe('몸 에너지가 떨어진 날이 줄었어요')
+  })
+
+  it('완료된 달은 "N월은 M월보다" 형식', () => {
+    const v = monthlyComparisonView(mk(false, [{ key: 'state:functionLevel', domain: 'functionLevel', direction: 'better', kind: 'state', trend: 'down', magnitude: 0.3 }]))
+    expect(v.lead).toBe('7월은 6월보다')
+    expect(v.lines[0]).toBe('생활기능이 버거운 날이 줄었어요')
+  })
+
+  it('개선과 악화가 함께 있으면 모두 문장으로 표현한다', () => {
+    const v = monthlyComparisonView(mk(true, [
+      { key: 'state:functionLevel', domain: 'functionLevel', direction: 'better', kind: 'state', trend: 'down', magnitude: 0.4 },
+      { key: 'appetite:sweetCraving', domain: 'sweetCraving', direction: 'worse', kind: 'appetite', trend: 'up', magnitude: 0.3 },
+    ]))
+    expect(v.lines).toContain('생활기능이 버거운 날이 줄었어요')
+    expect(v.lines).toContain('단것 당김이 강한 날이 늘었어요')
+  })
+
+  it('생활 맥락은 좋고 나쁨 없이 사실로 표현', () => {
+    const v = monthlyComparisonView(mk(true, [{ key: 'context:office', domain: 'context:office', direction: 'changed', kind: 'context', trend: 'up', magnitude: 0.3 }]))
+    expect(v.lines[0]).toBe('출근일 비중이 늘었어요')
+  })
+
+  it('(18) 신뢰도·근거 횟수·백분율·추정 문구를 노출하지 않는다', () => {
+    const v = monthlyComparisonView(mk(true, [
+      { key: 'state:bodyEnergy', domain: 'bodyEnergy', direction: 'better', kind: 'state', trend: 'down', magnitude: 0.4 },
+      { key: 'appetite:sweetCraving', domain: 'sweetCraving', direction: 'worse', kind: 'appetite', trend: 'up', magnitude: 0.3 },
+      { key: 'context:office', domain: 'context:office', direction: 'changed', kind: 'context', trend: 'up', magnitude: 0.3 },
+    ]))
+    const all = [v.lead, ...v.lines].join(' ')
+    expect(all).not.toMatch(/신뢰도|근거|추정|가능성|부족|%|[0-9]+회|백분율/)
   })
 })
