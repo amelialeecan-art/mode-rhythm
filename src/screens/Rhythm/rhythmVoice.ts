@@ -204,7 +204,7 @@ export function personalRhythmSentence(r: PersonalRhythm): string[] {
     }
     const others: FlowState[] = []
     for (const s of seq) if (s !== sep && !others.includes(s)) others.push(s)
-    const sepPhrase = sep === 'stable' ? '안정된 기간 사이로' : `${FLOW_STATE_LABEL[sep]} 구간 사이로`
+    const sepPhrase = sep === 'stable' ? '안정된 기간을 사이에 두고' : `${FLOW_STATE_LABEL[sep]} 구간을 사이에 두고`
     const othersPhrase =
       others.length <= 1
         ? FLOW_STATE_LABEL[others[0] ?? sep]

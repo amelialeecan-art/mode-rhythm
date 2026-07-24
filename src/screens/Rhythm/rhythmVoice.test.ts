@@ -96,7 +96,7 @@ describe('personalRhythmSentence — 표시 정리 (9H)', () => {
 
   it('내부 depleting 시작이어도 표시는 안정 중심으로 자연스럽게', () => {
     const lines = personalRhythmSentence(base)
-    expect(lines[0]).toBe('최근 기록에서는 안정된 기간 사이로 소모와 회복 흐름이 반복됐어요.')
+    expect(lines[0]).toBe('최근 기록에서는 안정된 기간을 사이에 두고 소모와 회복 흐름이 반복됐어요.')
     expect(lines[0]).not.toMatch(/^최근 기록에서는 소모/) // 소모를 시작점처럼 보이지 않음
   })
 
