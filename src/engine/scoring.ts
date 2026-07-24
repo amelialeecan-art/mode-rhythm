@@ -16,7 +16,9 @@ export const EVENT_CATEGORY_WEIGHTS: Record<EventLogCategory, number> = {
   appearance: 1.0,
   environment: 0.7,
   digital: 0.8,
-  movement: -0.4, // 운동/산책 등은 부하를 살짝 낮추는 쪽 (단, 회복 분석 아님 — 과하게 낮추지 않음)
+  // 운동/산책/씻기 같은 움직임 사건은 "했다는 사실만으로" 부하를 자동으로 낮추지 않는다(중립 0).
+  // 실제 체감 효과와 이후 상태 변화는 recoveryLogs 기반 회복 분석에서만 학습한다.
+  movement: 0,
   control: 1.1, // 통제감/좌절 (계획 틀어짐, 예기 스트레스)
   unknown: 0.2,
   custom: 0.8,

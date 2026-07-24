@@ -29,6 +29,12 @@ export {
 } from './classify'
 export { buildTodayPlan, type TodayPlan, type TodayPlanInput } from './todayPlan'
 export {
+  resolveDailyStateDomains,
+  type DailyStateDomains,
+  type DomainReading,
+  type DomainSource,
+} from './stateDomains'
+export {
   buildTodaySummary,
   type TodaySummary,
   type TodaySummaryInput,

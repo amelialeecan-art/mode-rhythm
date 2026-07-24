@@ -894,8 +894,13 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
   }
   const topFactors = factorPatterns.slice(0, 8)
 
-  // 누적 노출은 분석 창(60일)의 사건으로.
-  const { runs: exposureRuns } = eventsToExposureRuns(events)
+  // 누적 노출은 분석 창(60일)의 사건으로. 예외일(질병·부상 등)에 발생한 사건은 제외한다
+  // — 예외일은 일반 반복 노출 표본으로 쓰지 않는다(다른 흐름·요인 경로와 동일 기준).
+  const usableEvents = events.filter((e) => {
+    const occ = eventOccurrenceDate(e.timing, e.date, e.occurredOn)
+    return occ !== null && !exceptionDates.has(occ)
+  })
+  const { runs: exposureRuns } = eventsToExposureRuns(usableEvents)
 
   // ---- 누적 노출 패턴: 같은 사건이 하루일 때보다 2일↑ 이어졌을 때 결과가 더 큰지 ----
   // 기존 factorGroup 기반 패턴(factorPatterns)은 그대로 두고 이 결과만 추가한다.

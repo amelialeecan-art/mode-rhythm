@@ -100,9 +100,17 @@ describe('calcEventLoad', () => {
     expect(rel).toBeGreaterThan(env)
   })
 
-  it('movement만 있으면 부하가 낮다(음수→0 처리)', () => {
+  it('movement 사건은 부하를 자동으로 낮추지도 높이지도 않는다(중립 0)', () => {
+    // 운동/산책 같은 움직임 사건은 "했다는 사실"만으로 상태·부하를 개선하지 않는다.
     const load = calcEventLoad([makeEvent({ category: 'movement', intensity: 8 })])
     expect(load).toBe(0)
+    // 다른 사건과 함께 있어도 movement가 그 사건 부하를 깎지 않는다.
+    const withRel = calcEventLoad([
+      makeEvent({ category: 'relationship', intensity: 8 }),
+      makeEvent({ category: 'movement', intensity: 8 }),
+    ])
+    const relOnly = calcEventLoad([makeEvent({ category: 'relationship', intensity: 8 })])
+    expect(withRel).toBe(relOnly)
   })
 })
 
