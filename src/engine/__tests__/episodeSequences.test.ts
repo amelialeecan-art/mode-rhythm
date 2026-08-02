@@ -18,7 +18,7 @@ const seq = (logs: DailyLog[], ctx?: EpisodeSequenceContext) => {
   const c = ctx ?? deriveSequenceContext(logs)
   const runs = buildTimelineRuns(items, c)
   const transitions = buildTimelineTransitions(runs, c)
-  const aftereffects = buildTimelineAftereffects(runs, transitions, c)
+  const aftereffects = buildTimelineAftereffects(runs, transitions)
   return { items, runs, transitions, aftereffects }
 }
 
@@ -219,6 +219,77 @@ describe('buildTimelineTransitions / Aftereffects', () => {
     const { transitions, aftereffects } = seq(logs)
     expect(transitions.some((t) => t.fromKey === 'thought_loop' && t.toKey === 'worrying')).toBe(false)
     expect(aftereffects).toHaveLength(0)
+  })
+})
+
+/* =====================================================================
+   순차 aftereffect (겹침 없이 바로 이어지는 여파)
+   ===================================================================== */
+describe('순차 aftereffect — overlap 없이도 연속이면 포함', () => {
+  it('(A1) 겹침 0이라도 선행 종료 다음 날 바로 이어진 후속은 aftereffect로 반환', () => {
+    // thought_loop 8/6~8/8, worrying 8/9~8/10 (겹침 0, 사이 공백·예외 없음)
+    const logs = [
+      makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-08', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-09', mindSignalCodes: ['worrying'] }),
+      makeLog({ date: '2026-08-10', mindSignalCodes: ['worrying'] }),
+    ]
+    const { transitions, aftereffects } = seq(logs)
+    // 순차 transition은 존재하고 겹침은 0.
+    expect(transitions.find((t) => t.fromKey === 'thought_loop' && t.toKey === 'worrying')).toMatchObject({ lagDays: 3, overlapDays: 0 })
+    const ae = aftereffects.find((a) => a.sourceKey === 'thought_loop' && a.remainingKey === 'worrying')!
+    expect(ae).toMatchObject({ sourceEndDate: '2026-08-08', remainingEndDate: '2026-08-10', extraDays: 2 })
+  })
+
+  it('(A2) overlap이 있는 기존 여파도 그대로 유지', () => {
+    const logs = [
+      makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop', 'worrying'] }),
+      makeLog({ date: '2026-08-08', mindSignalCodes: ['worrying'] }),
+    ]
+    const { aftereffects } = seq(logs)
+    expect(aftereffects.find((a) => a.sourceKey === 'thought_loop' && a.remainingKey === 'worrying')).toMatchObject({ extraDays: 1 })
+  })
+
+  it('(A3) 사이에 미기록일(DailyLog 없음)이 있으면 aftereffect 없음', () => {
+    // thought_loop 8/6~8/7, (8/8 미기록), worrying 8/9~8/10 → 연속성 추정 금지
+    const logs = [
+      makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-09', mindSignalCodes: ['worrying'] }),
+      makeLog({ date: '2026-08-10', mindSignalCodes: ['worrying'] }),
+    ]
+    const { transitions, aftereffects } = seq(logs)
+    // transition 자체는 lag 3으로 존재하지만(2일 공백은 3일 미만),
+    expect(transitions.some((t) => t.fromKey === 'thought_loop' && t.toKey === 'worrying')).toBe(true)
+    // 종료 다음 날(8/8) 미기록이라 연속성이 확인되지 않아 여파는 없다.
+    expect(aftereffects.some((a) => a.sourceKey === 'thought_loop' && a.remainingKey === 'worrying')).toBe(false)
+  })
+
+  it('(A4) 사이에 명시적 미선택일(기록 있음·key 없음)이 있으면 aftereffect 없음', () => {
+    // 8/8은 기록이 있으나 어떤 key도 없음 → 명시적 종료, 연속성 아님
+    const logs = [
+      makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-08' }), // 기록 있음, key 미선택
+      makeLog({ date: '2026-08-09', mindSignalCodes: ['worrying'] }),
+    ]
+    const { aftereffects } = seq(logs)
+    expect(aftereffects.some((a) => a.sourceKey === 'thought_loop' && a.remainingKey === 'worrying')).toBe(false)
+  })
+
+  it('(A5) 사이에 rhythm exception이 끼면 aftereffect 없음', () => {
+    // thought_loop 8/6~8/7, 8/8 예외, worrying 8/9 → transition/aftereffect 모두 없음
+    const logs = [
+      makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'] }),
+      makeLog({ date: '2026-08-08', rhythmExceptionCodes: ['illness'] }),
+      makeLog({ date: '2026-08-09', mindSignalCodes: ['worrying'] }),
+      makeLog({ date: '2026-08-10', mindSignalCodes: ['worrying'] }),
+    ]
+    const { aftereffects } = seq(logs)
+    expect(aftereffects.some((a) => a.sourceKey === 'thought_loop' && a.remainingKey === 'worrying')).toBe(false)
   })
 })
 

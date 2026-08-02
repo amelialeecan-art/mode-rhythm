@@ -319,21 +319,30 @@ export function buildTimelineTransitions(runs: TimelineRun[], ctx: EpisodeSequen
 
 /**
  * transition으로 연결된 대표 신호끼리, 선행(from)이 끝난 뒤 후속(to)이 실제 기록상 더 남은 여파.
- * - extraDays 최소 1. 미기록 공백·예외 경계로 생긴 종료일 차이는 제외(하드 경계 없어야 함).
+ * 겹침(overlap)이 없어도, 후속이 선행 종료 직후 바로 이어지는 순차 여파도 포함한다.
+ *
+ * 판정:
+ * - 후속(to)이 선행(from) 종료일보다 실제로 뒤까지 이어져야 한다(to.end > from.end).
+ * - 실제 기록 연속성: 후속이 늦어도 "선행 종료 다음 날"부터 시작해야 한다
+ *   (to.start ≤ from.end+1). 그보다 늦으면 사이에 미기록·미선택 공백이 있는 것이므로
+ *   연속성을 추정하지 않고 제외한다.
+ * - run은 미기록·미선택 하루에서 끊기고, 예외일 item을 애초에 제외하므로,
+ *   위 조건이 성립하면 [from.end+1 .. to.end] 구간은 후속 run이 실제 기록으로 메운다
+ *   (중간 미기록·rhythm exception이 끼면 run이 그 전에 끝나 조건이 깨진다).
+ * - extraDays = 선행 종료 다음 날부터 후속 종료일까지의 실제 연속 일수(최소 1).
  * - 모든 종료일 조합을 만들지 않고, transition 대표쌍만 본다.
  */
-export function buildTimelineAftereffects(runs: TimelineRun[], transitions: TimelineTransition[], ctx: EpisodeSequenceContext): TimelineAftereffect[] {
+export function buildTimelineAftereffects(runs: TimelineRun[], transitions: TimelineTransition[]): TimelineAftereffect[] {
   const byKeyStart = new Map<string, TimelineRun>()
   for (const r of runs) byKeyStart.set(`${r.key}|${r.startDate}`, r)
   const out: TimelineAftereffect[] = []
   for (const t of transitions) {
-    if (t.overlapDays < 1) continue // 실제로 겹친 뒤 남은 경우만(미기록 공백으로 벌어진 차이 제외).
     const from = byKeyStart.get(`${t.fromKey}|${t.fromStartDate}`)
     const to = byKeyStart.get(`${t.toKey}|${t.toStartDate}`)
     if (!from || !to) continue
+    if (to.endDate <= from.endDate) continue // 후속이 선행 종료보다 뒤까지 이어져야 한다.
+    if (to.startDate > addDaysISO(from.endDate, 1)) continue // 사이 공백을 연속으로 추정하지 않는다.
     const extraDays = diffDays(from.endDate, to.endDate)
-    if (extraDays < 1) continue // 후속이 선행보다 실제로 더 남아야 한다.
-    if (hasHardBoundary(from.endDate, to.endDate, ctx)) continue // 예외 경계로 벌어진 차이는 제외.
     out.push({
       sourceKey: t.fromKey,
       remainingKey: t.toKey,
