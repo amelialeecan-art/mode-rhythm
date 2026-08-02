@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { suppressRedundantCumulative, suppressRepeatedRecovery, strongRecoveryInsights } from './resultHierarchy'
+import { suppressRedundantCumulative, selectCumulativeInsights, suppressRepeatedRecovery, strongRecoveryInsights } from './resultHierarchy'
 import { recentChangeSentence } from './Today/todayVoice'
 import { recentFlowSentence } from './Rhythm/rhythmVoice'
+import { cumulativeExposureSentence } from './Analysis/analysisVoice'
 import type { RecentFlow, RecoveryActionInsight } from '../engine'
 import type { FlowDriverCard, CumulativeExposureCard } from '../data/services/patternAnalysisService'
 
@@ -89,5 +90,52 @@ describe('Today vs Rhythm 최근 흐름 문장 분리', () => {
     expect(todayLine).not.toBe(rhythmLine)
     // Today는 짧은 한 줄, Rhythm은 더 긴 설명
     expect((rhythmLine as string).length).toBeGreaterThan((todayLine as string).length)
+  })
+})
+
+// ===== update1: 누적(이어지며 커진 변화) 문장·선택 =====
+describe('cumulativeExposureSentence (update1)', () => {
+  const mk = (metric: CumulativeExposureCard['metric'], title: string) => cumulative({ metric, title })
+  it('(10) "하루보다 여러 날 이어졌을 때"를 반복하지 않는다', () => {
+    const s = cumulativeExposureSentence(mk('emotional', '실패/실수'))
+    expect(s).not.toContain('하루보다 여러 날 이어졌을 때')
+    expect(s).toContain('이어진 기간')
+  })
+  it('(11) "편이에요"를 쓰지 않는다', () => {
+    for (const m of ['emotional', 'body', 'appetite', 'sleep', 'rhythm'] as const) {
+      expect(cumulativeExposureSentence(mk(m, '늦은 식사'))).not.toContain('편이에요')
+    }
+  })
+  it('(12) 가능성·추정·경향·신뢰도·근거 횟수 문구가 없다', () => {
+    const s = cumulativeExposureSentence(mk('body', '늦은 식사'))
+    expect(s).not.toMatch(/가능성|추정|경향|신뢰도|근거 \d+회|표본|평균|%/)
+  })
+  it('결과 영역이 사람말로 표현된다', () => {
+    expect(cumulativeExposureSentence(mk('emotional', '실수'))).toBe('실수가 이어진 기간에는 감정이 더 쉽게 흔들렸어요')
+    expect(cumulativeExposureSentence(mk('body', '늦은 식사'))).toBe('늦은 식사가 이어진 기간에는 몸이 불편한 날도 함께 늘었어요')
+  })
+})
+
+describe('selectCumulativeInsights (update1)', () => {
+  const c = (factorGroup: string, metric: CumulativeExposureCard['metric'], effectSize: number, key = `${factorGroup}-${metric}`) =>
+    cumulative({ factorGroup, metric, effectSize, key })
+  it('(13) 최대 2개만 남긴다', () => {
+    const out = selectCumulativeInsights([c('a', 'emotional', 30), c('b', 'body', 25), c('c', 'sleep', 20), c('d', 'appetite', 15)])
+    expect(out).toHaveLength(2)
+    expect(out[0].effectSize).toBe(30)
+    expect(out[1].effectSize).toBe(25)
+  })
+  it('(14) 동일 사건은 가장 강한 하나만', () => {
+    const out = selectCumulativeInsights([c('late_meal', 'body', 10), c('late_meal', 'body', 22)])
+    expect(out).toHaveLength(1)
+    expect(out[0].effectSize).toBe(22)
+  })
+  it('(14) 동일 결과 영역은 가장 강한 하나만', () => {
+    const out = selectCumulativeInsights([c('a', 'emotional', 12), c('b', 'emotional', 28)])
+    expect(out).toHaveLength(1)
+    expect(out[0].effectSize).toBe(28)
+  })
+  it('(15/16) 결과가 없으면 빈 배열(카드 숨김 → 제목까지 숨김)', () => {
+    expect(selectCumulativeInsights([])).toHaveLength(0)
   })
 })

@@ -14,7 +14,7 @@ import {
 import { RECOVERY_TIER_LABEL } from '../../engine'
 import { formatMonthDay, parseISODate } from '../../lib/date'
 import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, cumulativeExposureSentence, type VoiceStrength } from './analysisVoice'
-import { suppressRedundantCumulative, strongRecoveryInsights } from '../resultHierarchy'
+import { suppressRedundantCumulative, selectCumulativeInsights, strongRecoveryInsights } from '../resultHierarchy'
 import { EventResponseChart } from './EventResponseChart'
 import './analysis.css'
 
@@ -72,8 +72,8 @@ export function AnalysisScreen() {
   const coreSet = new Set(coreFactors.map((x) => x.f))
   const otherFactors = voiced.filter((x) => !coreSet.has(x.f))
 
-  // 중복 억제: flowDrivers가 이미 말한 사건은 누적 노출에서 감춘다.
-  const extraCumulative = vm ? suppressRedundantCumulative(vm.flowDrivers, vm.cumulativeExposures) : []
+  // 중복 억제: flowDrivers가 이미 말한 사건은 감추고, 남은 것 중 의미 있는 결과 최대 2개만.
+  const extraCumulative = vm ? selectCumulativeInsights(suppressRedundantCumulative(vm.flowDrivers, vm.cumulativeExposures)) : []
   // 실제 도움 된 회복 행동 = 대표 회복 카드(약한 tier·방어 메시지 제외).
   const strongRecs = vm ? strongRecoveryInsights(vm.recoveryEffects) : []
 
@@ -103,10 +103,10 @@ export function AnalysisScreen() {
             </GlassCard>
           )}
 
-          {/* ===== 2. 누적 노출 차이 (flowDrivers와 겹치면 감춤 · 추가 정보일 때만) ===== */}
+          {/* ===== 2. 이어지며 커진 변화 (flowDrivers와 겹치면 감춤 · 최대 2개) ===== */}
           {extraCumulative.length > 0 && (
             <GlassCard>
-              <SectionHeader title="여러 날 이어졌을 때" />
+              <SectionHeader title="이어지며 커진 변화" />
               <ul className="driver-list">
                 {extraCumulative.map((c) => (
                   <li className="driver-row" key={c.key}>

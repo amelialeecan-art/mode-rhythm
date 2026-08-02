@@ -20,6 +20,25 @@ export function suppressRedundantCumulative(
 }
 
 /**
+ * 누적 결과를 "이해 가능한 보조 결과"로 추린다(엔진 판정·계산은 그대로).
+ * 같은 사건(factorGroup)·같은 결과 영역(metric)이 겹치면 가장 강한 하나만,
+ * 효과 크기 순으로 최대 2개만 남긴다. 무더기 나열·약한 결과 방어 노출을 막는다.
+ */
+export function selectCumulativeInsights(cards: CumulativeExposureCard[]): CumulativeExposureCard[] {
+  const strongestBy = (list: CumulativeExposureCard[], keyOf: (c: CumulativeExposureCard) => string) => {
+    const m = new Map<string, CumulativeExposureCard>()
+    for (const c of list) {
+      const prev = m.get(keyOf(c))
+      if (!prev || c.effectSize > prev.effectSize) m.set(keyOf(c), c)
+    }
+    return [...m.values()]
+  }
+  const byEvent = strongestBy(cards, (c) => c.factorGroup) // 동일 사건 중복 제거
+  const byResult = strongestBy(byEvent, (c) => c.metric) // 동일 결과 영역 중복 제거
+  return byResult.sort((a, b) => b.effectSize - a.effectSize).slice(0, 2)
+}
+
+/**
  * 회복 행동 결과가 여러 카드에 반복되지 않도록, '실제 도움 된 회복 행동' 카드가
  * 대표로 다룬 actionCode는 다른 회복 관련 목록에서 제외한다.
  */

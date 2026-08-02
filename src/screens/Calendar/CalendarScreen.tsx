@@ -185,7 +185,8 @@ function DayDetailSheet({
                   ))}
                 </div>
               ) : (
-                <p className="sheet__hint">저장된 상태 기록이 없어요.</p>
+                // 상태만 없고 사건·몸 신호·회복·생리·메모 등 다른 기록은 있는 날.
+                <p className="sheet__hint">이날은 상태 선택 없이 다른 기록만 남겼어요.</p>
               )}
             </Section>
 
