@@ -184,6 +184,12 @@ export {
   type EarlyWarningReport,
 } from './earlyWarning'
 export {
+  buildEpisodeTimeline,
+  type EpisodeTimelineItem,
+  type EpisodeTimelineSource,
+  type EpisodeTimelineInput,
+} from './episodeTimeline'
+export {
   recoveryDelta,
   calcRecoveryScore,
   immediateRecoveryScore,
