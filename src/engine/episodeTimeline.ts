@@ -11,10 +11,12 @@
 import type { DailyLog, EventLog, ISODate } from '../data/models'
 import { SLEEP_CODE_TO_GROUP } from '../data/catalog/lastNightSleep'
 import { hasRhythmException } from '../data/catalog/dailyCheckIn'
+import { resolveDailyStateDomains, type DailyStateDomains } from './stateDomains'
+import { isHard } from './todayDecision'
 import { addDaysISO } from './correlation'
 
-/** 타임라인 항목의 출처. */
-export type EpisodeTimelineSource = 'event' | 'mind' | 'sleep'
+/** 타임라인 항목의 출처. state = 사용자가 직접 입력한 하루 상태. */
+export type EpisodeTimelineSource = 'event' | 'mind' | 'sleep' | 'state'
 
 /** 날짜 기준으로 합쳐진 하나의 타임라인 항목. 분석 계층이 소비할 canonical 입력. */
 export interface EpisodeTimelineItem {
@@ -41,6 +43,52 @@ export interface EpisodeTimelineInput {
   eventLogs?: EventLog[]
   /** 마음 신호·지난밤 수면을 담은 일일 로그(비인덱스 optional 필드에서 읽는다). */
   dailyLogs?: DailyLog[]
+}
+
+/* ---------------------------------------------------------------------
+   직접 입력한 하루 상태 → state timeline item
+   resolveDailyStateDomains(공식 불변)로 영역을 읽고, "어려운 값"일 때만 item을
+   만든다. 어려움 판정은 Today가 쓰는 isHard(difficulty>=HARD_MIN)를 그대로 재사용
+   한다(임의 threshold 없음, capacity/strain 방향을 뒤집지 않음).
+   ⚠️ generic 수면(sleep 영역)은 구체 lastNightSleep과 겹쳐 제외. mindSignalCodes는
+      state로 바꾸지 않는다. 미입력(undefined) 영역은 item을 만들지 않는다.
+   --------------------------------------------------------------------- */
+
+/** state 신호 정의: resolver 영역 ↔ 내부 key ↔ 사람말 label. sleep 영역은 의도적으로 제외. */
+export const STATE_SIGNAL_DEFS: { domain: keyof DailyStateDomains; key: string; label: string }[] = [
+  { domain: 'emotionalStability', key: 'state_emotion_unsteady', label: '감정이 쉽게 흔들림' },
+  { domain: 'emotionalBurden', key: 'state_emotions_linger', label: '예민함이나 짜증 같은 감정이 오래 감' },
+  { domain: 'bodyEnergy', key: 'state_tired', label: '몸이 쉽게 지침' },
+  { domain: 'mentalSpace', key: 'state_mind_busy', label: '머리가 복잡함' },
+  { domain: 'focus', key: 'state_focus_hard', label: '집중하기 어려움' },
+  { domain: 'functionLevel', key: 'state_daily_tasks_hard', label: '평소 하던 일이 버거움' },
+  { domain: 'socialCapacity', key: 'state_people_hard', label: '사람을 대하기 버거움' },
+  { domain: 'bodyDiscomfort', key: 'state_body_uncomfortable', label: '몸이 불편함' },
+  // 식욕·단것 당김은 resolver에서 하나의 appetite 영역으로 합쳐진다(별도 sweets 영역 없음).
+  // double count를 피하려 대표 1개(state_appetite_changed)만 만들고 state_sweets_craving은 생략한다.
+  { domain: 'appetite', key: 'state_appetite_changed', label: '먹고 싶은 정도가 평소와 달라짐' },
+]
+
+/** state 코드 → 사람말 라벨(이후 화면용). unknown은 여기 없으면 미표시. */
+export const STATE_SIGNAL_LABEL: Map<string, string> = new Map(STATE_SIGNAL_DEFS.map((d) => [d.key, d.label]))
+
+/**
+ * 하루 상태를 state timeline item으로 변환한다(순수). 각 영역은 resolver가 주는 값이
+ * "어려운 값"일 때만 item을 만든다(capacity 낮음/ strain 높음 = isHard). 미입력은 생략.
+ * date=DailyLog 날짜(낮 상태). 미래 날짜는 제외한다.
+ */
+export function buildStateTimelineItems(dailyLogs: DailyLog[] | undefined, today: ISODate): EpisodeTimelineItem[] {
+  const items: EpisodeTimelineItem[] = []
+  for (const log of dailyLogs ?? []) {
+    if (log.date > today) continue
+    const domains = resolveDailyStateDomains(log)
+    for (const def of STATE_SIGNAL_DEFS) {
+      const reading = domains[def.domain]
+      if (!isHard(reading)) continue // 미입력(undefined)이나 어렵지 않은 값이면 item 없음.
+      items.push({ date: log.date, source: 'state', eventKey: def.key, factorGroup: String(def.domain) })
+    }
+  }
+  return items
 }
 
 /**
@@ -102,6 +150,9 @@ export function buildEpisodeTimeline(input: EpisodeTimelineInput, today: ISODate
     }
   }
 
+  // 4) 직접 입력한 하루 상태(어려운 영역만). resolver 공식·방향 그대로 재사용.
+  items.push(...buildStateTimelineItems(input.dailyLogs, today))
+
   // 미래 날짜 제외 → 날짜·키 순 정렬 → 같은 날짜+키 중복 제거(먼저 나온 것 유지).
   const seen = new Set<string>()
   return items
@@ -126,6 +177,15 @@ export function buildEpisodeTimeline(input: EpisodeTimelineInput, today: ISODate
    ⚠️ rhythm exception 날짜와 3일 이상 연속 미기록은 블록 경계로 취급한다.
    ===================================================================== */
 
+/**
+ * run 경계 이유 — 다음 단계 회복 판정을 위해 시작/종료가 왜 생겼는지 구분한다.
+ * - observed:    실제 기록일에서 이전/이후 신호가 더 이상 선택되지 않음(관찰된 시작·종료).
+ * - missing_gap: 이웃 날 DailyLog 자체가 없어 확인 불가(정상·회복으로 단정하지 않는다).
+ * - exception:   rhythm exception으로 일반 흐름이 끊김.
+ * - range_edge:  분석 범위(관찰 구간) 시작 또는 끝까지 이어짐.
+ */
+export type RunBoundary = 'observed' | 'missing_gap' | 'exception' | 'range_edge'
+
 /** 하나의 신호(eventKey)가 실제 연속된 날짜에 이어진 구간. */
 export interface TimelineRun {
   /** 신호 식별 키(= item.eventKey). */
@@ -141,6 +201,10 @@ export interface TimelineRun {
   calendarDays: number
   /** run에 포함된 순서용 날짜들(오름차순). */
   dates: ISODate[]
+  /** run 시작 경계 이유. */
+  startBoundary: RunBoundary
+  /** run 종료 경계 이유(회복 판정용). */
+  endBoundary: RunBoundary
 }
 
 /** 먼저 시작한 run 뒤에 다른 run이 며칠 뒤 시작했는지(변화 순서). 인과가 아니다. */
@@ -171,6 +235,10 @@ export interface EpisodeSequenceContext {
   recordedDates: ReadonlySet<ISODate>
   /** rhythm exception 날(일반 흐름에서 분리할 날). */
   exceptionDates: ReadonlySet<ISODate>
+  /** 분석 범위(관찰 구간) 시작. 이보다 앞을 못 보면 run 시작은 range_edge. */
+  rangeStart?: ISODate
+  /** 분석 범위 끝(보통 today). 이 날까지 이어지면 run 종료는 range_edge. */
+  rangeEnd?: ISODate
 }
 
 /** 연속 미기록이 이 일수 이상이면 확실한 새 블록 경계. */
@@ -178,15 +246,22 @@ export const UNRECORDED_BLOCK_GAP = 3
 /** transition으로 인정하는 최대 시작 간격(일). */
 export const MAX_TRANSITION_LAG = 3
 
-/** DailyLog 배열에서 기록 존재일·예외일을 파생한다(순수 · 저장 없음). */
-export function deriveSequenceContext(dailyLogs: DailyLog[] | undefined): EpisodeSequenceContext {
+/**
+ * DailyLog 배열에서 기록 존재일·예외일·분석 범위를 파생한다(순수 · 저장 없음).
+ * today를 주면 rangeEnd=today(관찰 끝). rangeStart는 가장 이른 기록일.
+ */
+export function deriveSequenceContext(dailyLogs: DailyLog[] | undefined, today?: ISODate): EpisodeSequenceContext {
   const recordedDates = new Set<ISODate>()
   const exceptionDates = new Set<ISODate>()
+  let min: ISODate | undefined
+  let max: ISODate | undefined
   for (const log of dailyLogs ?? []) {
     recordedDates.add(log.date)
     if (hasRhythmException(log.rhythmExceptionCodes)) exceptionDates.add(log.date)
+    if (min === undefined || log.date < min) min = log.date
+    if (max === undefined || log.date > max) max = log.date
   }
-  return { recordedDates, exceptionDates }
+  return { recordedDates, exceptionDates, rangeStart: min, rangeEnd: today ?? max }
 }
 
 function diffDays(from: ISODate, to: ISODate): number {
@@ -196,6 +271,25 @@ function diffDays(from: ISODate, to: ISODate): number {
 /** item의 순서용 날짜(수면=nightOf, 그 외=date). */
 function orderDate(item: EpisodeTimelineItem): ISODate {
   return item.source === 'sleep' ? item.nightOf ?? item.date : item.date
+}
+
+/** 순서용 날짜(orderDay)를 DailyLog가 실제 놓이는 날로 환산(수면=아침 D+1, 그 외=그날). */
+function logDateFor(source: EpisodeTimelineSource, orderDay: ISODate): ISODate {
+  return source === 'sleep' ? addDaysISO(orderDay, 1) : orderDay
+}
+
+/**
+ * run 경계 이유 판정. edgeDay=run의 시작/끝 순서용 날짜, dir로 이웃 방향을 정한다.
+ * 우선순위: range_edge > exception > observed(기록 있으나 미선택) > missing_gap(미기록).
+ */
+function classifyBoundary(source: EpisodeTimelineSource, edgeDay: ISODate, dir: 'start' | 'end', ctx: EpisodeSequenceContext): RunBoundary {
+  const edgeLogDay = logDateFor(source, edgeDay)
+  if (dir === 'end' && ctx.rangeEnd !== undefined && edgeLogDay >= ctx.rangeEnd) return 'range_edge'
+  if (dir === 'start' && ctx.rangeStart !== undefined && edgeLogDay <= ctx.rangeStart) return 'range_edge'
+  const neighborLogDay = logDateFor(source, addDaysISO(edgeDay, dir === 'end' ? 1 : -1))
+  if (ctx.exceptionDates.has(neighborLogDay)) return 'exception'
+  if (ctx.recordedDates.has(neighborLogDay)) return 'observed' // 기록은 있는데 그 key가 없음 = 관찰된 경계
+  return 'missing_gap' // DailyLog 자체가 없음 = 확인 불가(회복으로 단정하지 않음)
 }
 
 /** 이 item이 예외일에 걸리는가. 수면은 nightOf(밤 D)와 recordedOn(아침 D+1) 모두 확인. */
@@ -261,6 +355,8 @@ export function buildTimelineRuns(items: EpisodeTimelineItem[], ctx: EpisodeSequ
         validDays: block.length,
         calendarDays: diffDays(startDate, endDate) + 1,
         dates: [...block],
+        startBoundary: classifyBoundary(g.source, startDate, 'start', ctx),
+        endBoundary: classifyBoundary(g.source, endDate, 'end', ctx),
       })
       block = []
     }
@@ -331,6 +427,8 @@ export function buildTimelineTransitions(runs: TimelineRun[], ctx: EpisodeSequen
  *   (중간 미기록·rhythm exception이 끼면 run이 그 전에 끝나 조건이 깨진다).
  * - extraDays = 선행 종료 다음 날부터 후속 종료일까지의 실제 연속 일수(최소 1).
  * - 모든 종료일 조합을 만들지 않고, transition 대표쌍만 본다.
+ * - 선행 run의 종료 이유가 불확실하면(observed가 아니면) 여파를 만들지 않는다:
+ *   missing_gap(미기록)·range_edge(관찰 끝)·exception은 실제로 끝났다고 볼 수 없다.
  */
 export function buildTimelineAftereffects(runs: TimelineRun[], transitions: TimelineTransition[]): TimelineAftereffect[] {
   const byKeyStart = new Map<string, TimelineRun>()
@@ -340,6 +438,7 @@ export function buildTimelineAftereffects(runs: TimelineRun[], transitions: Time
     const from = byKeyStart.get(`${t.fromKey}|${t.fromStartDate}`)
     const to = byKeyStart.get(`${t.toKey}|${t.toStartDate}`)
     if (!from || !to) continue
+    if (from.endBoundary !== 'observed') continue // 실제로 관찰된 종료만(미기록·범위끝·예외 제외).
     if (to.endDate <= from.endDate) continue // 후속이 선행 종료보다 뒤까지 이어져야 한다.
     if (to.startDate > addDaysISO(from.endDate, 1)) continue // 사이 공백을 연속으로 추정하지 않는다.
     const extraDays = diffDays(from.endDate, to.endDate)
@@ -352,4 +451,29 @@ export function buildTimelineAftereffects(runs: TimelineRun[], transitions: Time
     })
   }
   return out
+}
+
+/* =====================================================================
+   의미상 중복 신호 관계표 (다음 episode 조립 단계 준비용)
+   같은 하루의 마음 신호와 직접 상태는 사실상 같은 것을 다르게 적은 경우가 있다.
+   ⚠️ 이번 단계에서는 helper·상수만 준비한다 — transition/aftereffect에서 제외하지 않는다.
+   ===================================================================== */
+
+/** 의미상 가까운(사실상 같은 것을 다르게 적은) 신호 쌍. 순서 무관. */
+export const SEMANTIC_OVERLAP_PAIRS: readonly (readonly [string, string])[] = [
+  ['mind_would_not_rest', 'state_mind_busy'],
+  ['too_many_thoughts', 'state_mind_busy'],
+  ['hard_to_start', 'state_daily_tasks_hard'],
+  ['avoided_tasks', 'state_daily_tasks_hard'],
+  ['no_desire', 'state_daily_tasks_hard'],
+  ['sensory_overload', 'state_people_hard'],
+  ['need_time_alone', 'state_people_hard'],
+]
+
+const SEMANTIC_OVERLAP_SET: ReadonlySet<string> = new Set(SEMANTIC_OVERLAP_PAIRS.map(([a, b]) => (a < b ? `${a}|${b}` : `${b}|${a}`)))
+
+/** 두 신호 key가 의미상 중복(사실상 같은 것)인지. 순서 무관. 같은 key는 false(자기 자신). */
+export function areSemanticallyOverlappingSignals(keyA: string, keyB: string): boolean {
+  if (keyA === keyB) return false
+  return SEMANTIC_OVERLAP_SET.has(keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`)
 }

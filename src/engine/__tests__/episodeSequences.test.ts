@@ -15,7 +15,7 @@ const TODAY = '2026-08-31'
 
 const seq = (logs: DailyLog[], ctx?: EpisodeSequenceContext) => {
   const items = buildEpisodeTimeline({ dailyLogs: logs }, TODAY)
-  const c = ctx ?? deriveSequenceContext(logs)
+  const c = ctx ?? deriveSequenceContext(logs, TODAY)
   const runs = buildTimelineRuns(items, c)
   const transitions = buildTimelineTransitions(runs, c)
   const aftereffects = buildTimelineAftereffects(runs, transitions)

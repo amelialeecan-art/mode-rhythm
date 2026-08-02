@@ -185,10 +185,15 @@ export {
 } from './earlyWarning'
 export {
   buildEpisodeTimeline,
+  buildStateTimelineItems,
   buildTimelineRuns,
   buildTimelineTransitions,
   buildTimelineAftereffects,
   deriveSequenceContext,
+  areSemanticallyOverlappingSignals,
+  STATE_SIGNAL_DEFS,
+  STATE_SIGNAL_LABEL,
+  SEMANTIC_OVERLAP_PAIRS,
   UNRECORDED_BLOCK_GAP,
   MAX_TRANSITION_LAG,
   type EpisodeTimelineItem,
@@ -197,6 +202,7 @@ export {
   type TimelineRun,
   type TimelineTransition,
   type TimelineAftereffect,
+  type RunBoundary,
   type EpisodeSequenceContext,
 } from './episodeTimeline'
 export {
