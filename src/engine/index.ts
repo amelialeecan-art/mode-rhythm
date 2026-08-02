@@ -185,9 +185,19 @@ export {
 } from './earlyWarning'
 export {
   buildEpisodeTimeline,
+  buildTimelineRuns,
+  buildTimelineTransitions,
+  buildTimelineAftereffects,
+  deriveSequenceContext,
+  UNRECORDED_BLOCK_GAP,
+  MAX_TRANSITION_LAG,
   type EpisodeTimelineItem,
   type EpisodeTimelineSource,
   type EpisodeTimelineInput,
+  type TimelineRun,
+  type TimelineTransition,
+  type TimelineAftereffect,
+  type EpisodeSequenceContext,
 } from './episodeTimeline'
 export {
   recoveryDelta,
