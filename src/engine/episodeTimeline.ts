@@ -477,3 +477,314 @@ export function areSemanticallyOverlappingSignals(keyA: string, keyB: string): b
   if (keyA === keyB) return false
   return SEMANTIC_OVERLAP_SET.has(keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`)
 }
+
+/* =====================================================================
+   EpisodeTimeline 조립 — "최근 한 번의 실제 흐름"만 구조화한다.
+   run/transition/aftereffect 위에서 조립만 한다. 반복 motif·개인 주기·인과·
+   사용자 문장·점수는 만들지 않는다. 회복은 recovery action 기록이 아니라 실제
+   state 값이 정상 범위로 돌아온 날짜로 계산한다.
+   ===================================================================== */
+
+/** 안정 확인에 필요한 연속 유효 기록일 수. */
+export const EPISODE_STABILITY_DAYS = 2
+const MAX_LEADING_KEYS = 2
+const MAX_FOLLOWUP_KEYS = 3
+const MAX_EPISODE_AFTEREFFECTS = 2
+const MAX_RECOVERY_STATES = 3
+
+/** episode의 실제 상태 회복(회복 action이 아니라 state 값 복귀 기준). */
+export interface EpisodeRecovery {
+  /** 주요 state 중 처음 정상 범위로 돌아온 날짜(없으면 undefined). */
+  recoveryStartDate?: ISODate
+  /** 가장 먼저 돌아온 state key들. */
+  firstRecoveredKeys: string[]
+  /** 이후 돌아온 state key들. */
+  laterRecoveredKeys: string[]
+  /** recoveryStartDate 전날~당일에 기록된 recovery action key(시간상 참조만, 인과 아님). */
+  nearbyRecoveryActionKeys: string[]
+}
+
+/** 한 번의 실제 흐름. */
+export interface EpisodeTimeline {
+  id: string
+  startDate: ISODate
+  endDate: ISODate
+  status: 'ongoing' | 'completed'
+  /** 흐름을 구성하는 대표 run들(무관 사건 run 제외). */
+  runs: TimelineRun[]
+  transitions: TimelineTransition[]
+  aftereffects: TimelineAftereffect[]
+  recovery: EpisodeRecovery
+  /** 시작 신호 대표 key(최대 2, 의미중복 제거). */
+  leadingRunKeys: string[]
+  /** 후속 변화 대표 key(최대 3, 의미중복 제거, 정보가치 우선). */
+  followupRunKeys: string[]
+}
+
+/** assembleEpisodeTimelines 입력(순수 · 저장/서비스 없음). */
+export interface EpisodeAssemblyInput {
+  runs: TimelineRun[]
+  transitions: TimelineTransition[]
+  aftereffects: TimelineAftereffect[]
+  ctx: EpisodeSequenceContext
+  /** recovery action 기록(날짜 + actionCode). 회복 "판정"이 아니라 시간상 참조에만 쓴다. */
+  recoveryActions?: { date: ISODate; actionCode: string }[]
+}
+
+const MAJOR_SOURCES: ReadonlySet<EpisodeTimelineSource> = new Set<EpisodeTimelineSource>(['mind', 'sleep', 'state'])
+
+/** run이 실제 놓인 DailyLog(기록) 날짜들(수면=nightOf+1). 기록일 수·안정일 판정용. */
+function recordedDatesOfRun(run: TimelineRun): ISODate[] {
+  return run.dates.map((d) => (run.source === 'sleep' ? addDaysISO(d, 1) : d))
+}
+
+/** 두 run이 같은 흐름으로 이어질 만큼 가까운가(겹침 또는 시작/종료 0~3일). */
+function runsClose(a: TimelineRun, b: TimelineRun): boolean {
+  if (a.startDate <= b.endDate && b.startDate <= a.endDate) return true // 실제 날짜 겹침
+  const gap = a.endDate < b.startDate ? diffDays(a.endDate, b.startDate) : diffDays(b.endDate, a.startDate)
+  return gap <= MAX_TRANSITION_LAG
+}
+
+/** 같은 episode로 묶을 수 있는가: 가깝고, 예외/3일+ 미기록 하드 경계를 넘지 않음. */
+function runsConnected(a: TimelineRun, b: TimelineRun, ctx: EpisodeSequenceContext): boolean {
+  if (!runsClose(a, b)) return false
+  const spanStart = a.startDate < b.startDate ? a.startDate : b.startDate
+  const spanEnd = a.endDate > b.endDate ? a.endDate : b.endDate
+  return !hasHardBoundary(spanStart, spanEnd, ctx)
+}
+
+/** 연결된 run들을 하나의 덩어리(component)로 묶는다(union-find, 하드 경계는 못 넘음). */
+function clusterRuns(runs: TimelineRun[], ctx: EpisodeSequenceContext): TimelineRun[][] {
+  const parent = runs.map((_, i) => i)
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])))
+  const union = (i: number, j: number) => {
+    parent[find(i)] = find(j)
+  }
+  for (let i = 0; i < runs.length; i++) {
+    for (let j = i + 1; j < runs.length; j++) {
+      if (runsConnected(runs[i], runs[j], ctx)) union(i, j)
+    }
+  }
+  const groups = new Map<number, TimelineRun[]>()
+  runs.forEach((r, i) => {
+    const root = find(i)
+    const arr = groups.get(root) ?? []
+    arr.push(r)
+    groups.set(root, arr)
+  })
+  return [...groups.values()]
+}
+
+/** 의미상 중복을 하나로 접은 "서로 다른 주요 신호" 수. */
+function distinctSignalGroups(keys: string[]): number {
+  const uniq = [...new Set(keys)]
+  const parent = new Map<string, string>(uniq.map((k) => [k, k]))
+  const find = (k: string): string => (parent.get(k) === k ? k : (parent.set(k, find(parent.get(k)!)), parent.get(k)!))
+  for (let i = 0; i < uniq.length; i++)
+    for (let j = i + 1; j < uniq.length; j++) if (areSemanticallyOverlappingSignals(uniq[i], uniq[j])) parent.set(find(uniq[i]), find(uniq[j]))
+  return new Set(uniq.map(find)).size
+}
+
+/** 사건 run은 state/mind 변화가 0~3일 안에 이어질 때만 흐름의 일부로 본다. */
+function isRepresentativeRun(run: TimelineRun, component: TimelineRun[]): boolean {
+  if (run.source !== 'event') return true
+  return component.some((r) => {
+    if (r.source !== 'state' && r.source !== 'mind') return false
+    const lag = diffDays(run.startDate, r.startDate)
+    return lag >= 0 && lag <= MAX_TRANSITION_LAG
+  })
+}
+
+/** from→to source 조합의 정보가치 우선순위(작을수록 높음). */
+function pairPriority(fromSource: EpisodeTimelineSource, toSource: EpisodeTimelineSource): number {
+  if (fromSource === 'mind' && toSource === 'sleep') return 1
+  if (fromSource === 'mind' && toSource === 'state') return 2
+  if (fromSource === 'sleep' && toSource === 'state') return 3
+  if (fromSource === 'event' && (toSource === 'mind' || toSource === 'state')) return 4
+  if (fromSource === 'state' && toSource === 'state') return 5
+  return 6
+}
+const SOURCE_ONSET_PRIORITY: Record<EpisodeTimelineSource, number> = { mind: 2, sleep: 3, state: 5, event: 6 }
+
+/** 새 어려운 state/mind/sleep 신호가 실제 기록된 날짜 집합(안정일 판정용). */
+function hardSignalRecordedDates(runs: TimelineRun[]): Set<ISODate> {
+  const set = new Set<ISODate>()
+  for (const r of runs) {
+    if (!MAJOR_SOURCES.has(r.source)) continue
+    for (const d of recordedDatesOfRun(r)) set.add(d)
+  }
+  return set
+}
+
+/**
+ * 대표 시작/후속 신호를 고른다. 의미중복은 대표에서 하나만 남기고(원본 runs엔 보존),
+ * leading은 onset(선행 원인이 없는) run, followup은 정보가치 우선순위로 채운다.
+ */
+function selectRepresentatives(
+  reps: TimelineRun[],
+  transitions: TimelineTransition[],
+): { leadingRunKeys: string[]; followupRunKeys: string[] } {
+  const repKeys = new Set(reps.map((r) => r.key))
+  const runByKey = new Map(reps.map((r) => [r.key, r]))
+  // onset = 더 이른 대표 run이 원인(transition from)으로 앞서지 않는 run.
+  const hasEarlierCause = (run: TimelineRun): boolean =>
+    transitions.some((t) => t.toKey === run.key && repKeys.has(t.fromKey) && t.fromStartDate < run.startDate)
+
+  const leadCandidates = reps
+    .filter((r) => !hasEarlierCause(r))
+    .sort((a, b) => (SOURCE_ONSET_PRIORITY[a.source] - SOURCE_ONSET_PRIORITY[b.source]) || (a.startDate < b.startDate ? -1 : 1))
+
+  const chosen = new Set<string>()
+  const leadingRunKeys: string[] = []
+  const overlapsChosen = (key: string) => [...chosen].some((c) => areSemanticallyOverlappingSignals(c, key))
+  for (const r of leadCandidates) {
+    if (leadingRunKeys.length >= MAX_LEADING_KEYS) break
+    if (overlapsChosen(r.key)) continue // 의미중복은 대표에서 하나만
+    chosen.add(r.key)
+    leadingRunKeys.push(r.key)
+  }
+
+  // followup 후보 = leading 제외 나머지. 정보가치(incoming pair) 우선순위로 정렬.
+  const followupPriority = (run: TimelineRun): number => {
+    let best = SOURCE_ONSET_PRIORITY[run.source]
+    for (const t of transitions) {
+      if (t.toKey !== run.key || !repKeys.has(t.fromKey)) continue
+      const from = runByKey.get(t.fromKey)
+      if (from) best = Math.min(best, pairPriority(from.source, run.source))
+    }
+    return best
+  }
+  const followCandidates = reps
+    .filter((r) => !leadingRunKeys.includes(r.key))
+    .sort((a, b) => (followupPriority(a) - followupPriority(b)) || (a.startDate < b.startDate ? -1 : 1))
+
+  const followupRunKeys: string[] = []
+  for (const r of followCandidates) {
+    if (followupRunKeys.length >= MAX_FOLLOWUP_KEYS) break
+    if (overlapsChosen(r.key)) continue
+    chosen.add(r.key)
+    followupRunKeys.push(r.key)
+  }
+  return { leadingRunKeys, followupRunKeys }
+}
+
+/** episode 상태(completed/ongoing) 판정. */
+function determineStatus(reps: TimelineRun[], episodeEnd: ISODate, allRuns: TimelineRun[], ctx: EpisodeSequenceContext): 'ongoing' | 'completed' {
+  const majors = reps.filter((r) => MAJOR_SOURCES.has(r.source))
+  // 주요 run이 하나라도 observed로 끝나지 않았으면(범위끝/미기록/예외) 아직 완결로 볼 수 없다.
+  if (majors.some((r) => r.endBoundary !== 'observed')) return 'ongoing'
+  const signalDays = hardSignalRecordedDates(allRuns)
+  // episodeEnd 다음 날부터 "유효 기록 + 비예외 + 새 어려운 신호 없음" 연속일 세기.
+  let stable = 0
+  let d = addDaysISO(episodeEnd, 1)
+  const rangeEnd = ctx.rangeEnd
+  while (rangeEnd === undefined || d <= rangeEnd) {
+    if (ctx.exceptionDates.has(d)) return 'ongoing' // 예외일은 안정일로 세지 않고 분리
+    if (!ctx.recordedDates.has(d)) return 'ongoing' // 미기록 → 종료 확인 불가
+    if (signalDays.has(d)) return 'ongoing' // 새 어려운 신호 재등장 → 아직 진행
+    stable += 1
+    if (stable >= EPISODE_STABILITY_DAYS) return 'completed'
+    d = addDaysISO(d, 1)
+  }
+  return 'ongoing' // 안정 2일을 채우기 전에 관찰 범위 끝
+}
+
+/** 실제 state 값 복귀 기준 회복 계산(회복 action은 시간상 참조만). */
+function computeRecovery(reps: TimelineRun[], ctx: EpisodeSequenceContext, actionsByDate: Map<ISODate, Set<string>>): EpisodeRecovery {
+  const recoveredOn = new Map<string, ISODate>()
+  for (const run of reps) {
+    if (run.source !== 'state' || run.endBoundary !== 'observed') continue
+    const present = new Set(run.dates)
+    let d = addDaysISO(run.endDate, 1)
+    let guard = 0
+    while (guard++ < 400) {
+      if (ctx.exceptionDates.has(d) || !ctx.recordedDates.has(d)) break // 예외·미기록은 회복으로 세지 않음
+      if (!present.has(d)) {
+        recoveredOn.set(run.key, d)
+        break
+      }
+      d = addDaysISO(d, 1)
+    }
+  }
+  if (recoveredOn.size === 0) return { firstRecoveredKeys: [], laterRecoveredKeys: [], nearbyRecoveryActionKeys: [] }
+
+  const entries = [...recoveredOn.entries()].sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0)).slice(0, MAX_RECOVERY_STATES)
+  const recoveryStartDate = entries[0][1]
+  const firstRecoveredKeys = entries.filter(([, dt]) => dt === recoveryStartDate).map(([k]) => k)
+  const laterRecoveredKeys = entries.filter(([, dt]) => dt !== recoveryStartDate).map(([k]) => k)
+  const nearby = new Set<string>()
+  for (const day of [addDaysISO(recoveryStartDate, -1), recoveryStartDate]) for (const a of actionsByDate.get(day) ?? []) nearby.add(a)
+  return { recoveryStartDate, firstRecoveredKeys, laterRecoveredKeys, nearbyRecoveryActionKeys: [...nearby] }
+}
+
+/**
+ * timeline run/transition/aftereffect를 "실제 흐름" 단위 EpisodeTimeline들로 조립한다.
+ * 최소 조건(서로 다른 주요 신호 2+, 기록일 2+, state/mind 1+)을 못 채우면 episode를 만들지 않는다.
+ */
+export function assembleEpisodeTimelines(input: EpisodeAssemblyInput): EpisodeTimeline[] {
+  const { runs, transitions, aftereffects, ctx } = input
+  const actionsByDate = new Map<ISODate, Set<string>>()
+  for (const a of input.recoveryActions ?? []) {
+    const s = actionsByDate.get(a.date) ?? new Set<string>()
+    s.add(a.actionCode)
+    actionsByDate.set(a.date, s)
+  }
+
+  const episodes: EpisodeTimeline[] = []
+  for (const component of clusterRuns(runs, ctx)) {
+    const reps = component.filter((r) => isRepresentativeRun(r, component))
+    if (reps.length === 0) continue
+
+    // 최소 인정 조건
+    const repKeys = reps.map((r) => r.key)
+    if (distinctSignalGroups(repKeys) < 2) continue // 의미중복 접으면 2개 미만
+    if (!reps.some((r) => r.source === 'state' || r.source === 'mind')) continue // state/mind 최소 1
+    const recordedDays = new Set<ISODate>()
+    for (const r of reps) for (const d of recordedDatesOfRun(r)) recordedDays.add(d)
+    if (recordedDays.size < 2) continue // 실제 기록일 2일 미만
+
+    const startDate = reps.reduce((m, r) => (r.startDate < m ? r.startDate : m), reps[0].startDate)
+    const endDate = reps.reduce((m, r) => (r.endDate > m ? r.endDate : m), reps[0].endDate)
+    const repKeySet = new Set(repKeys)
+    const runByKey = new Map(reps.map((r) => [r.key, r]))
+    const epTransitions = transitions.filter((t) => repKeySet.has(t.fromKey) && repKeySet.has(t.toKey))
+    // 정보가치(source→remaining pair 우선순위) 순으로 대표 여파만 남긴다(단순 길이순 아님).
+    const afterPriority = (a: TimelineAftereffect): number => {
+      const s = runByKey.get(a.sourceKey)
+      const r = runByKey.get(a.remainingKey)
+      return s && r ? pairPriority(s.source, r.source) : 6
+    }
+    const epAftereffects = aftereffects
+      .filter((a) => repKeySet.has(a.sourceKey) && repKeySet.has(a.remainingKey))
+      .sort((a, b) => afterPriority(a) - afterPriority(b) || b.extraDays - a.extraDays || (a.sourceEndDate < b.sourceEndDate ? -1 : 1))
+      .slice(0, MAX_EPISODE_AFTEREFFECTS)
+    const { leadingRunKeys, followupRunKeys } = selectRepresentatives(reps, epTransitions)
+    const status = determineStatus(reps, endDate, runs, ctx)
+    const recovery = computeRecovery(reps, ctx, actionsByDate)
+
+    episodes.push({
+      id: `episode-${startDate}-${endDate}`,
+      startDate,
+      endDate,
+      status,
+      runs: [...reps].sort((a, b) => (a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : a.key < b.key ? -1 : 1)),
+      transitions: epTransitions,
+      aftereffects: epAftereffects,
+      recovery,
+      leadingRunKeys,
+      followupRunKeys,
+    })
+  }
+  return episodes.sort((a, b) => (a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0))
+}
+
+/**
+ * 가장 최근의 "대표 신호가 충분한" 흐름 하나를 고른다. endDate가 가장 최근인 것 우선,
+ * 같으면 정보가 많은(run 수) 쪽. 대표 신호가 2개 미만인 조각은 선택하지 않는다.
+ * range_edge라는 이유만으로 ongoing을 무조건 대표로 만들지 않는다(단순히 endDate로 비교).
+ */
+export function selectMostRecentEpisode(episodes: EpisodeTimeline[]): EpisodeTimeline | null {
+  const eligible = episodes.filter((e) => e.leadingRunKeys.length + e.followupRunKeys.length >= 2)
+  if (eligible.length === 0) return null
+  return [...eligible].sort((a, b) => (a.endDate === b.endDate ? b.runs.length - a.runs.length : a.endDate < b.endDate ? 1 : -1))[0]
+}
