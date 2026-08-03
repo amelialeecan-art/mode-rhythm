@@ -402,6 +402,32 @@ describe('고정 QA 데이터', () => {
     expect(m.latestOccurrenceDate).toBe('2026-07-20')
   })
 
+  it('(0) 입력 episode 순서가 달라도 detect 결과·정렬이 동일하다(결정성)', () => {
+    // 여러 motif가 나오도록 서로 다른 순서 3종을 섞는다.
+    const base: EpisodeTimeline[] = [
+      three('a', '2026-05-01', 1, 1), three('b', '2026-06-01', 1, 1), three('c', '2026-07-01', 1, 1),
+      ep('d', [{ key: 'worrying', source: 'mind', date: '2026-05-05' }, { key: 'phone_sleep_delay', source: 'sleep', date: '2026-05-06' }]),
+      ep('e', [{ key: 'worrying', source: 'mind', date: '2026-06-05' }, { key: 'phone_sleep_delay', source: 'sleep', date: '2026-06-06' }]),
+      ep('f', [{ key: 'worrying', source: 'mind', date: '2026-07-05' }, { key: 'phone_sleep_delay', source: 'sleep', date: '2026-07-06' }]),
+      ep('g', [{ key: 'on_edge', source: 'mind', date: '2026-04-01' }, { key: 'intentional_wakefulness', source: 'sleep', date: '2026-04-02' }, { key: 'state_focus_hard', source: 'state', date: '2026-04-03' }]),
+      ep('h', [{ key: 'on_edge', source: 'mind', date: '2026-04-10' }, { key: 'intentional_wakefulness', source: 'sleep', date: '2026-04-11' }, { key: 'state_focus_hard', source: 'state', date: '2026-04-12' }]),
+      ep('i', [{ key: 'on_edge', source: 'mind', date: '2026-04-20' }, { key: 'intentional_wakefulness', source: 'sleep', date: '2026-04-21' }, { key: 'state_focus_hard', source: 'state', date: '2026-04-22' }]),
+    ]
+    const project = (ms: RepeatedEpisodeMotif[]) =>
+      ms.map((m) => ({
+        sequenceKeys: m.sequenceKeys,
+        occurrenceCount: m.occurrenceCount,
+        episodeIds: [...m.occurrences.map((o) => o.episodeId)].sort(),
+        typicalLagRanges: m.typicalLagRanges,
+        latestOccurrenceDate: m.latestOccurrenceDate,
+      }))
+    const asc = project(detectRepeatedEpisodeMotifs(base))
+    const desc = project(detectRepeatedEpisodeMotifs([...base].reverse()))
+    const shuffled = project(detectRepeatedEpisodeMotifs([base[4], base[0], base[7], base[2], base[5], base[1], base[8], base[3], base[6]]))
+    expect(desc).toEqual(asc)
+    expect(shuffled).toEqual(asc)
+  })
+
   it('(29b) ongoing episode는 2개 key만 부분 매칭, 예측 없음', () => {
     const motifs = detectRepeatedEpisodeMotifs(episodes())
     const ongoing = ep('now', [

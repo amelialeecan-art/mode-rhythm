@@ -111,7 +111,7 @@ function candidateSequences(ep: EpisodeTimeline): Candidate[] {
   const repSet = new Set([...ep.leadingRunKeys, ...ep.followupRunKeys])
 
   // 대표 transition → lag>=1 방향 간선.
-  const edges = new Map<string, { to: string; lag: number }[]>()
+  const edgeList: { from: string; to: string; lag: number }[] = []
   for (const t of ep.transitions) {
     if (!repSet.has(t.fromKey) || !repSet.has(t.toKey)) continue
     const a = startByKey.get(t.fromKey)
@@ -119,9 +119,21 @@ function candidateSequences(ep: EpisodeTimeline): Candidate[] {
     if (a === undefined || b === undefined) continue
     const lag = diffDays(a, b)
     if (lag < 1) continue // 같은 날 동시발생/역순 제외
-    const arr = edges.get(t.fromKey) ?? []
-    arr.push({ to: t.toKey, lag })
-    edges.set(t.fromKey, arr)
+    edgeList.push({ from: t.fromKey, to: t.toKey, lag })
+  }
+  // 추이적 축약(transitive reduction): a→c는 사이 단계 b(a→b→c, a<b<c)가 있으면 건너뛴 간선이므로
+  // 버린다. 실제 "다음 변화"만 남겨 skip 순서가 별도 짧은 motif로 새지 않게 한다(§3·§7).
+  const hasEdge = new Set(edgeList.map((e) => `${e.from}>${e.to}`))
+  const startOf = (k: string) => startByKey.get(k)!
+  const edges = new Map<string, { to: string; lag: number }[]>()
+  for (const e of edgeList) {
+    const shortcut = edgeList.some(
+      (m) => m.from === e.from && hasEdge.has(`${m.to}>${e.to}`) && startOf(e.from) < startOf(m.to) && startOf(m.to) < startOf(e.to),
+    )
+    if (shortcut) continue
+    const arr = edges.get(e.from) ?? []
+    arr.push({ to: e.to, lag: e.lag })
+    edges.set(e.from, arr)
   }
 
   const out: Candidate[] = []
