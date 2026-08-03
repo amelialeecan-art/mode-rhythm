@@ -508,8 +508,15 @@ export interface EpisodeRecovery {
 export interface EpisodeTimeline {
   id: string
   startDate: ISODate
+  /** 주요 어려운 신호가 마지막으로 실제 기록된 날짜(신호 종료일). */
   endDate: ISODate
   status: 'ongoing' | 'completed'
+  /**
+   * 완료가 확인된 날짜 = 연속 유효 안정일 2일째 날짜. completed에서만 존재하고
+   * ongoing이면 undefined. 미기록·rhythm exception·회복행동만 있는 날은 안정일로 세지 않는다.
+   * endDate(신호 종료)와 구분되며, 범위 끝/미기록을 임의의 완료일로 만들지 않는다.
+   */
+  completionConfirmedDate?: ISODate
   /** 흐름을 구성하는 대표 run들(무관 사건 run 제외). */
   runs: TimelineRun[]
   transitions: TimelineTransition[]
@@ -668,25 +675,33 @@ function selectRepresentatives(
   return { leadingRunKeys, followupRunKeys }
 }
 
-/** episode 상태(completed/ongoing) 판정. */
-function determineStatus(reps: TimelineRun[], episodeEnd: ISODate, allRuns: TimelineRun[], ctx: EpisodeSequenceContext): 'ongoing' | 'completed' {
+/**
+ * episode 상태(completed/ongoing) + 완료 확인일 판정.
+ * completed면 completionConfirmedDate = 연속 유효 안정일 2일째 날짜. ongoing이면 undefined.
+ */
+function determineStatus(
+  reps: TimelineRun[],
+  episodeEnd: ISODate,
+  allRuns: TimelineRun[],
+  ctx: EpisodeSequenceContext,
+): { status: 'ongoing' | 'completed'; completionConfirmedDate?: ISODate } {
   const majors = reps.filter((r) => MAJOR_SOURCES.has(r.source))
   // 주요 run이 하나라도 observed로 끝나지 않았으면(범위끝/미기록/예외) 아직 완결로 볼 수 없다.
-  if (majors.some((r) => r.endBoundary !== 'observed')) return 'ongoing'
+  if (majors.some((r) => r.endBoundary !== 'observed')) return { status: 'ongoing' }
   const signalDays = hardSignalRecordedDates(allRuns)
   // episodeEnd 다음 날부터 "유효 기록 + 비예외 + 새 어려운 신호 없음" 연속일 세기.
   let stable = 0
   let d = addDaysISO(episodeEnd, 1)
   const rangeEnd = ctx.rangeEnd
   while (rangeEnd === undefined || d <= rangeEnd) {
-    if (ctx.exceptionDates.has(d)) return 'ongoing' // 예외일은 안정일로 세지 않고 분리
-    if (!ctx.recordedDates.has(d)) return 'ongoing' // 미기록 → 종료 확인 불가
-    if (signalDays.has(d)) return 'ongoing' // 새 어려운 신호 재등장 → 아직 진행
+    if (ctx.exceptionDates.has(d)) return { status: 'ongoing' } // 예외일은 안정일로 세지 않고 분리
+    if (!ctx.recordedDates.has(d)) return { status: 'ongoing' } // 미기록 → 종료 확인 불가
+    if (signalDays.has(d)) return { status: 'ongoing' } // 새 어려운 신호 재등장 → 아직 진행
     stable += 1
-    if (stable >= EPISODE_STABILITY_DAYS) return 'completed'
+    if (stable >= EPISODE_STABILITY_DAYS) return { status: 'completed', completionConfirmedDate: d } // 안정 2일째 날짜
     d = addDaysISO(d, 1)
   }
-  return 'ongoing' // 안정 2일을 채우기 전에 관찰 범위 끝
+  return { status: 'ongoing' } // 안정 2일을 채우기 전에 관찰 범위 끝
 }
 
 /** 실제 state 값 복귀 기준 회복 계산(회복 action은 시간상 참조만). */
@@ -759,7 +774,7 @@ export function assembleEpisodeTimelines(input: EpisodeAssemblyInput): EpisodeTi
       .sort((a, b) => afterPriority(a) - afterPriority(b) || b.extraDays - a.extraDays || (a.sourceEndDate < b.sourceEndDate ? -1 : 1))
       .slice(0, MAX_EPISODE_AFTEREFFECTS)
     const { leadingRunKeys, followupRunKeys } = selectRepresentatives(reps, epTransitions)
-    const status = determineStatus(reps, endDate, runs, ctx)
+    const { status, completionConfirmedDate } = determineStatus(reps, endDate, runs, ctx)
     const recovery = computeRecovery(reps, ctx, actionsByDate)
 
     episodes.push({
@@ -767,6 +782,7 @@ export function assembleEpisodeTimelines(input: EpisodeAssemblyInput): EpisodeTi
       startDate,
       endDate,
       status,
+      completionConfirmedDate,
       runs: [...reps].sort((a, b) => (a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : a.key < b.key ? -1 : 1)),
       transitions: epTransitions,
       aftereffects: epAftereffects,

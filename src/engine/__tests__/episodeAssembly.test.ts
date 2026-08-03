@@ -230,6 +230,97 @@ describe('episode 종료(completed/ongoing)', () => {
 })
 
 /* =====================================================================
+   완료 확인일(completionConfirmedDate) — 신호 종료일과 구분
+   ===================================================================== */
+describe('completionConfirmedDate', () => {
+  it('신호 종료 8/10 · 회복 8/11 · 안정 확인 8/12를 각각 구분한다', () => {
+    const { episodes } = pipeline(
+      [
+        makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'] }),
+        makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'] }),
+        makeLog({ date: '2026-08-08', mindSignalCodes: ['thought_loop'], lastNightSleep: { issues: ['bedtime_delay'] } }),
+        makeLog({ date: '2026-08-09', lastNightSleep: { issues: ['bedtime_delay', 'sleep_late'] }, ...tired }),
+        makeLog({ date: '2026-08-10', lastNightSleep: { issues: ['sleep_late'] }, ...tired }), // 마지막 어려운 신호일
+        makeLog({ date: '2026-08-11' }), // 안정 1일 + state 회복
+        makeLog({ date: '2026-08-12' }), // 안정 2일째 → 완료 확인
+        makeLog({ date: '2026-08-13' }),
+      ],
+      { today: '2026-08-20' },
+    )
+    const e = episodes[0]
+    expect(e.status).toBe('completed')
+    expect(e.endDate).toBe('2026-08-10') // 신호 종료일(기존 계산 불변)
+    expect(e.recovery.recoveryStartDate).toBe('2026-08-11') // 상태 복귀일(기존 계산 불변)
+    expect(e.completionConfirmedDate).toBe('2026-08-12') // 안정 2일째
+  })
+
+  it('ongoing episode는 completionConfirmedDate가 없다', () => {
+    const { episodes } = pipeline(
+      [
+        makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'], ...tired }),
+        makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'], ...tired }),
+      ],
+      { today: '2026-08-07' }, // 범위 끝까지 이어짐
+    )
+    expect(episodes[0].status).toBe('ongoing')
+    expect(episodes[0].completionConfirmedDate).toBeUndefined()
+  })
+
+  it('미기록일을 완료 확인일로 쓰지 않는다', () => {
+    const { episodes } = pipeline(
+      [
+        makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'], ...tired }),
+        makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'], ...tired }),
+        makeLog({ date: '2026-08-08' }), // 안정 1일
+        // 8/09 미기록 → 안정 2일 못 채움
+      ],
+      { today: '2026-08-20' },
+    )
+    expect(episodes[0].status).toBe('ongoing')
+    expect(episodes[0].completionConfirmedDate).toBeUndefined()
+  })
+
+  it('exception을 완료 확인일로 쓰지 않는다', () => {
+    const { episodes } = pipeline([
+      makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'], ...tired }),
+      makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'], ...tired }),
+      makeLog({ date: '2026-08-08' }), // 안정 1일
+      makeLog({ date: '2026-08-09', rhythmExceptionCodes: ['illness'] }), // 예외 → 안정일 아님
+    ])
+    expect(episodes[0].status).toBe('ongoing')
+    expect(episodes[0].completionConfirmedDate).toBeUndefined()
+  })
+
+  it('recovery action만 있는 날(미기록)은 완료 확인일로 쓰지 않는다', () => {
+    const { episodes } = pipeline(
+      [
+        makeLog({ date: '2026-08-06', mindSignalCodes: ['thought_loop'], ...tired }),
+        makeLog({ date: '2026-08-07', mindSignalCodes: ['thought_loop'], ...tired }),
+        makeLog({ date: '2026-08-08' }), // 안정 1일
+        // 8/09는 DailyLog 없이 recovery action만 존재 → 안정일 아님
+      ],
+      { today: '2026-08-20', recoveryActions: [{ date: '2026-08-09', actionCode: 'rest_alone' }] },
+    )
+    expect(episodes[0].status).toBe('ongoing')
+    expect(episodes[0].completionConfirmedDate).toBeUndefined()
+  })
+
+  it('selectMostRecentEpisode는 completionConfirmedDate가 아니라 endDate 기준을 유지한다', () => {
+    // ep1: 신호 종료 8/02(최근), 완료 확인 없음/이후. ep2: 신호 종료 8/01, 완료 확인 8/12(더 늦음).
+    const { episodes } = pipeline([
+      makeLog({ date: '2026-08-08', mindSignalCodes: ['worrying'], ...busy }),
+      makeLog({ date: '2026-08-09', mindSignalCodes: ['worrying'], ...busy }), // 신호 종료 8/09
+      makeLog({ date: '2026-08-10' }),
+      makeLog({ date: '2026-08-11' }), // ep(worrying) 완료 확인 8/11
+      makeLog({ date: '2026-08-20', mindSignalCodes: ['thought_loop'], ...tired }),
+      makeLog({ date: '2026-08-21', mindSignalCodes: ['thought_loop'], ...tired }), // 신호 종료 8/21(더 최근), 이후 미기록 → ongoing
+    ])
+    const chosen = selectMostRecentEpisode(episodes)!
+    expect(chosen.endDate).toBe('2026-08-21') // endDate가 더 최근인 흐름 선택(완료 확인일이 이르다는 이유로 밀리지 않음)
+  })
+})
+
+/* =====================================================================
    회복 계산
    ===================================================================== */
 describe('회복(recovery)', () => {
