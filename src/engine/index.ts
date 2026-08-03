@@ -212,6 +212,16 @@ export {
   type EpisodeAssemblyInput,
 } from './episodeTimeline'
 export {
+  detectRepeatedEpisodeMotifs,
+  matchEpisodeToRepeatedMotifs,
+  MIN_MOTIF_OCCURRENCES,
+  MOTIF_LAG_SPREAD,
+  type RepeatedEpisodeMotif,
+  type MotifOccurrence,
+  type MotifMatch,
+  type DetectMotifOptions,
+} from './episodeMotifs'
+export {
   recoveryDelta,
   calcRecoveryScore,
   immediateRecoveryScore,
