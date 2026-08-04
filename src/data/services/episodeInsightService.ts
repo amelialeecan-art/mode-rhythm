@@ -8,8 +8,9 @@
    ⚠️ 엔진을 복사/재구현하지 않는다 — engine 공개 API만 순서대로 호출한다.
    ===================================================================== */
 import type { ISODate, DailyLog, EventLog, RecoveryLog } from '../models'
-import { dailyLogRepository, eventLogRepository, recoveryLogRepository } from '../repositories'
+import { dailyLogRepository, eventLogRepository, recoveryLogRepository, cycleLogRepository } from '../repositories'
 import { getTodayISODate } from '../../lib/date'
+import { filterExternallyExplainedMotifs } from './episodeMotifFilters'
 import {
   buildEpisodeTimeline,
   deriveSequenceContext,
@@ -78,16 +79,18 @@ export async function getEpisodeInsightSnapshot(today: ISODate = getTodayISODate
   const recentReadStart = addDaysISO(recentStartDate, -RECENT_LOOKBACK_DAYS) // onset 연결 확인용 소량 lookback
 
   // 원본을 딱 한 번씩만 읽는다(365일 범위). 이후는 전부 메모리 subset.
-  const [dailyRaw, eventRaw, recoveryRaw] = await Promise.all([
+  const [dailyRaw, eventRaw, recoveryRaw, cycleRaw] = await Promise.all([
     dailyLogRepository.listByDateRange(motifStartDate, endDate),
     eventLogRepository.listByDateRange(motifStartDate, endDate),
     recoveryLogRepository.listByDateRange(motifStartDate, endDate),
+    cycleLogRepository.listByDateRange(motifStartDate, endDate),
   ])
 
   // 미래 방어: today 이후 기록은 사용하지 않는다.
   const dailyAll = dailyRaw.filter((l) => l.date <= endDate)
   const eventAll = eventRaw.filter((e) => e.date <= endDate)
   const recoveryAll = recoveryRaw.filter((r) => r.date <= endDate)
+  const cycleAll = cycleRaw.filter((c) => c.date <= endDate)
 
   // 최근 흐름용 subset(90일 + 소량 lookback).
   const dailyRecent = dailyAll.filter((l) => l.date >= recentReadStart)
@@ -100,8 +103,10 @@ export async function getEpisodeInsightSnapshot(today: ISODate = getTodayISODate
   const recentEpisode = candidate && candidate.endDate >= recentStartDate ? candidate : null
 
   // repeatedMotifs: 365일 전체에서 조립 후 반복 순서 탐지(엔진 최대 5개 제한 유지, 미래 제외).
+  // 요일·생리 구간·동일 연결 사건으로만 명백히 설명되는 반복은 화면에서 제거한다(보수적).
   const motifEpisodes = assembleFrom(dailyAll, eventAll, recoveryAll, endDate)
-  const repeatedMotifs = detectRepeatedEpisodeMotifs(motifEpisodes, { today: endDate }) // 8
+  const rawMotifs = detectRepeatedEpisodeMotifs(motifEpisodes, { today: endDate }) // 8
+  const repeatedMotifs = filterExternallyExplainedMotifs(rawMotifs, motifEpisodes, cycleAll)
 
   // currentMotifMatches: recentEpisode가 ongoing일 때만. 예측 없이 현재까지 겹치는 key만.
   const currentMotifMatches: MotifMatch[] =

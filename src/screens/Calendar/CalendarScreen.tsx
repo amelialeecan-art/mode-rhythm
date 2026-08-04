@@ -308,10 +308,13 @@ function DayDetailSheet({
             {score && (
               <details className="sheet-summary">
                 <summary className="sheet-summary__sum">이 날의 상태 요약</summary>
-                <div className="sheet__moderow">
-                  <p className="sheet__mode">{DAY_TYPE_LABEL[score.dayType]}</p>
-                  {score.dayTypeSubLabel && <span className="sheet__paren">{score.dayTypeSubLabel}</span>}
-                </div>
+                {/* 상태를 직접 입력하지 않은 날은 '안정일' 같은 상태 모드로 단정하지 않는다. */}
+                {!(score.dayType === 'stable' && !detail.hasStateInput) && (
+                  <div className="sheet__moderow">
+                    <p className="sheet__mode">{DAY_TYPE_LABEL[score.dayType]}</p>
+                    {score.dayTypeSubLabel && <span className="sheet__paren">{score.dayTypeSubLabel}</span>}
+                  </div>
+                )}
                 <div className="sheet-bars">
                   {DETAIL_BARS.map((b) => {
                     const v = lensScore(score, b.key)

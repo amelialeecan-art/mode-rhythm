@@ -196,6 +196,19 @@ describe('getEpisodeInsightSnapshot', () => {
     expect(snap.repeatedMotifs[0].occurrenceCount).toBe(3)
     expect(snap.repeatedMotifs[0].typicalLagRanges[0]).toEqual({ min: 1, max: 1 })
   })
+
+  it('(필터 8/9) 요일로만 설명되는 반복은 숨기고 recentEpisode는 유지한다', async () => {
+    // 세 완결 흐름의 시작일이 모두 같은 요일(7일 간격)
+    await seedCompletedFlow('2025-09-01', 1)
+    await seedCompletedFlow('2025-09-08', 2)
+    await seedCompletedFlow('2025-09-15', 1)
+    await seedOngoingRecent()
+    const snap = await getEpisodeInsightSnapshot(TODAY)
+    expect(snap.repeatedMotifs).toEqual([]) // 요일 설명으로 숨김
+    expect(snap.currentMotifMatches).toEqual([]) // 남은 motif가 없으니 현재 매칭도 없음
+    expect(snap.recentEpisode).not.toBeNull() // recentEpisode는 필터와 무관하게 유지
+    expect(snap.recentEpisode!.status).toBe('ongoing')
+  })
 })
 
 /* =====================================================================

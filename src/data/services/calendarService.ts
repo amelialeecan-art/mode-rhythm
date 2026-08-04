@@ -82,6 +82,8 @@ export interface CalendarDayDetail {
   recoveryLogs: RecoveryLog[]
   /** "오늘 상태" 라벨 (저장 메타데이터 우선, 없으면 숫자값에서 추론). 원인 아님 — 상태 기록. */
   stateLabels: string[]
+  /** 사용자가 직접 상태를 입력한 날인지(몸 신호·수면·메모만 있는 날은 false). */
+  hasStateInput: boolean
 }
 
 function toLensScores(s: DailyScore): LensScores {
@@ -104,13 +106,21 @@ export async function getCalendarMonth(monthDate: ISODate): Promise<CalendarMont
   const rangeStart = grid[0].date
   const rangeEnd = grid[grid.length - 1].date
 
-  const scores = await dailyScoreRepository.listByDateRange(rangeStart, rangeEnd)
+  const [scores, logs] = await Promise.all([
+    dailyScoreRepository.listByDateRange(rangeStart, rangeEnd),
+    dailyLogRepository.listByDateRange(rangeStart, rangeEnd),
+  ])
   const byDate = new Map<ISODate, DailyScore>(scores.map((s) => [s.date, s]))
+  const logByDate = new Map<ISODate, DailyLog>(logs.map((l) => [l.date, l]))
 
   const days: CalendarMonthDay[] = grid.map((cell) => {
     const score = byDate.get(cell.date)
     if (!score) {
       return { ...cell, hasEntry: false }
+    }
+    // 상태를 직접 입력하지 않은 날을 '안정'으로 오인 표시하지 않는다(라벨만 비우고 기록·점수는 유지).
+    if (score.dayType === 'stable' && !hasDirectStateInput(logByDate.get(cell.date))) {
+      return { ...cell, hasEntry: true, scores: toLensScores(score) }
     }
     return {
       ...cell,
@@ -142,7 +152,7 @@ export async function getCalendarDayDetail(date: ISODate): Promise<CalendarDayDe
   const hasEntry =
     dailyLog != null || eventLogs.length > 0 || cycleLogs.length > 0 || recoveryLogs.length > 0
 
-  return { date, hasEntry, dailyScore, dailyLog, eventLogs, cycleLogs, recoveryLogs, stateLabels: stateLabelsFor(dailyLog) }
+  return { date, hasEntry, dailyScore, dailyLog, eventLogs, cycleLogs, recoveryLogs, stateLabels: stateLabelsFor(dailyLog), hasStateInput: hasDirectStateInput(dailyLog) }
 }
 
 /* 캘린더용 사람말 라벨. 개발자식 필드명(몸 에너지·생활기능·감정 부담…)은 노출하지 않는다.
@@ -180,6 +190,30 @@ function strainLabel(r: DomainReading | undefined, high: string, low?: string, m
   if (r.value >= STRAIN_HIGH) return high
   if (r.value <= STRAIN_LOW) return low
   return mid
+}
+
+/**
+ * 사용자가 "직접 상태(마음·감정·에너지·집중·사람 여유·생활기능)"를 실제로 입력했는가.
+ * ⚠️ 몸 신호·수면·메모는 상태 입력으로 치지 않는다(그것만 있는 날을 '안정'으로 오인하지 않기 위함).
+ *    scoring/판정은 건드리지 않고, 달력 표시 조건에만 쓴다.
+ */
+function hasDirectStateInput(log: DailyLog | undefined): boolean {
+  if (!log) return false
+  if (
+    log.emotionalStabilityLevel != null ||
+    log.bodyEnergyLevel != null ||
+    log.mentalSpaceLevel != null ||
+    log.focusLevel != null ||
+    log.socialCapacityLevel != null ||
+    log.functionLevel != null
+  )
+    return true
+  if ((log.emotionCodes?.length ?? 0) > 0 || (log.mindSignalCodes?.length ?? 0) > 0 || (log.stateCodes?.length ?? 0) > 0) return true
+  if (log.appetiteRatings && Object.values(log.appetiteRatings).some((v) => typeof v === 'number')) return true
+  // 옛 숫자 상태(감정·에너지·집중·식욕) — 몸/수면 숫자는 제외.
+  const stateNumeric =
+    log.moodLow + log.anxiety + log.irritability + log.sadness + log.heaviness + log.calm + log.energy + log.focus + log.selfCriticism + log.impulsivity + log.appetite + log.sweetCraving + log.saltyCraving + log.bingeUrge
+  return stateNumeric > 0
 }
 
 /** dailyLog → "오늘 상태" 사람말 라벨 목록. 입력된 항목만, 미입력은 표시하지 않음. */
