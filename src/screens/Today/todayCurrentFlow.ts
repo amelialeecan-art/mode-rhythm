@@ -88,36 +88,3 @@ export function presentTodayCurrentFlow(snapshot: EpisodeInsightSnapshot, today:
   const nowWord = last.source === 'sleep' ? '어젯밤에는' : '오늘은'
   return `${firstPrefix}${firstClause}고, ${nowWord} ${lastClause}어요.`
 }
-
-/* ---------------------------------------------------------------------
-   안전 로더 (진입 1회 / 최신 응답만 / dispose 후 미적용 / 실패 시 기존 유지)
-   Analysis 로더와 같은 안전 패턴을 snapshot 소비만 일반화해 둔다(전역 캐시 없음).
-   --------------------------------------------------------------------- */
-export interface SnapshotFlowLoader {
-  load: () => Promise<void>
-  dispose: () => void
-}
-export function createSnapshotFlowLoader<T>(
-  fetchSnapshot: () => Promise<T>,
-  apply: (snapshot: T) => void,
-  onError?: (err: unknown) => void,
-): SnapshotFlowLoader {
-  let latest = 0
-  let disposed = false
-  return {
-    async load() {
-      const reqId = ++latest
-      try {
-        const snapshot = await fetchSnapshot()
-        if (disposed || reqId !== latest) return // 오래됐거나 unmount됨
-        apply(snapshot)
-      } catch (err) {
-        if (disposed || reqId !== latest) return
-        onError?.(err) // 상태 그대로 유지(빈 결과로 덮지 않음)
-      }
-    },
-    dispose() {
-      disposed = true
-    },
-  }
-}

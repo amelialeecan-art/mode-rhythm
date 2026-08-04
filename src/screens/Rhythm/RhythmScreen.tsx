@@ -13,7 +13,11 @@ import {
 } from '../../data/services/rhythmService'
 import type { RecentFlow, PersonalRhythm, MonthlyComparison } from '../../engine'
 import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
+import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
+import { createSnapshotFlowLoader } from '../../lib/snapshotFlowLoader'
+import { getTodayISODate } from '../../lib/date'
 import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence, monthlyComparisonView } from './rhythmVoice'
+import { presentRhythmRepeatedFlow, type RepeatedFlowCard } from './rhythmRepeatedFlow'
 import { CycleCompareChart } from './CycleCompareChart'
 import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import './rhythm.css'
@@ -56,6 +60,7 @@ export function RhythmScreen() {
   const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
   const [personalRhythm, setPersonalRhythm] = useState<PersonalRhythm | null>(null)
   const [monthly, setMonthly] = useState<MonthlyComparison | null>(null)
+  const [repeatedFlowCards, setRepeatedFlowCards] = useState<RepeatedFlowCard[]>([])
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
@@ -93,6 +98,18 @@ export function RhythmScreen() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  // "반복해서 나타난 큰 흐름" — 진입 시 1회, 실패해도 리듬 화면 전체는 그대로(섹션만 미표시).
+  useEffect(() => {
+    const today = getTodayISODate()
+    const loader = createSnapshotFlowLoader(
+      () => getEpisodeInsightSnapshot(today),
+      (snap) => setRepeatedFlowCards(presentRhythmRepeatedFlow(snap)),
+      (err) => console.error('[Rhythm] repeated flow load failed', err),
+    )
+    void loader.load()
+    return () => loader.dispose()
   }, [])
 
   useEffect(() => {
@@ -192,6 +209,19 @@ export function RhythmScreen() {
                 <GlassCard tint="mint">
                   <SectionHeader title="최근 흐름" />
                   <p className="rhythm-flow">{recentFlowSentence(recentFlow)}</p>
+                </GlassCard>
+              )}
+
+              {/* 1-2. 반복해서 나타난 큰 흐름 (여러 번 되풀이된 순서) — 없으면 섹션 전체 숨김 */}
+              {repeatedFlowCards.length > 0 && (
+                <GlassCard tint="sky">
+                  <SectionHeader title="반복해서 나타난 큰 흐름" />
+                  {repeatedFlowCards.map((c, i) => (
+                    <div className="rhythm-repeat" key={i}>
+                      <p className="rhythm-repeat__say">{c.sentence}</p>
+                      <p className="rhythm-repeat__dates">{c.dates}</p>
+                    </div>
+                  ))}
                 </GlassCard>
               )}
 

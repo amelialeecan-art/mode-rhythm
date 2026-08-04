@@ -178,6 +178,31 @@
   color: var(--ink);
   margin-top: 8px;
 }
+/* 반복해서 나타난 큰 흐름 (되풀이된 순서 + 실제 시작일) */
+.rhythm-repeat {
+  margin-top: 10px;
+}
+.rhythm-repeat + .rhythm-repeat {
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline, rgba(0, 0, 0, 0.06));
+}
+.rhythm-repeat__say {
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.rhythm-repeat__dates {
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-top: 4px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
 /* 월간 비교 (앞머리 1 + 절 목록) */
 .rhythm-month-lead {
   font-size: 13px;
