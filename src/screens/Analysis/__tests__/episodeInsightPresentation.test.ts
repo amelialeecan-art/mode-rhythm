@@ -87,7 +87,7 @@ describe('최근 흐름 문장', () => {
     const p = presentEpisodeInsight(snap({ recentEpisode: ep }))
     const text = p.recentFlow!.lines.join(' ')
     expect(text).toContain('8월 6일')
-    expect(text).toContain('같은 생각이 계속 맴돌았')
+    expect(text).toContain('같은 생각이 계속 맴돌기 시작했')
     expect(text).toContain('자는 걸 미뤘')
     expect(text).toContain('평소보다 늦게 잠들었')
     expect(text).toContain('몸이 쉽게 지쳤')
@@ -289,8 +289,7 @@ describe('반복된 흐름·현재 일치', () => {
     const line = p.repeatedFlow!.lines[0]
     expect(line).toContain('세 번')
     expect(line).not.toMatch(/근거|3회|occurrence/)
-    expect(line).toContain('같은 생각이 계속 맴돌았')
-    expect(line).toContain('다음 날')
+    expect(line).toContain('같은 생각이 계속 맴돈 다음 날')
     expect(line).toContain('자는 걸 미뤘')
     expect(line).toContain('1~2일')
     expect(line).toContain('평소 하던 일이 버거웠')
@@ -306,7 +305,7 @@ describe('반복된 흐름·현재 일치', () => {
     const matches: MotifMatch[] = [{ motifId: 'm1', matchedKeys: ['thought_loop', 'bedtime_delay'], completeMatch: false }]
     const p = presentEpisodeInsight(snap({ recentEpisode: ep, currentMotifMatches: matches, repeatedMotifs: [motif(['thought_loop', 'bedtime_delay', 'state_daily_tasks_hard'], [{ min: 1, max: 1 }, { min: 1, max: 2 }])] }))
     expect(p.currentMatch).not.toBeNull()
-    expect(p.currentMatch!.lines[0]).toContain('같은 생각이 계속 맴돌았')
+    expect(p.currentMatch!.lines[0]).toContain('같은 생각이 계속 맴돈 뒤')
     expect(p.currentMatch!.lines[0]).toContain('자는 걸 미뤘')
     // 아직 안 나타난 세 번째(평소 하던 일)는 말하지 않는다.
     expect(p.currentMatch!.lines[0]).not.toContain('평소 하던 일')
@@ -360,7 +359,7 @@ describe('고정 QA', () => {
     // 최근 흐름
     const flow = p.recentFlow!.lines.join(' ')
     expect(flow).toContain('8월 6일')
-    expect(flow).toContain('같은 생각이 계속 맴돌았')
+    expect(flow).toContain('같은 생각이 계속 맴돌기 시작했')
     expect(flow).toContain('자는 걸 미뤘')
     expect(flow).toContain('평소보다 늦게 잠들었')
     expect(flow).toContain('몸이 쉽게 지쳤')

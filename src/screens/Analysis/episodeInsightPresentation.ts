@@ -71,6 +71,26 @@ const PHRASE: Record<string, Phrase> = {
   intentional_wakefulness: { topic: '일부러 깨어 있던 밤' },
 }
 
+/** 최근 흐름 첫 신호를 "…기 시작했"으로 자연스럽게 여는 어간(있을 때만). */
+const STARTED: Record<string, string> = {
+  thought_loop: '같은 생각이 계속 맴돌',
+  worrying: '걱정이 계속 이어지',
+  mind_would_not_rest: '머리가 쉬지 않',
+}
+/** 반복 순서에서 "… 다음 날/뒤"로 잇는 관형형(있을 때만). */
+const ADNOMINAL: Record<string, string> = {
+  thought_loop: '같은 생각이 계속 맴돈',
+  worrying: '걱정이 이어진',
+  mind_would_not_rest: '머리가 쉬지 않은',
+  too_many_thoughts: '여러 생각이 몰린',
+  sensory_overload: '자극이 버거웠던',
+  no_desire: '의욕이 나지 않던',
+  hard_to_start: '시작하기 어려웠던',
+  bedtime_delay: '자는 걸 미룬',
+  sleep_late: '늦게 잠든',
+  phone_sleep_delay: '폰을 보며 잠을 미룬',
+}
+
 /** 문장 연결 어간(고/어요/지만이 붙는 과거형). 사람말로 못 바꾸면 null(해당 항목 생략). */
 function clauseFor(key: string): string | null {
   if (PHRASE[key]?.clause) return PHRASE[key]!.clause!
@@ -101,17 +121,6 @@ function fmtDate(iso: ISODate, ctx: DateCtx): string {
   ctx.lastMonth = m
   ctx.lastYear = y
   return `${showYear ? `${y}년 ` : ''}${showMonth ? `${m}월 ` : ''}${d}일`
-}
-/** run 기간 사람말: 여러 날이면 "A부터 B까지", 하루면 "A부터". 수면 nightOf 날짜 그대로. */
-function runDateText(run: TimelineRun, ctx: DateCtx): string {
-  const start = fmtDate(run.startDate, ctx)
-  if (run.endDate > run.startDate) {
-    const s = ymd(run.startDate)
-    const e = ymd(run.endDate)
-    const endText = e.y === s.y && e.m === s.m ? `${e.d}일` : fmtDate(run.endDate, ctx)
-    return `${start}부터 ${endText}까지`
-  }
-  return `${start}부터`
 }
 const dayText = (iso: ISODate, ctx: DateCtx) => fmtDate(iso, ctx)
 /** 최근 흐름의 달/해를 이미 아는 것으로 보는 컨텍스트(같은 달이면 월을 반복하지 않음). */
@@ -164,8 +173,16 @@ function buildRecentFlow(ep: EpisodeTimeline, hasAftereffect: boolean, hasRecove
 
   const ctx: DateCtx = { baseYear: ymd(ep.endDate).y }
   const lines: string[] = []
+  let first = true
+  // 시작 신호는 "…기 시작했", 나머지는 시작일 기준 "…부터"만(한 문장에 날짜 범위를 반복하지 않는다).
+  const segment = (r: TimelineRun): string => {
+    const started = first ? STARTED[r.key] : undefined
+    first = false
+    if (started) return `${fmtDate(r.startDate, ctx)}에 ${started}기 시작했`
+    return `${fmtDate(r.startDate, ctx)}부터 ${clauseFor(r.key)}`
+  }
   for (const group of chunk(reps, 2).slice(0, MAX_LINES)) {
-    const parts = group.map((r) => `${runDateText(r, ctx)} ${clauseFor(r.key)}`)
+    const parts = group.map(segment)
     lines.push(parts.length === 2 ? `${parts[0]}고, ${parts[1]}어요.` : `${parts[0]}어요.`)
   }
 
@@ -257,16 +274,19 @@ function buildRepeatedFlow(motifs: RepeatedEpisodeMotif[]): FlowCard | null {
 
   const cw = countWord(motif.occurrenceCount)
   const r0 = motif.typicalLagRanges[0]
-  const step1 = r0.min === r0.max ? lagWord(r0.min) : `${r0.min}~${r0.max}일 뒤`
+  const single0 = r0.min === r0.max
+  // "…맴돌았고, 다음 날" 대신 "…맴돈 다음 날"처럼 관형형으로 자연스럽게 잇는다.
+  const adn0 = single0 ? ADNOMINAL[motif.sequenceKeys[0]] : undefined
+  const lead = adn0 ? `${adn0} ${lagWord(r0.min)}` : `${clauses[0]}고, ${single0 ? lagWord(r0.min) : `${r0.min}~${r0.max}일 뒤`}`
   let body: string
   if (motif.sequenceKeys.length >= 3) {
     const r1 = motif.typicalLagRanges[1]
     const step2 = r1.min === r1.max ? lagWord(r1.min) : `그 뒤 ${r1.min}~${r1.max}일 안에`
-    body = `${clauses[0]}고, ${step1} ${clauses[1]}고, ${step2} ${clauses[2]}어요.`
+    body = `${lead} ${clauses[1]}고, ${step2} ${clauses[2]}어요.`
   } else {
-    body = `${clauses[0]}고, ${step1} ${clauses[1]}어요.`
+    body = `${lead} ${clauses[1]}어요.`
   }
-  return { title: '반복해서 나타난 순서', lines: [`최근 ${cw} 번의 비슷한 흐름에서 ${body}`] }
+  return { title: '반복해서 나타난 순서', lines: [`최근 ${cw} 번의 비슷한 흐름에서는 ${body}`] }
 }
 
 /** presentation 방어: 뻔한 2단계(의미중복·같은 날) 결과는 숨긴다. */
@@ -287,8 +307,13 @@ function buildCurrentMatch(matches: MotifMatch[]): FlowCard | null {
   if (!best) return null
   const clauses = best.matchedKeys.map(clauseFor)
   if (clauses.some((c) => c === null)) return null
-  const joined = clauses.map((c, i) => (i === 0 ? c : `그다음 ${c}`)).join('고, ') + '어요.'
-  return { title: '이번에도 여기까지 같은 순서였어요', lines: [`이번에도 ${joined}`] }
+  const adn0 = ADNOMINAL[best.matchedKeys[0]]
+  // 2단계면 "…맴돈 뒤 …", 그 이상이면 절 연결로.
+  const body =
+    best.matchedKeys.length === 2 && adn0
+      ? `${adn0} 뒤 ${clauses[1]}어요.`
+      : clauses.map((c, i) => (i === 0 ? c : `그다음 ${c}`)).join('고, ') + '어요.'
+  return { title: '이번에도 여기까지 같은 순서였어요', lines: [`이번에도 ${body}`] }
 }
 
 /**

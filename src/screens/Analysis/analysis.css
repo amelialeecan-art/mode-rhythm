@@ -911,3 +911,41 @@
   border-radius: 50%;
   background: var(--lav-2, #a985e8);
 }
+
+/* ---------- update4 · 최근에 이어진 흐름 / 반복해서 나타난 순서 ---------- */
+.epflow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.epflow__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.epflow__line {
+  margin: 0;
+  line-height: 1.65;
+  color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.epflow__status {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.epflow__sub {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.epflow__subtitle {
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}

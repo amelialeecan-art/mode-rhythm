@@ -16,6 +16,8 @@ import { formatMonthDay, parseISODate } from '../../lib/date'
 import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, cumulativeExposureSentence, type VoiceStrength } from './analysisVoice'
 import { suppressRedundantCumulative, selectCumulativeInsights, strongRecoveryInsights } from '../resultHierarchy'
 import { EventResponseChart } from './EventResponseChart'
+import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
+import { composeAnalysisEpisodeCards, type AnalysisEpisodeCards, type CardSubsection } from './analysisEpisodeCards'
 import './analysis.css'
 
 const METRIC_COLOR: Record<string, string> = {
@@ -36,6 +38,7 @@ export function AnalysisScreen() {
   const [vm, setVm] = useState<AnalysisViewModel | null>(null)
   const [loading, setLoading] = useState(true)
   const [recalcing, setRecalcing] = useState(false)
+  const [episodeCards, setEpisodeCards] = useState<AnalysisEpisodeCards | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -52,6 +55,24 @@ export function AnalysisScreen() {
       setVm(v)
       setLoading(false)
     })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // 화면 진입 시 한 번만: 최근 흐름·반복 순서 snapshot을 읽어 카드 구조로 조립한다.
+  // 오류가 나도 기존 Analysis를 깨뜨리지 않고, 빈 정상 결과로 위장하지 않는다(카드만 미표시).
+  useEffect(() => {
+    let cancelled = false
+    void getEpisodeInsightSnapshot()
+      .then((snap) => {
+        if (!cancelled) setEpisodeCards(composeAnalysisEpisodeCards(snap))
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.error('[Analysis] episode insight load failed', err)
+        setEpisodeCards(null)
+      })
     return () => {
       cancelled = true
     }
@@ -89,6 +110,9 @@ export function AnalysisScreen() {
         </GlassCard>
       ) : (
         <>
+          {/* ===== 0. 최근에 이어진 흐름 · 반복해서 나타난 순서 (있으면 맨 위) ===== */}
+          <EpisodeFlowCards cards={episodeCards} />
+
           {/* ===== 1. 흐름을 바꾼 누적 요인 (없으면 섹션 전체 숨김) ===== */}
           {vm.flowDrivers.length > 0 && (
             <GlassCard tint="coral">
@@ -103,8 +127,8 @@ export function AnalysisScreen() {
             </GlassCard>
           )}
 
-          {/* ===== 2. 이어지며 커진 변화 (flowDrivers와 겹치면 감춤 · 최대 2개) ===== */}
-          {extraCumulative.length > 0 && (
+          {/* ===== 2. 이어지며 커진 변화 (새 흐름 카드가 있으면 숨김 · flowDrivers 겹치면 감춤 · 최대 2개) ===== */}
+          {extraCumulative.length > 0 && !episodeCards?.hideCumulative && (
             <GlassCard>
               <SectionHeader title="이어지며 커진 변화" />
               <ul className="driver-list">
@@ -230,6 +254,61 @@ export function AnalysisScreen() {
         {recalcing ? '계산 중…' : '다시 계산'}
       </button>
     </>
+  )
+}
+
+/** 최근에 이어진 흐름 + 반복해서 나타난 순서 (최대 2개 카드). 없으면 아무것도 렌더하지 않는다. */
+function EpisodeFlowCards({ cards }: { cards: AnalysisEpisodeCards | null }) {
+  if (!cards || (!cards.recentFlow && !cards.repeatedFlow)) return null
+  return (
+    <>
+      {cards.recentFlow && (
+        <GlassCard tint="lav">
+          <SectionHeader title={cards.recentFlow.title} />
+          <div className="epflow">
+            <div className="epflow__lines">
+              {cards.recentFlow.lines.map((l, i) => (
+                <p className="epflow__line" key={i}>
+                  {l}
+                </p>
+              ))}
+            </div>
+            {cards.recentFlow.status && <p className="epflow__status">{cards.recentFlow.status}</p>}
+            {cards.recentFlow.aftereffect && <EpSubsection sub={cards.recentFlow.aftereffect} />}
+            {cards.recentFlow.recovery && <EpSubsection sub={cards.recentFlow.recovery} />}
+          </div>
+        </GlassCard>
+      )}
+      {cards.repeatedFlow && (
+        <GlassCard tint="sky">
+          <SectionHeader title={cards.repeatedFlow.title} />
+          <div className="epflow">
+            <div className="epflow__lines">
+              {cards.repeatedFlow.lines.map((l, i) => (
+                <p className="epflow__line" key={i}>
+                  {l}
+                </p>
+              ))}
+            </div>
+            {cards.repeatedFlow.currentMatch && <EpSubsection sub={cards.repeatedFlow.currentMatch} />}
+          </div>
+        </GlassCard>
+      )}
+    </>
+  )
+}
+
+/** 카드 안의 작은 구분 영역: 소제목(h4) + 본문. 구분선만이 아니라 소제목도 함께 제공한다. */
+function EpSubsection({ sub }: { sub: CardSubsection }) {
+  return (
+    <div className="epflow__sub">
+      <h4 className="epflow__subtitle">{sub.subtitle}</h4>
+      {sub.lines.map((l, i) => (
+        <p className="epflow__line" key={i}>
+          {l}
+        </p>
+      ))}
+    </div>
   )
 }
 
