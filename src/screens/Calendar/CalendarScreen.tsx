@@ -12,13 +12,24 @@ import {
 import { DAY_TYPE_LABEL } from '../../engine'
 import { startOfMonthISO, parseISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import { BODY_SIGNAL_OPTIONS, RHYTHM_EXCEPTION_OPTIONS } from '../../data/catalog/dailyCheckIn'
-import type { FlowLevel, BodySignalCode, RhythmExceptionCode } from '../../data/models'
+import { mindSignalLabels } from '../../data/catalog/mindSignals'
+import { SLEEP_ISSUE_LABEL } from '../../data/catalog/lastNightSleep'
+import type { FlowLevel, BodySignalCode, RhythmExceptionCode, LastNightSleep } from '../../data/models'
 import './calendar.css'
 
 const BODY_SIGNAL_LABEL = new Map<string, string>(BODY_SIGNAL_OPTIONS.map((o) => [o.code, o.label]))
 const RHYTHM_EXCEPTION_LABEL = new Map<string, string>(RHYTHM_EXCEPTION_OPTIONS.map((o) => [o.code, o.label]))
 const bodySignalLabels = (codes?: BodySignalCode[]) => (codes ?? []).filter((c) => c !== 'none').map((c) => BODY_SIGNAL_LABEL.get(c) ?? c)
 const exceptionLabels = (codes?: RhythmExceptionCode[]) => (codes ?? []).filter((c) => c !== 'none').map((c) => RHYTHM_EXCEPTION_LABEL.get(c) ?? c)
+// 지난밤 수면 원본 표시(사람말). unknown 코드는 표시하지 않는다(원본은 저장에 보존).
+const sleepIssueLabels = (issues?: string[]) => (issues ?? []).map((c) => SLEEP_ISSUE_LABEL.get(c)).filter((l): l is string => !!l)
+const sleepSummaryLine = (ln?: LastNightSleep): string | undefined => {
+  if (!ln) return undefined
+  const parts: string[] = []
+  if (ln.hours !== undefined) parts.push(`${ln.hours}시간쯤 잤어요`)
+  if (ln.quality !== undefined) parts.push(ln.quality <= 3 ? '푹 못 잤어요' : ln.quality <= 5 ? '뒤척였어요' : ln.quality <= 7 ? '보통이었어요' : '잘 잤어요')
+  return parts.length > 0 ? parts.join(' · ') : undefined
+}
 
 // 사건(eventLoad 0~100)은 점수로 노출하지 않는다 → 렌즈/막대에서 제외.
 // 사건은 개수·주요 기록 형태로만 보여준다(day 상세). eventLoad는 내부 계산에만 유지.
@@ -185,9 +196,39 @@ function DayDetailSheet({
                   ))}
                 </div>
               ) : (
-                <p className="sheet__hint">저장된 상태 기록이 없어요.</p>
+                // 상태만 없고 사건·몸 신호·회복·생리·메모 등 다른 기록은 있는 날.
+                <p className="sheet__hint">이날은 상태 선택 없이 다른 기록만 남겼어요.</p>
               )}
             </Section>
+
+            {mindSignalLabels(detail.dailyLog?.mindSignalCodes).length > 0 && (
+              <Section title="오늘 머릿속과 마음">
+                <div className="sheet-chips">
+                  {mindSignalLabels(detail.dailyLog?.mindSignalCodes).map((l) => (
+                    <span className="sheet-chip sheet-chip--state" key={l}>
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {(sleepIssueLabels(detail.dailyLog?.lastNightSleep?.issues).length > 0 || sleepSummaryLine(detail.dailyLog?.lastNightSleep)) && (
+              <Section title="지난밤 수면">
+                {sleepSummaryLine(detail.dailyLog?.lastNightSleep) && (
+                  <p className="sheet-fact">{sleepSummaryLine(detail.dailyLog?.lastNightSleep)}</p>
+                )}
+                {sleepIssueLabels(detail.dailyLog?.lastNightSleep?.issues).length > 0 && (
+                  <div className="sheet-chips">
+                    {sleepIssueLabels(detail.dailyLog?.lastNightSleep?.issues).map((l) => (
+                      <span className="sheet-chip" key={l}>
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            )}
 
             {detail.eventLogs.length > 0 && (
               <Section title="오늘 있었던 일">
@@ -267,10 +308,13 @@ function DayDetailSheet({
             {score && (
               <details className="sheet-summary">
                 <summary className="sheet-summary__sum">이 날의 상태 요약</summary>
-                <div className="sheet__moderow">
-                  <p className="sheet__mode">{DAY_TYPE_LABEL[score.dayType]}</p>
-                  {score.dayTypeSubLabel && <span className="sheet__paren">{score.dayTypeSubLabel}</span>}
-                </div>
+                {/* 상태를 직접 입력하지 않은 날은 '안정일' 같은 상태 모드로 단정하지 않는다. */}
+                {!(score.dayType === 'stable' && !detail.hasStateInput) && (
+                  <div className="sheet__moderow">
+                    <p className="sheet__mode">{DAY_TYPE_LABEL[score.dayType]}</p>
+                    {score.dayTypeSubLabel && <span className="sheet__paren">{score.dayTypeSubLabel}</span>}
+                  </div>
+                )}
                 <div className="sheet-bars">
                   {DETAIL_BARS.map((b) => {
                     const v = lensScore(score, b.key)

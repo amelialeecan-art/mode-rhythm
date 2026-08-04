@@ -71,8 +71,9 @@ describe('상태칩 저장/반영 버그픽스', () => {
   it('7. Calendar day detail이 오늘 상태 라벨을 반환한다', async () => {
     await saveDailyEntry(draft({ stateCodes: ['irritable', 'appetite_swing'], overallIntensity: 'some' }))
     const detail = await getCalendarDayDetail(D)
-    expect(detail.stateLabels).toContain('예민')
-    expect(detail.stateLabels).toContain('식욕 변동')
+    // 사람말 라벨(예: "예민함 같은 감정이 영향을 줬어요", "식욕이 …흔들렸어요")로 표시됨
+    expect(detail.stateLabels.some((l) => l.includes('예민'))).toBe(true)
+    expect(detail.stateLabels.some((l) => l.includes('식욕'))).toBe(true)
   })
 
   it('8. DB schema version/인덱스는 변경되지 않았다', () => {

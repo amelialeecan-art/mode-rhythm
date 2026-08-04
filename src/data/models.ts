@@ -212,6 +212,12 @@ export interface DailyLog {
   emotionImpactLevel?: EmotionImpactLevel
   focusLevel?: FocusLevel
   socialCapacityLevel?: SocialCapacityLevel
+  /**
+   * 오늘 머릿속과 마음 신호(비인덱스 optional — 스키마/인덱스 변경 없음).
+   * 감정(emotionCodes)·머릿속 여유(mentalSpaceLevel)와 역할이 다르며, 점수/도메인에
+   * 가산하지 않는 원본 기록이다. 다음 단계 날짜 흐름 분석용. unknown 코드도 원본 보존.
+   */
+  mindSignalCodes?: string[]
   createdAt: string
   updatedAt: string
 }

@@ -198,9 +198,21 @@ export function flowDriverSentence(card: FlowDriverCard): string {
   return `${label} 뒤 ${tail}`
 }
 
-/** 누적 노출 차이 한 문장(숫자·표본 수 없이). 하루보다 여러 날 이어졌을 때 결과가 더 컸다. */
+/** 결과 영역 → "이어진 기간에" 함께 늘어난 변화(사람말). 단정·"편이에요"·숫자 없음. */
+const CUMULATIVE_RESULT_PHRASE: Partial<Record<AnalysisMetric, string>> = {
+  emotional: '감정이 더 쉽게 흔들렸어요',
+  body: '몸이 불편한 날도 함께 늘었어요',
+  appetite: '식욕이 더 흔들렸어요',
+  sleep: '잠이 더 불안정했어요',
+  rhythm: '전반적으로 더 버거운 날이 늘었어요',
+}
+
+/**
+ * 이어진 기간에 함께 커진 변화를 한 문장으로. "하루보다 여러 날 이어졌을 때"·"편이에요"·
+ * 숫자·표본 수는 쓰지 않는다. 인과는 단정하지 않고 관찰된 동반 변화만 말한다.
+ */
 export function cumulativeExposureSentence(card: CumulativeExposureCard): string {
   const label = cleanDriverLabel(card.title)
-  const metric = card.metricLabel.replace(/ 정도$/, '')
-  return `${iga(label)} 하루보다 여러 날 이어졌을 때 ${metric}가 더 크게 나타난 편이에요.`
+  const result = CUMULATIVE_RESULT_PHRASE[card.metric] ?? '함께 나타나는 변화가 늘었어요'
+  return `${iga(label)} 이어진 기간에는 ${result}`
 }

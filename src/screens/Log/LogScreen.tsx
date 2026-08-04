@@ -4,10 +4,12 @@ import { GlassCard, SectionHeader, Chip, ChipGroup } from '../../design'
 import { EVENT_CATALOG, EVENT_CATEGORY_LABEL, RECOVERY_DUP_EVENT_CODES, type EventCatalogItem } from '../../data/catalog/events'
 import {
   LAST_NIGHT_SLEEP_CODES,
+  EVENT_LIST_HIDDEN_CODES,
   SLEEP_HOUR_BUCKETS,
   SLEEP_QUALITY_OPTIONS,
-  SLEEP_ISSUE_CHIPS,
+  SLEEP_ISSUE_GROUPS,
 } from '../../data/catalog/lastNightSleep'
+import { MIND_SIGNAL_GROUPS } from '../../data/catalog/mindSignals'
 import {
   FUNCTION_LEVELS,
   FUNCTION_IMPACT_CHIPS,
@@ -168,6 +170,8 @@ export function LogScreen() {
   }
   const toggleBodySignal = (code: BodySignalCode) =>
     setDraft((d) => ({ ...d, bodySignalCodes: toggleExclusive(d.bodySignalCodes, code, 'none') }))
+  const toggleMindSignal = (code: string) =>
+    setDraft((d) => ({ ...d, mindSignalCodes: toggleInArray(d.mindSignalCodes, code) }))
   const toggleRhythmException = (code: RhythmExceptionCode) =>
     setDraft((d) => ({ ...d, rhythmExceptionCodes: toggleExclusive(d.rhythmExceptionCodes, code, 'none') }))
 
@@ -437,12 +441,16 @@ export function LogScreen() {
             <Chip key={q.value} label={q.label} tone="sky" selected={draft.lastNightSleep.quality === q.value} onToggle={() => setSleepQuality(q.value)} />
           ))}
         </ChipGroup>
-        <p className="event-group__label" style={{ marginTop: 14 }}>지난밤에 이런 일이 있었어요?</p>
-        <ChipGroup label="지난밤 수면 이슈">
-          {SLEEP_ISSUE_CHIPS.map((s) => (
-            <Chip key={s.code} label={s.label} tone="sky" selected={draft.lastNightSleep.issues.includes(s.code)} onToggle={() => toggleSleepIssue(s.code)} />
-          ))}
-        </ChipGroup>
+        {SLEEP_ISSUE_GROUPS.map((group) => (
+          <div key={group.title}>
+            <p className="event-group__label" style={{ marginTop: 14 }}>{group.title}</p>
+            <ChipGroup label={group.title}>
+              {group.items.map((s) => (
+                <Chip key={s.code} label={s.label} tone="sky" selected={draft.lastNightSleep.issues.includes(s.code)} onToggle={() => toggleSleepIssue(s.code)} />
+              ))}
+            </ChipGroup>
+          </div>
+        ))}
         <p className="state-hint">낮잠은 여기가 아니라 상세 기록의 "오늘 있었던 일"에 남겨요.</p>
       </GlassCard>
 
@@ -519,6 +527,21 @@ export function LogScreen() {
 
       {showDetail && (
         <>
+          {/* 오늘 머릿속과 마음 (감정·머릿속 여유와 별개 · 여러 개 가능) */}
+          <GlassCard tint="lav">
+            <SectionHeader title="오늘 머릿속과 마음" subtitle="오늘 실제로 느낀 것만 골라요 (여러 개 가능)" />
+            {MIND_SIGNAL_GROUPS.map((group) => (
+              <div className="event-group" key={group.title}>
+                <p className="event-group__label">{group.title}</p>
+                <ChipGroup label={group.title}>
+                  {group.items.map((m) => (
+                    <Chip key={m.code} label={m.label} tone="lav" selected={draft.mindSignalCodes.includes(m.code)} onToggle={() => toggleMindSignal(m.code)} />
+                  ))}
+                </ChipGroup>
+              </div>
+            ))}
+          </GlassCard>
+
           {/* 7. 몸 신호 */}
           <GlassCard tint="mint">
             <SectionHeader title="오늘의 몸 신호" subtitle="여러 개 골라도 돼요" />
@@ -554,7 +577,8 @@ export function LogScreen() {
 
             {EVENT_ORDER.filter((c) => EVENT_GROUPS[c]).map((cat) => {
               // 지난밤 수면 코드는 별도 카드에서 입력, 운동·산책·씻음은 회복 행동에서 입력 → 여기선 감춘다.
-              const items = EVENT_GROUPS[cat].filter((e) => !LAST_NIGHT_SLEEP_CODES.has(e.code) && !RECOVERY_DUP_EVENT_CODES.has(e.code))
+              // 지난밤 수면 코드 전체 + phone_in_bed는 지난밤 수면 카드에서만 입력(일반 사건에서 숨김).
+              const items = EVENT_GROUPS[cat].filter((e) => !EVENT_LIST_HIDDEN_CODES.has(e.code) && !RECOVERY_DUP_EVENT_CODES.has(e.code))
               if (items.length === 0) return null
               return (
                 <div className="event-group" key={cat}>

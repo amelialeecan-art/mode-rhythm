@@ -17,14 +17,14 @@ import type { RecentFlow, FlowDomain } from './recentFlow'
 import type { RecoveryActionInsight } from './recovery'
 
 /* 어려움 정도(0~100, 높을수록 어려움). capacity/strain 방향을 여기서 한 번만 뒤집는다. */
-function difficulty(r: DomainReading | undefined): number | undefined {
+export function difficulty(r: DomainReading | undefined): number | undefined {
   if (!r) return undefined
   return r.kind === 'capacity' ? 100 - r.value : r.value
 }
 
 // held(유지) / dropped(떨어짐) 경계. 그 사이는 mid(조금).
 const HELD_MAX = 42
-const HARD_MIN = 58
+export const HARD_MIN = 58
 
 /* ---- 영역별 문장 조각(과거형 어간 — 고/지만/어요에 붙는다) ---- */
 interface ClausePack {
@@ -158,7 +158,7 @@ const FLOW_DEPLETION_ACTION: Record<FlowDomain, string> = {
   function: '오늘은 해야 할 일을 줄이고 중요한 것 하나에 집중하세요.',
 }
 
-const isHard = (r: DomainReading | undefined): boolean => {
+export const isHard = (r: DomainReading | undefined): boolean => {
   const d = difficulty(r)
   return d !== undefined && d >= HARD_MIN
 }

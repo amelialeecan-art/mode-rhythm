@@ -105,6 +105,8 @@ export interface DailyEntryDraft {
   /** 구체적인 몸 신호와 평소 리듬 예외. */
   bodySignalCodes: BodySignalCode[]
   rhythmExceptionCodes: RhythmExceptionCode[]
+  /** 오늘 머릿속과 마음 신호(복수). 감정·머릿속 여유와 별개, 점수에 가산하지 않음. */
+  mindSignalCodes: string[]
   /** 감정 안정감·두드러진 감정·영향 정도(감정 있을 때만). */
   emotionalStabilityLevel?: EmotionalStabilityLevel
   emotionCodes: EmotionCode[]
@@ -180,6 +182,7 @@ export function emptyDraft(date: ISODate): DailyEntryDraft {
     customEvents: [],
     appetiteRatings: {},
     bodySignalCodes: [],
+    mindSignalCodes: [],
     rhythmExceptionCodes: [],
     emotionCodes: [],
     cycle: emptyCycleDraft(),
@@ -238,6 +241,7 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
   // 집중력 직접 입력이 우선, 없으면 머릿속 여유, 그다음 preset.
   const directFocus = focusLevelValue(draft.focusLevel) ?? mentalSpaceFocus(draft.mentalSpaceLevel)
   const bodySignalCodes = draft.bodySignalCodes ?? []
+  const mindSignalCodes = draft.mindSignalCodes ?? []
   const rhythmExceptionCodes = draft.rhythmExceptionCodes ?? []
   // 식욕 상태 직접 입력값이 있으면 preset보다 우선 (spec 우선순위)
   const clamp10 = (x: number) => Math.max(0, Math.min(10, Math.round(x)))
@@ -283,6 +287,8 @@ function buildDailyLogInput(draft: DailyEntryDraft): DailyLogInput {
     mentalSpaceLevel: draft.mentalSpaceLevel,
     dayContext: draft.dayContext,
     bodySignalCodes: bodySignalCodes.length > 0 ? [...bodySignalCodes] : undefined,
+    // 마음 신호 원본 저장(미선택은 undefined — 정상/없음으로 추정하지 않음). 점수 가산 없음.
+    mindSignalCodes: mindSignalCodes.length > 0 ? [...mindSignalCodes] : undefined,
     rhythmExceptionCodes: rhythmExceptionCodes.length > 0 ? [...rhythmExceptionCodes] : undefined,
     emotionalStabilityLevel: draft.emotionalStabilityLevel,
     emotionCodes: draft.emotionCodes.length > 0 ? [...draft.emotionCodes] : undefined,
@@ -470,6 +476,7 @@ export async function loadDailyEntry(date: ISODate): Promise<DailyEntryDraft | n
     mentalSpaceLevel: dailyLog?.mentalSpaceLevel,
     dayContext: dailyLog?.dayContext,
     bodySignalCodes: [...(dailyLog?.bodySignalCodes ?? [])],
+    mindSignalCodes: [...(dailyLog?.mindSignalCodes ?? [])],
     rhythmExceptionCodes: [...(dailyLog?.rhythmExceptionCodes ?? [])],
     emotionalStabilityLevel,
     emotionCodes,

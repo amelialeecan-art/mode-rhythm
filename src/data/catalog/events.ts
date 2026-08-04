@@ -114,6 +114,10 @@ export const FACTOR_GROUP_DISPLAY: Record<string, FactorGroupDisplay> = {
   sleep_deficit: { title: '수면 부족', subtitle: '잠 부족·밤샘 포함' },
   sleep_schedule: { title: '수면 시간대 불규칙', subtitle: '늦게 잠·늦게 일어남·기상/취침 불규칙 포함' },
   sleep_quality: { title: '수면의 질 저하', subtitle: '자주 깸·악몽 포함' },
+  // update2 — 다음 단계 분석 표시 문구(이번 단계에서는 노출되지 않음).
+  bedtime_resistance: { title: '잠자리에 드는 걸 미룸', subtitle: '잠자리에 들 마음이 안 남' },
+  bedtime_delay: { title: '자는 걸 미룸', subtitle: '졸려도 깨어 있음·폰으로 잠 미룸 포함' },
+  sleep_onset: { title: '잠들기 어려움', subtitle: '누웠는데 잠이 안 옴' },
   morning_light: { title: '아침 햇빛 부족', subtitle: '아침 햇빛 못 봄' },
   meal_skip: { title: '식사 거름', subtitle: '끼니를 거른 기록' },
   overeat: { title: '과식', subtitle: '과식 기록' },
