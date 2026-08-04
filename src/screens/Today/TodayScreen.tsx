@@ -7,6 +7,8 @@ import { getRecentFlow } from '../../data/services/rhythmService'
 import { getRhythmForecastViewModel } from '../../data/services/rhythmForecastService'
 import { selectTodayDecision, type TodaySummary, type RhythmForecastDay, type RecentFlow, type TodayDecision } from '../../engine'
 import { recentChangeSentence, followUpSentence } from './todayVoice'
+import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
+import { presentTodayCurrentFlow, createSnapshotFlowLoader } from './todayCurrentFlow'
 import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
 import { useToneMode } from '../../lib/useToneMode'
 import { getToneCopy } from '../../copy/tone'
@@ -49,6 +51,7 @@ export function TodayScreen() {
   const [pattern, setPattern] = useState<TodayPatternContext>({ recoveryRecs: [], topFlowDriver: null })
   const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
   const [tomorrow, setTomorrow] = useState<RhythmForecastDay | null>(null)
+  const [currentFlowLine, setCurrentFlowLine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -69,6 +72,18 @@ export function TodayScreen() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  // "지금 이어지는 흐름" 한 줄 — 진입 시 1회, 실패해도 Today 전체는 그대로(카드만 미표시).
+  useEffect(() => {
+    const today = getTodayISODate()
+    const loader = createSnapshotFlowLoader(
+      () => getEpisodeInsightSnapshot(today),
+      (snap) => setCurrentFlowLine(presentTodayCurrentFlow(snap, today)),
+      (err) => console.error('[Today] current flow load failed', err),
+    )
+    void loader.load()
+    return () => loader.dispose()
   }, [])
 
   return (
@@ -93,7 +108,7 @@ export function TodayScreen() {
       ) : !summary ? (
         <EmptyToday onRecord={() => navigate('/log')} />
       ) : (
-        <FilledToday summary={summary} pattern={pattern} recentFlow={recentFlow} tomorrow={tomorrow} onRecord={() => navigate('/log')} />
+        <FilledToday summary={summary} pattern={pattern} recentFlow={recentFlow} tomorrow={tomorrow} currentFlowLine={currentFlowLine} onRecord={() => navigate('/log')} />
       )}
     </>
   )
@@ -119,12 +134,14 @@ function FilledToday({
   pattern,
   recentFlow,
   tomorrow,
+  currentFlowLine,
   onRecord,
 }: {
   summary: TodaySummary
   pattern: TodayPatternContext
   recentFlow: RecentFlow | null
   tomorrow: RhythmForecastDay | null
+  currentFlowLine: string | null
   onRecord: () => void
 }) {
   const tone = useToneMode()
@@ -160,7 +177,7 @@ function FilledToday({
 
       {/* 2. 오늘 상태 구조 (영역 대비 설명) */}
       <ModeHeroCard modeName={classification.label} subLabel={classification.subLabel} body={classification.description} mascotMood={mascot} />
-      {stateNarrative.length > 0 && (
+      {(stateNarrative.length > 0 || currentFlowLine) && (
         <GlassCard>
           <SectionHeader title="오늘 상태" subtitle="유지되는 영역과 떨어진 영역을 나눠 봤어요" />
           {stateNarrative.map((line, i) => (
@@ -168,6 +185,8 @@ function FilledToday({
               {line}
             </p>
           ))}
+          {/* 지금 실제로 이어지는 흐름이 있을 때만, 상태 영역 안의 작은 보조 한 줄. */}
+          {currentFlowLine && <p className="today-state-line today-state-line--flow">{currentFlowLine}</p>}
         </GlassCard>
       )}
 
