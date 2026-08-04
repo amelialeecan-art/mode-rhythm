@@ -111,7 +111,7 @@ export function AnalysisScreen() {
           {/* ===== 1. 흐름을 바꾼 누적 요인 (없으면 섹션 전체 숨김) ===== */}
           {vm.flowDrivers.length > 0 && (
             <GlassCard tint="coral">
-              <SectionHeader title="흐름을 바꾼 누적 요인" star />
+              <SectionHeader title="쌓여서 흐름을 바꾼 일" star />
               <ul className="driver-list">
                 {vm.flowDrivers.map((d) => (
                   <li className="driver-row" key={d.eventKey}>

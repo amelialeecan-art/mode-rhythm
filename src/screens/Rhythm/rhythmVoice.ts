@@ -112,7 +112,7 @@ export function cycleCompareSentence(metric: RhythmMetric, c: CycleCurvePoints):
     }
     return `이번에는 생리 직전 ${iga(CYCLE_COLLAPSE[metric])} 이전 주기보다 강했어요.`
   }
-  if (diff <= -DIFF_THRESHOLD) return `이번 주기는 이전보다 ${iga(topic)} 잠잠한 편이에요.`
+  if (diff <= -DIFF_THRESHOLD) return `이번 주기는 이전보다 ${iga(topic)} 잠잠했어요.`
   return `${topic} 변화는 이전 주기들과 거의 비슷했어요.`
 }
 
@@ -122,7 +122,7 @@ const FLOW_LABEL: Record<FlowDomain, string> = {
   appetite: '식욕',
   sleep: '수면',
   body: '몸 상태',
-  function: '생활기능',
+  function: '평소 하던 일',
 }
 
 /** 영역 목록을 "A와 B가"처럼 이어 붙인다(마지막에 조사 붙임). */
@@ -219,7 +219,7 @@ export function personalRhythmSentence(r: PersonalRhythm): string[] {
       : `약 ${r.typicalLengthMin}~${r.typicalLengthMax}일`
   out.push(`한 흐름은 ${dur} 이어졌어요.`)
 
-  if (r.cycleRelated) out.push('이 흐름은 생리 주기와 함께 도는 편이에요.')
+  if (r.cycleRelated) out.push('이 흐름은 생리 주기와 함께 돌아요.')
 
   if (r.currentMatch) {
     let s = `지금은 반복 흐름 중 ${FLOW_STATE_LABEL[r.currentMatch.currentState]} 구간에 있어요.`
@@ -237,13 +237,13 @@ export function personalRhythmSentence(r: PersonalRhythm): string[] {
 
 /** 영역 → "힘든 날" 표현(strain/capacity 방향은 engine이 이미 direction으로 정리). */
 const MONTHLY_DOMAIN_PHRASE: Record<string, string> = {
-  bodyEnergy: '몸 에너지가 떨어진 날',
-  functionLevel: '생활기능이 버거운 날',
+  bodyEnergy: '몸이 쉽게 지친 날',
+  functionLevel: '평소 하던 일이 버거운 날',
   emotionalStability: '감정이 크게 흔들린 날',
-  emotionalBurden: '감정 부담이 큰 날',
-  mentalSpace: '머릿속 여유가 낮은 날',
+  emotionalBurden: '예민함이나 짜증이 오래 간 날',
+  mentalSpace: '머리가 복잡한 날',
   focus: '집중이 어려운 날',
-  socialCapacity: '사람을 대할 여유가 낮은 날',
+  socialCapacity: '사람을 대하기 버거운 날',
   bodyDiscomfort: '몸이 불편한 날',
   sleep: '수면이 부족한 날',
   appetite: '식욕이 흔들린 날',
@@ -262,7 +262,7 @@ function monthlyInsightClause(i: MonthlyComparisonInsight): string {
     return `${iga(label)} ${i.trend === 'up' ? '늘었어요' : '줄었어요'}`
   }
   if (i.kind === 'recovery') {
-    return `소모에서 회복까지 걸린 기간이 ${i.trend === 'down' ? '짧아진' : '길어진'} 편이에요`
+    return `소모에서 회복까지 걸린 기간이 ${i.trend === 'down' ? '짧아졌어요' : '길어졌어요'}`
   }
   const phrase = MONTHLY_DOMAIN_PHRASE[i.domain] ?? '힘든 날'
   // better=줄었(down), worse=늘었(up) — "힘든 날" 기준.

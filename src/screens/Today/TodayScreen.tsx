@@ -4,15 +4,12 @@ import { GlassCard, SectionHeader, ModeHeroCard, Mascot } from '../../design'
 import { getTodaySummary } from '../../data/services/dailyScoreService'
 import { getTodayPatternContext, type TodayPatternContext } from '../../data/services/patternAnalysisService'
 import { getRecentFlow } from '../../data/services/rhythmService'
-import { getRhythmForecastViewModel } from '../../data/services/rhythmForecastService'
-import { selectTodayDecision, type TodaySummary, type RhythmForecastDay, type RecentFlow, type TodayDecision } from '../../engine'
+import { selectTodayDecision, type TodaySummary, type RecentFlow, type TodayDecision } from '../../engine'
 import { recentChangeSentence, followUpSentence } from './todayVoice'
 import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
 import { presentTodayCurrentFlow } from './todayCurrentFlow'
 import { createSnapshotFlowLoader } from '../../lib/snapshotFlowLoader'
 import { getTodayISODate, formatMonthDay, formatWeekday } from '../../lib/date'
-import { useToneMode } from '../../lib/useToneMode'
-import { getToneCopy } from '../../copy/tone'
 import './today.css'
 
 // dayType → 모찌 표정 (분류 코드 기준)
@@ -40,8 +37,8 @@ const LOAD_ROWS: { key: keyof TodaySummary['scores']; label: string; color: stri
 // 주기 데이터 상태 → 표시 (calcCycleLoad 공식은 변경하지 않음, 표시의 정직성만 개선)
 const CYCLE_DISPLAY: Record<string, { value: string; hint: string } | null> = {
   none: { value: '데이터 없음', hint: '생리 시작일을 기록하면 주기 구간을 계산해요.' },
-  low: { value: '데이터 부족', hint: '평균 주기를 사용한 초기 추정이에요.' },
-  medium: { value: '', hint: '주기 반복 기록 중이에요.' },
+  low: { value: '데이터 부족', hint: '생리 시작 기록이 아직 적어요.' },
+  medium: { value: '', hint: '생리 시작을 반복 기록하고 있어요.' },
   high: null, // 일반 표시
 }
 
@@ -51,7 +48,6 @@ export function TodayScreen() {
   const [summary, setSummary] = useState<TodaySummary | null>(null)
   const [pattern, setPattern] = useState<TodayPatternContext>({ recoveryRecs: [], topFlowDriver: null })
   const [recentFlow, setRecentFlow] = useState<RecentFlow | null>(null)
-  const [tomorrow, setTomorrow] = useState<RhythmForecastDay | null>(null)
   const [currentFlowLine, setCurrentFlowLine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -61,13 +57,11 @@ export function TodayScreen() {
       getTodaySummary(getTodayISODate()),
       getTodayPatternContext(),
       getRecentFlow(),
-      getRhythmForecastViewModel(),
-    ]).then(([s, p, rf, f]) => {
+    ]).then(([s, p, rf]) => {
       if (cancelled) return
       setSummary(s)
       setPattern(p)
       setRecentFlow(rf)
-      setTomorrow(f.tomorrow)
       setLoading(false)
     })
     return () => {
@@ -109,7 +103,7 @@ export function TodayScreen() {
       ) : !summary ? (
         <EmptyToday onRecord={() => navigate('/log')} />
       ) : (
-        <FilledToday summary={summary} pattern={pattern} recentFlow={recentFlow} tomorrow={tomorrow} currentFlowLine={currentFlowLine} onRecord={() => navigate('/log')} />
+        <FilledToday summary={summary} pattern={pattern} recentFlow={recentFlow} currentFlowLine={currentFlowLine} onRecord={() => navigate('/log')} />
       )}
     </>
   )
@@ -134,18 +128,15 @@ function FilledToday({
   summary,
   pattern,
   recentFlow,
-  tomorrow,
   currentFlowLine,
   onRecord,
 }: {
   summary: TodaySummary
   pattern: TodayPatternContext
   recentFlow: RecentFlow | null
-  tomorrow: RhythmForecastDay | null
   currentFlowLine: string | null
   onRecord: () => void
 }) {
-  const tone = useToneMode()
   const { classification, scores, stateDomains, stateNarrative, factorCandidates, recordedRecovery, rhythmExceptions, cycleContext, eventSummary } = summary
   const mascot = MASCOT_BY_DAYTYPE[classification.dayType] ?? 'calm'
   const cycleDisplay = CYCLE_DISPLAY[cycleContext.confidence] ?? null
@@ -217,7 +208,7 @@ function FilledToday({
         {/* 오늘의 종합 부하 + 항목별 요약 */}
         <GlassCard>
           <SectionHeader title="오늘의 버거움" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
-          <p className="load-explain">오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱 내부 가중치로 합친 값이에요. 진단 점수나 호르몬 수치가 아니에요.</p>
+          <p className="load-explain">오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱에서 정한 가중치로 합친 값이에요. 의학 점수나 호르몬 수치가 아니에요.</p>
           <div className="loadbars">
             {LOAD_ROWS.map((r) => (
               <div className="loadbar" key={r.key}>
@@ -276,18 +267,6 @@ function FilledToday({
                 </li>
               ))}
             </ul>
-          </GlassCard>
-        )}
-
-        {/* 내일 참고 */}
-        {tomorrow && (
-          <GlassCard tint="sky">
-            <SectionHeader title="내일 참고" subtitle={`참고도 ${tomorrow.confidence}`} />
-            <p className="tmrw-line">
-              내일은 <b>{tomorrow.label}</b> 가능성이 있어요{tomorrow.subLabel ? ` · ${tomorrow.subLabel}` : ''}.
-            </p>
-            <p className="tmrw-hint">{tomorrow.planHint}</p>
-            <p className="tmrw-note">{getToneCopy(tone, 'reference')}</p>
           </GlassCard>
         )}
 

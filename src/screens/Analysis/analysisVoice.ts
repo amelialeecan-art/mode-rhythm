@@ -153,7 +153,7 @@ export function eventResponseSentence(inp: EventCurveInput): string {
     return `${inp.title} 당일과 다음 날 ${noun} 가장 크게 ${verb}`
   if (afterUp) return `${inp.title} 뒤 1~3일 동안 ${noun} 평소보다 더 ${verb}`
   if (day0Up) return `${inp.title} 당일 ${noun} 가장 크게 ${verb}`
-  if (beforeUp) return `${inp.title} 전부터 ${noun} 안 좋은 편이었어요.`
+  if (beforeUp) return `${inp.title} 전부터 ${noun} 안 좋았어요.`
   return '사건 전후로 뚜렷한 변화는 없었어요.'
 }
 
@@ -163,7 +163,7 @@ const FLOW_DOMAIN_LABEL: Record<FlowDomain, string> = {
   appetite: '식욕',
   sleep: '수면',
   body: '몸 상태',
-  function: '생활기능',
+  function: '평소 하던 일',
 }
 
 function joinDomains(domains: FlowDomain[]): string {

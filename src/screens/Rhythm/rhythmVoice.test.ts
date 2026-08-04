@@ -136,13 +136,13 @@ describe('monthlyComparisonView (step5)', () => {
   it('(17) 진행 중인 달 문장에 "지난달 같은 기간"을 쓴다', () => {
     const v = monthlyComparisonView(mk(true, [{ key: 'state:bodyEnergy', domain: 'bodyEnergy', direction: 'better', kind: 'state', trend: 'down', magnitude: 0.4 }]))
     expect(v.lead).toContain('지난달 같은 기간')
-    expect(v.lines[0]).toBe('몸 에너지가 떨어진 날이 줄었어요')
+    expect(v.lines[0]).toBe('몸이 쉽게 지친 날이 줄었어요')
   })
 
   it('완료된 달은 "N월은 M월보다" 형식', () => {
     const v = monthlyComparisonView(mk(false, [{ key: 'state:functionLevel', domain: 'functionLevel', direction: 'better', kind: 'state', trend: 'down', magnitude: 0.3 }]))
     expect(v.lead).toBe('7월은 6월보다')
-    expect(v.lines[0]).toBe('생활기능이 버거운 날이 줄었어요')
+    expect(v.lines[0]).toBe('평소 하던 일이 버거운 날이 줄었어요')
   })
 
   it('개선과 악화가 함께 있으면 모두 문장으로 표현한다', () => {
@@ -150,7 +150,7 @@ describe('monthlyComparisonView (step5)', () => {
       { key: 'state:functionLevel', domain: 'functionLevel', direction: 'better', kind: 'state', trend: 'down', magnitude: 0.4 },
       { key: 'appetite:sweetCraving', domain: 'sweetCraving', direction: 'worse', kind: 'appetite', trend: 'up', magnitude: 0.3 },
     ]))
-    expect(v.lines).toContain('생활기능이 버거운 날이 줄었어요')
+    expect(v.lines).toContain('평소 하던 일이 버거운 날이 줄었어요')
     expect(v.lines).toContain('단것 당김이 강한 날이 늘었어요')
   })
 

@@ -368,9 +368,9 @@ export function LogScreen() {
 
       {/* 2. 몸 에너지·머릿속 여유·집중·사람 대할 여유 (직접 입력) */}
       <GlassCard tint="mint">
-        <SectionHeader title="몸과 머릿속" subtitle="상태에서 추정하지 않고 직접 남겨요" />
-        <p className="event-group__label">몸 에너지</p>
-        <ChipGroup label="몸 에너지">
+        <SectionHeader title="몸과 머릿속" subtitle="느끼는 그대로 직접 남겨요" />
+        <p className="event-group__label">몸 컨디션</p>
+        <ChipGroup label="몸 컨디션">
           {BODY_ENERGY_OPTIONS.map((o) => (
             <Chip key={o.code} label={o.label} tone="mint" selected={draft.bodyEnergyLevel === o.code} onToggle={() => setDraft((d) => ({ ...d, bodyEnergyLevel: d.bodyEnergyLevel === o.code ? undefined : o.code }))} />
           ))}
@@ -513,7 +513,7 @@ export function LogScreen() {
             )}
           </>
         )}
-        <p className="state-hint">일상 기능은 의료 진단이 아니라, 오늘 하루가 어땠는지 스스로 남기는 기록이에요.</p>
+        <p className="state-hint">일상 기능은 오늘 하루가 어땠는지 스스로 남기는 기록이에요.</p>
       </GlassCard>
 
       {/* ---- 상세 기록 토글 (기본은 여기까지, 아래는 열 때만) ---- */}
@@ -566,7 +566,7 @@ export function LogScreen() {
 
           {/* 9. 오늘 있었던 일 (발생일 = 이 기록의 날짜) */}
           <GlassCard>
-            <SectionHeader title="오늘 있었던 일" subtitle="원인 추측이 아니라 사건·상황 기록이에요" />
+            <SectionHeader title="오늘 있었던 일" subtitle="원인이 아니라 사건·상황 기록이에요" />
 
             <p className="event-group__label">사건 강도</p>
             <ChipGroup label="사건 강도">
@@ -659,7 +659,7 @@ export function LogScreen() {
                 <Chip key={p.value} label={p.label} tone="rose" selected={draft.cycle.periodPain === p.value} onToggle={() => setDraft((d) => ({ ...d, cycle: { ...d.cycle, periodPain: d.cycle.periodPain === p.value ? undefined : p.value } }))} />
               ))}
             </ChipGroup>
-            <p className="event-group__label" style={{ marginTop: 14 }}>특이 증상 (선택)</p>
+            <p className="event-group__label" style={{ marginTop: 14 }}>특이 사항 (선택)</p>
             <input className="custom-input" placeholder="쉼표로 구분 (예: 허리 묵직함, 두통)" value={symptomsText} onChange={(e) => setSymptomsText(e.target.value)} />
           </GlassCard>
 

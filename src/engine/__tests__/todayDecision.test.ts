@@ -39,13 +39,13 @@ describe('describeTodayState · 감정 두 축', () => {
   // (12) capacity/strain 방향을 반대로 해석하지 않는다
   it('capacity는 낮을수록, strain은 높을수록 어려움으로 설명한다', () => {
     const lowEnergy = describeTodayState(domainsOf({ bodyEnergyLevel: 'empty' }))[0]
-    expect(lowEnergy).toContain('몸 에너지가 낮았')
+    expect(lowEnergy).toContain('몸이 쉽게 지쳤')
     const highEnergy = describeTodayState(domainsOf({ bodyEnergyLevel: 'charged' }))[0]
-    expect(highEnergy).toContain('몸 에너지는 괜찮았')
+    expect(highEnergy).toContain('몸은 가뿐했')
     const fnHigh = describeTodayState(domainsOf({ functionLevel: 4 }))[0]
-    expect(fnHigh).toContain('일상 기능이 버거웠')
+    expect(fnHigh).toContain('평소 하던 일이 버거웠')
     const fnLow = describeTodayState(domainsOf({ functionLevel: 1 }))[0]
-    expect(fnLow).toContain('생활기능은 유지됐')
+    expect(fnLow).toContain('평소 하던 일은 무리 없었')
   })
 })
 
@@ -55,7 +55,7 @@ describe('describeTodayState · 영역 대비', () => {
     const d = domainsOf({ bodyEnergyLevel: 'empty', focusLevel: 'well', functionLevel: 2 })
     const [line] = describeTodayState(d)
     expect(line).toContain('집중력은 유지됐')
-    expect(line).toContain('몸 에너지가 낮았')
+    expect(line).toContain('몸이 쉽게 지쳤')
     expect(line).toContain('지만') // 유지↔떨어짐 대비
   })
 
@@ -63,7 +63,7 @@ describe('describeTodayState · 영역 대비', () => {
   it('머릿속 복잡 + 집중 가능을 별도 영역으로 유지한다', () => {
     const d = domainsOf({ mentalSpaceLevel: 'overloaded', focusLevel: 'well' })
     const [line] = describeTodayState(d)
-    expect(line).toContain('머릿속이 복잡했')
+    expect(line).toContain('머리가 복잡했')
     expect(line).toContain('집중력은 유지됐')
   })
 
@@ -71,14 +71,14 @@ describe('describeTodayState · 영역 대비', () => {
   it('사람을 대할 여유가 낮으면 그 영역을 설명한다', () => {
     const d = domainsOf({ focusLevel: 'well', socialCapacityLevel: 'low' })
     const [line] = describeTodayState(d)
-    expect(line).toContain('사람을 대할 여유가 떨어졌')
+    expect(line).toContain('사람을 대하기 버거웠')
   })
 
   // (6) 직접 입력 없는 영역을 정상이라고 표현하지 않음
   it('입력 없는 영역을 정상으로 표현하지 않는다', () => {
     const d = domainsOf({ socialCapacityLevel: 'low' })
     const [line] = describeTodayState(d)
-    expect(line).toContain('사람을 대할 여유가 떨어졌')
+    expect(line).toContain('사람을 대하기 버거웠')
     // 입력하지 않은 영역을 '유지/괜찮'으로 지어내지 않는다.
     expect(line).not.toContain('감정')
     expect(line).not.toContain('수면')
@@ -108,7 +108,7 @@ describe('selectTodayDecision · 대표 행동 1개', () => {
     const d = domainsOf({ emotionalStabilityLevel: 'mostly_stable', calm: 6 }) // 뚜렷한 저하 없음
     const decision = selectTodayDecision({ ...base, domains: d, recoveryRecs: [rec({ actionLabel: '일찍 자기', confidence: 72, combinedScore: 25 })] })
     expect(decision!.source).toBe('personal')
-    expect(decision!.text).toContain('비슷한 상태에서는')
+    expect(decision!.text).toContain('비슷한 상태였던 날')
     expect(decision!.text).toContain('일찍 자기')
   })
 

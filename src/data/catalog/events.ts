@@ -154,7 +154,7 @@ export const FACTOR_GROUP_DISPLAY: Record<string, FactorGroupDisplay> = {
   tracking_burden: { title: '기록 부담', subtitle: '기록이 부담됐음' },
   cycle_period: { title: '생리 구간', subtitle: '날짜 기준 자동 계산' },
   cycle_premenstrual_window: { title: '월경 전 구간', subtitle: '날짜 기준 자동 계산' },
-  cycle_ovulation_window: { title: '배란 추정 구간', subtitle: '날짜 기준 자동 계산' },
+  cycle_ovulation_window: { title: '배란 구간', subtitle: '날짜 기준 자동 계산' },
 }
 
 /* =====================================================================
