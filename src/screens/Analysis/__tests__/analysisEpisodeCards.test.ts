@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { composeAnalysisEpisodeCards } from '../analysisEpisodeCards'
+import { describe, expect, it, vi } from 'vitest'
+import { composeAnalysisEpisodeCards, createEpisodeCardLoader, type AnalysisEpisodeCards } from '../analysisEpisodeCards'
 import type { EpisodeInsightSnapshot } from '../../../data/services/episodeInsightService'
 import type { EpisodeTimeline, TimelineRun, RepeatedEpisodeMotif, MotifMatch, EpisodeTimelineSource, RunBoundary } from '../../../engine'
 
@@ -127,5 +127,72 @@ describe('composeAnalysisEpisodeCards', () => {
     const c = composeAnalysisEpisodeCards(snap({ recentEpisode: ep }))
     expect(c.recentFlow!.status).toContain('확인할 기록이 없어요')
     expect(c.recentFlow!.status).not.toContain('이어지고 있어요')
+  })
+})
+
+/* =====================================================================
+   createEpisodeCardLoader — 진입 1회 / 재계산 / 스테일 / unmount / 오류
+   ===================================================================== */
+const deferred = <T,>() => {
+  let resolve!: (v: T) => void
+  let reject!: (e: unknown) => void
+  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej })
+  return { promise, resolve, reject }
+}
+const flush = () => new Promise((r) => setTimeout(r, 0))
+
+describe('createEpisodeCardLoader', () => {
+  it('(1/3) load()마다 fetchSnapshot을 한 번씩 호출한다', async () => {
+    const fetchSnapshot = vi.fn(async () => snap({}))
+    const loader = createEpisodeCardLoader(fetchSnapshot, () => {})
+    await loader.load()
+    expect(fetchSnapshot).toHaveBeenCalledTimes(1) // 진입 1회
+    await loader.load()
+    expect(fetchSnapshot).toHaveBeenCalledTimes(2) // 다시 계산 +1
+  })
+
+  it('(4) 오래된 응답이 최신 결과를 덮지 않는다', async () => {
+    const d1 = deferred<EpisodeInsightSnapshot>()
+    const d2 = deferred<EpisodeInsightSnapshot>()
+    const queue = [d1.promise, d2.promise]
+    const applied: (AnalysisEpisodeCards | null)[] = []
+    const loader = createEpisodeCardLoader(() => queue.shift()!, (c) => applied.push(c))
+    void loader.load() // req1
+    void loader.load() // req2 (최신)
+    d2.resolve(snap({ recentEpisode: null, repeatedMotifs: [motif(['thought_loop', 'bedtime_delay', 'state_daily_tasks_hard'], [{ min: 1, max: 1 }, { min: 1, max: 2 }])] }))
+    await flush()
+    d1.resolve(snap({})) // 뒤늦게 도착한 req1
+    await flush()
+    // req2만 반영: 마지막 apply는 repeatedFlow가 있는 결과여야 한다.
+    expect(applied.length).toBe(1)
+    expect(applied[0]!.repeatedFlow).not.toBeNull()
+  })
+
+  it('(5) dispose 후에는 apply하지 않는다(unmount 후 state update 방지)', async () => {
+    const d = deferred<EpisodeInsightSnapshot>()
+    const apply = vi.fn()
+    const loader = createEpisodeCardLoader(() => d.promise, apply)
+    void loader.load()
+    loader.dispose()
+    d.resolve(snap({}))
+    await flush()
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it('(6) 실패 시 apply하지 않아 기존 카드를 유지한다', async () => {
+    const apply = vi.fn()
+    const onError = vi.fn()
+    const loader = createEpisodeCardLoader(async () => { throw new Error('boom') }, apply, onError)
+    await loader.load()
+    expect(apply).not.toHaveBeenCalled() // 카드 덮어쓰지 않음
+    expect(onError).toHaveBeenCalledTimes(1)
+  })
+
+  it('(7) 성공 시 새 카드로 apply한다', async () => {
+    const apply = vi.fn()
+    const loader = createEpisodeCardLoader(async () => snap({ recentEpisode: flowEp() }), apply)
+    await loader.load()
+    expect(apply).toHaveBeenCalledTimes(1)
+    expect((apply.mock.calls[0][0] as AnalysisEpisodeCards).recentFlow).not.toBeNull()
   })
 })

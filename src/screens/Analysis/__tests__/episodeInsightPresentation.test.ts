@@ -231,7 +231,7 @@ describe('남은 변화', () => {
       aftereffects: [{ sourceKey: 'thought_loop', remainingKey: 'sleep_late', sourceEndDate: '2026-08-08', remainingEndDate: '2026-08-09', extraDays: 1 }],
     })
     const p = presentEpisodeInsight(snap({ recentEpisode: ep }))
-    expect(p.aftereffect!.lines[0]).toBe('같은 생각은 8일에 줄었지만 늦은 잠은 9일까지 이어졌어요.')
+    expect(p.aftereffect!.lines[0]).toBe('같은 생각은 8일에 줄었지만, 늦게 잠든 날은 9일까지 이어졌어요.')
   })
 
   it('(15) 후속 종료가 observed가 아니면 "N일까지"로 확정하지 않는다', () => {
@@ -244,7 +244,41 @@ describe('남은 변화', () => {
     })
     const p = presentEpisodeInsight(snap({ recentEpisode: ep }))
     expect(p.aftereffect!.lines[0]).not.toContain('9일까지')
-    expect(p.aftereffect!.lines[0]).toContain('더 이어졌어요')
+    expect(p.aftereffect!.lines[0]).toContain('늦게 잠든 날은 그 뒤에도 이어졌어요')
+  })
+
+  // 수면 항목별 자연스러운 남은 변화 문장(어색한 명사구 금지).
+  const aftereffectLine = (remainingKey: string, endBoundary: RunBoundary): string => {
+    const ep = episode({
+      runs: [run('thought_loop', 'mind', '2026-08-06', '2026-08-08'), run(remainingKey, 'sleep', '2026-08-08', '2026-08-09', endBoundary)],
+      leadingRunKeys: ['thought_loop'],
+      followupRunKeys: [remainingKey],
+      status: endBoundary === 'observed' ? 'completed' : 'ongoing',
+      aftereffects: [{ sourceKey: 'thought_loop', remainingKey, sourceEndDate: '2026-08-08', remainingEndDate: '2026-08-09', extraDays: 1 }],
+    })
+    return presentEpisodeInsight(snap({ recentEpisode: ep })).aftereffect!.lines[0]
+  }
+
+  it('어떤 카드에도 "늦어진 밤" 표현이 없다', () => {
+    expect(aftereffectLine('bedtime_delay', 'observed')).not.toContain('늦어진 밤')
+    expect(aftereffectLine('bedtime_delay', 'range_edge')).not.toContain('늦어진 밤')
+  })
+
+  it('sleep_late — 종료 확인/미확인 자연어', () => {
+    expect(aftereffectLine('sleep_late', 'observed')).toBe('같은 생각은 8일에 줄었지만, 늦게 잠든 날은 9일까지 이어졌어요.')
+    expect(aftereffectLine('sleep_late', 'range_edge')).toBe('같은 생각은 8일에 줄었지만, 늦게 잠든 날은 그 뒤에도 이어졌어요.')
+  })
+
+  it('bedtime_delay — 자는 걸 미룬 날은 더 이어졌어요', () => {
+    expect(aftereffectLine('bedtime_delay', 'range_edge')).toBe('같은 생각은 8일에 줄었지만, 자는 걸 미룬 날은 더 이어졌어요.')
+  })
+
+  it('sleep_onset_difficulty — 잠들기 어려운 밤은 더 이어졌어요', () => {
+    expect(aftereffectLine('sleep_onset_difficulty', 'range_edge')).toBe('같은 생각은 8일에 줄었지만, 잠들기 어려운 밤은 더 이어졌어요.')
+  })
+
+  it('sleep_waking — 자주 깬 밤은 더 이어졌어요', () => {
+    expect(aftereffectLine('sleep_waking', 'range_edge')).toBe('같은 생각은 8일에 줄었지만, 자주 깬 밤은 더 이어졌어요.')
   })
 })
 
@@ -364,7 +398,7 @@ describe('고정 QA', () => {
     expect(flow).toContain('평소보다 늦게 잠들었')
     expect(flow).toContain('몸이 쉽게 지쳤')
     // 남은 변화
-    expect(p.aftereffect!.lines[0]).toBe('같은 생각은 8일에 줄었지만 늦은 잠은 9일까지 이어졌어요.')
+    expect(p.aftereffect!.lines[0]).toBe('같은 생각은 8일에 줄었지만, 늦게 잠든 날은 9일까지 이어졌어요.')
     // 회복
     expect(p.recovery!.lines[0]).toBe('11일에 몸이 덜 힘들어지기 시작했고, 12일에 이 흐름이 끝난 것으로 확인됐어요.')
     // 반복

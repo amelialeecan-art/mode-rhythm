@@ -66,3 +66,42 @@ export function composeAnalysisEpisodeCards(snapshot: EpisodeInsightSnapshot): A
 
   return { recentFlow, repeatedFlow, hideCumulative: recentFlow !== null || repeatedFlow !== null }
 }
+
+export interface EpisodeCardLoader {
+  /** snapshot을 한 번 불러와 apply한다. 진입·다시 계산에서 각각 호출한다. */
+  load: () => Promise<void>
+  /** unmount 시 호출 — 이후 응답은 apply하지 않는다. */
+  dispose: () => void
+}
+
+/**
+ * episode snapshot 로더. 화면이 진입 1회 + "다시 계산" 때 load()를 부른다.
+ * - 최신 요청만 반영(오래된 응답이 최신 결과를 덮지 않는다).
+ * - dispose 후에는 apply/onError를 부르지 않는다(unmount 후 state update 방지).
+ * - 실패 시 apply를 부르지 않는다 → 기존 카드를 거짓 빈 결과로 덮어쓰지 않는다.
+ * repository/엔진을 직접 부르지 않고 주입된 fetchSnapshot만 쓴다.
+ */
+export function createEpisodeCardLoader(
+  fetchSnapshot: () => Promise<EpisodeInsightSnapshot>,
+  apply: (cards: AnalysisEpisodeCards) => void,
+  onError?: (err: unknown) => void,
+): EpisodeCardLoader {
+  let latest = 0
+  let disposed = false
+  return {
+    async load() {
+      const reqId = ++latest
+      try {
+        const snapshot = await fetchSnapshot()
+        if (disposed || reqId !== latest) return // 오래됐거나 unmount됨
+        apply(composeAnalysisEpisodeCards(snapshot))
+      } catch (err) {
+        if (disposed || reqId !== latest) return
+        onError?.(err) // 카드 상태는 그대로 유지(덮어쓰지 않음)
+      }
+    },
+    dispose() {
+      disposed = true
+    },
+  }
+}

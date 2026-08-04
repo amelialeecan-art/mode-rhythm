@@ -64,12 +64,33 @@ const PHRASE: Record<string, Phrase> = {
   no_desire: { topic: '가라앉은 의욕' },
   hard_to_start: { topic: '시작하기 어려움' },
   // 수면(과한 catalog 문장은 간결 clause로 보완)
-  bedtime_delay: { clause: '자는 걸 미뤘', topic: '늦어진 밤' },
-  phone_sleep_delay: { clause: '폰을 보며 잠을 미뤘', topic: '미뤄진 잠' },
-  sleep_late: { topic: '늦은 잠' },
-  sleep_onset_difficulty: { topic: '잠들기 어려움' },
-  intentional_wakefulness: { topic: '일부러 깨어 있던 밤' },
+  bedtime_delay: { clause: '자는 걸 미뤘' },
+  phone_sleep_delay: { clause: '폰을 보며 잠을 미뤘' },
+  sleep_late: {},
+  sleep_onset_difficulty: {},
+  intentional_wakefulness: {},
 }
+
+/**
+ * 남은 변화 문장에서 수면 항목을 "…한 날/밤"처럼 자연스러운 주어로 만든다.
+ * (문장 끝 "어요"만 지워 "늦어진 밤" 같은 어색한 명사구를 만들지 않는다.)
+ */
+const SLEEP_SUBJECT: Record<string, string> = {
+  sleep_late: '늦게 잠든 날',
+  bedtime_delay: '자는 걸 미룬 날',
+  phone_sleep_delay: '폰을 보며 잠을 미룬 날',
+  sleep_onset_difficulty: '잠들기 어려운 밤',
+  sleep_waking: '자주 깬 밤',
+  sleep_nightmare: '악몽을 꾼 밤',
+  sleep_allnight: '밤을 새운 날',
+  sleep_much: '너무 오래 잔 날',
+  woke_late: '늦게 일어난 날',
+  intentional_wakefulness: '일부러 깨어 있던 밤',
+}
+/** 남은 변화 주어(수면은 전용 표현, 그 외는 명사 topic). 없으면 null(문장 생략). */
+const subjectFor = (key: string): string | null => SLEEP_SUBJECT[key] ?? topicFor(key)
+/** 종료일이 확인되지 않은 후속의 마무리. 늦은 잠 계열은 "그 뒤에도", 나머지는 "더". */
+const nonObservedTail = (key: string): string => (key === 'sleep_late' || key === 'woke_late' ? '그 뒤에도 이어졌어요.' : '더 이어졌어요.')
 
 /** 최근 흐름 첫 신호를 "…기 시작했"으로 자연스럽게 여는 어간(있을 때만). */
 const STARTED: Record<string, string> = {
@@ -222,19 +243,16 @@ function buildAftereffect(ep: EpisodeTimeline): FlowCard | null {
   const runByKeyEnd = new Map(ep.runs.map((r) => [`${r.key}|${r.endDate}`, r]))
   const lines: string[] = []
   for (const a of ep.aftereffects.slice(0, MAX_AFTEREFFECTS)) {
-    const sTopic = topicFor(a.sourceKey)
-    const rTopic = topicFor(a.remainingKey)
-    if (!sTopic || !rTopic) continue // 사람말 명사가 없으면 생략
+    const sSubject = subjectFor(a.sourceKey)
+    const rSubject = subjectFor(a.remainingKey)
+    if (!sSubject || !rSubject) continue // 사람말 주어가 없으면 생략
     const remainingRun = runByKeyEnd.get(`${a.remainingKey}|${a.remainingEndDate}`)
     const ctx = flowDateCtx(ep) // 최근 흐름과 같은 달이면 월을 반복하지 않는다
-    const endedVerb = topicFor(a.sourceKey) && a.sourceKey.startsWith('state') ? '가라앉았' : '줄었'
-    const sourcePart = `${topicWithParticle(sTopic)} ${dayText(a.sourceEndDate, ctx)}에 ${endedVerb}지만`
+    const endedVerb = a.sourceKey.startsWith('state') ? '가라앉았' : '줄었'
+    const sourcePart = `${topicWithParticle(sSubject)} ${dayText(a.sourceEndDate, ctx)}에 ${endedVerb}지만,`
     // 후속 종료가 observed일 때만 "N일까지 이어졌어요"로 확정. 아니면 확정하지 않는다.
-    const remainingPart =
-      remainingRun && remainingRun.endBoundary === 'observed'
-        ? `${topicWithParticle(rTopic)} ${dayText(a.remainingEndDate, ctx)}까지 이어졌어요.`
-        : `${topicWithParticle(rTopic)} 더 이어졌어요.`
-    lines.push(`${sourcePart} ${remainingPart}`)
+    const tail = remainingRun && remainingRun.endBoundary === 'observed' ? `${dayText(a.remainingEndDate, ctx)}까지 이어졌어요.` : `${nonObservedTail(a.remainingKey)}`
+    lines.push(`${sourcePart} ${topicWithParticle(rSubject)} ${tail}`)
   }
   if (lines.length === 0) return null
   return { title: '먼저 줄고, 더 남은 것', lines }

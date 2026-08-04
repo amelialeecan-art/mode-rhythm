@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { GlassCard, SectionHeader } from '../../design'
 import {
   getAnalysisViewModel,
@@ -17,7 +17,7 @@ import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence
 import { suppressRedundantCumulative, selectCumulativeInsights, strongRecoveryInsights } from '../resultHierarchy'
 import { EventResponseChart } from './EventResponseChart'
 import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
-import { composeAnalysisEpisodeCards, type AnalysisEpisodeCards, type CardSubsection } from './analysisEpisodeCards'
+import { createEpisodeCardLoader, type AnalysisEpisodeCards, type CardSubsection, type EpisodeCardLoader } from './analysisEpisodeCards'
 import './analysis.css'
 
 const METRIC_COLOR: Record<string, string> = {
@@ -60,28 +60,23 @@ export function AnalysisScreen() {
     }
   }, [])
 
-  // 화면 진입 시 한 번만: 최근 흐름·반복 순서 snapshot을 읽어 카드 구조로 조립한다.
-  // 오류가 나도 기존 Analysis를 깨뜨리지 않고, 빈 정상 결과로 위장하지 않는다(카드만 미표시).
+  // 최근 흐름·반복 순서 로더: 진입 1회 + "다시 계산" 때 load(). 최신 응답만 반영하고,
+  // 실패 시 기존 카드를 유지한다(빈 결과로 덮어쓰지 않음). unmount 시 dispose.
+  const episodeLoaderRef = useRef<EpisodeCardLoader | null>(null)
   useEffect(() => {
-    let cancelled = false
-    void getEpisodeInsightSnapshot()
-      .then((snap) => {
-        if (!cancelled) setEpisodeCards(composeAnalysisEpisodeCards(snap))
-      })
-      .catch((err) => {
-        if (cancelled) return
-        console.error('[Analysis] episode insight load failed', err)
-        setEpisodeCards(null)
-      })
-    return () => {
-      cancelled = true
-    }
+    const loader = createEpisodeCardLoader(getEpisodeInsightSnapshot, setEpisodeCards, (err) =>
+      console.error('[Analysis] episode insight load failed', err),
+    )
+    episodeLoaderRef.current = loader
+    void loader.load()
+    return () => loader.dispose()
   }, [])
 
   const recalc = async () => {
     setRecalcing(true)
     await new Promise((r) => setTimeout(r, 0))
-    load()
+    load() // 1) 기존 Analysis 재계산
+    void episodeLoaderRef.current?.load() // 2~4) snapshot 재호출 → 카드 갱신(같은 동작 안에서)
     setRecalcing(false)
   }
 
