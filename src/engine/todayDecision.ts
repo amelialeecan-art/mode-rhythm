@@ -34,14 +34,14 @@ interface ClausePack {
 }
 const CLAUSE: Partial<Record<keyof DailyStateDomains, ClausePack>> = {
   emotionalStability: { held: '감정은 대체로 안정적이었', dropped: '감정이 많이 흔들렸', mid: '감정이 조금 흔들렸' },
-  bodyEnergy: { held: '몸 에너지는 괜찮았', dropped: '몸 에너지가 낮았', mid: '몸 에너지가 조금 낮았' },
-  mentalSpace: { held: '머릿속은 여유가 있었', dropped: '머릿속이 복잡했', mid: '머릿속이 조금 복잡했' },
+  bodyEnergy: { held: '몸은 가뿐했', dropped: '몸이 쉽게 지쳤', mid: '몸이 조금 지쳤' },
+  mentalSpace: { held: '머릿속은 여유가 있었', dropped: '머리가 복잡했', mid: '머리가 조금 복잡했' },
   focus: { held: '집중력은 유지됐', dropped: '집중이 흐트러졌', mid: '집중이 조금 흐트러졌' },
-  socialCapacity: { held: '사람을 대할 여유는 있었', dropped: '사람을 대할 여유가 떨어졌', mid: '사람을 대할 여유가 조금 적었' },
+  socialCapacity: { held: '사람을 대할 여유는 있었', dropped: '사람을 대하기 버거웠', mid: '사람을 대하기 조금 버거웠' },
   sleep: { held: '수면은 괜찮았', dropped: '수면이 부족했', mid: '수면이 조금 부족했' },
   appetite: { held: '식욕은 안정적이었', dropped: '식욕이 흔들렸', mid: '식욕이 조금 흔들렸' },
   bodyDiscomfort: { held: '몸은 편안했', dropped: '몸에 불편한 신호가 있었', mid: '몸이 조금 불편했' },
-  functionLevel: { held: '생활기능은 유지됐', dropped: '일상 기능이 버거웠', mid: '일상 기능이 조금 버거웠' },
+  functionLevel: { held: '평소 하던 일은 무리 없었', dropped: '평소 하던 일이 버거웠', mid: '평소 하던 일이 조금 버거웠' },
 }
 
 const EMOTION_NOUN: Record<EmotionCode, string> = {
@@ -217,7 +217,7 @@ export function selectTodayDecision(input: TodayDecisionInput): TodayDecision | 
   const rec = qualifyingRec(recoveryRecs)
   if (rec) {
     return {
-      text: `비슷한 상태에서는 ${rec.actionLabel} 기록이 있을 때 도움이 된 편이었어요. 오늘도 ${rec.actionLabel}을 먼저 챙겨보세요.`,
+      text: `비슷한 상태였던 날 ${rec.actionLabel} 뒤에 도움이 됐다고 남겼어요. 오늘도 ${rec.actionLabel}을 먼저 챙겨보세요.`,
       source: 'personal',
       kind: 'personal',
     }

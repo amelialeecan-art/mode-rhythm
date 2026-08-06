@@ -197,7 +197,7 @@ function normalizeNextDay(effectSize: number): number {
 
 function recoveryMessage(label: string, immediate: number | undefined, next: NextDayRecoveryEffect | null): string {
   if (immediate !== undefined) {
-    return `최근 기록에서 ${label}은(는) 전후 기록상 도움이 된 편이에요. 비슷한 날의 회복 행동 후보로 볼 수 있어요.`
+    return `최근 기록에서 ${label}은(는) 전후로 나아졌다고 남긴 날이 있어요. 비슷한 날의 회복 행동으로 참고할 수 있어요.`
   }
   // immediate가 없고 next만 있는 경우
   void next

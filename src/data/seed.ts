@@ -150,7 +150,7 @@ export async function seedDemoData(): Promise<Record<string, number>> {
     effectSize: 0.4,
     confidence: 42,
     supportCount: 5,
-    message: '수면 부족과 월경 전 구간이 함께 있을 때 식욕 변동이 더 크게 나타난 경향이 있어요. 아직은 가능성 단계예요. (개발용 demo data)',
+    message: '수면 부족과 월경 전 구간이 함께 있던 날에 식욕 변동이 더 크게 기록됐어요. (개발용 demo data)',
     createdAt: now,
   })
 

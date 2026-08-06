@@ -337,13 +337,13 @@ const EPISODE_STATUS_LABEL: Record<EpisodeStatus, string> = {
 }
 const EPISODE_CONFIDENCE_LABEL: Record<EpisodeConfidence, string> = {
   reported: '기록 기반',
-  mixed: '기록+추정 혼합',
-  estimated: '추정 (기능 기록 없음)',
+  mixed: '기록 일부',
+  estimated: '기능 기록 없음',
 }
 const CYCLE_PHASE_LABEL: Record<string, string> = {
   period: '생리 중',
   premenstrual: '월경 전 구간',
-  ovulation: '배란 추정 구간',
+  ovulation: '배란 구간',
   other: '그 외 구간',
   unknown: '주기 데이터 없음',
 }
@@ -352,7 +352,7 @@ const CYCLE_PHASE_LABEL: Record<string, string> = {
 function severityLabelFor(peakFunctionLevel?: number): string {
   if (peakFunctionLevel === 4) return '무너짐'
   if (peakFunctionLevel === 3) return '기능 저하'
-  return '추정 구간'
+  return '기록 부족'
 }
 
 function fmtDate(iso: ISODate): string {

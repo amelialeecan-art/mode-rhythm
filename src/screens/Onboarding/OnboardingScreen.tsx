@@ -74,7 +74,7 @@ export function OnboardingScreen() {
         <button className="btn-primary onb__btn" onClick={start}>
           시작하기
         </button>
-        <p className="onb__foot">기록은 하루 30초 · 진단이 아니라 기록 기반 해석이에요</p>
+        <p className="onb__foot">기록은 하루 30초 · 몸과 마음을 스스로 남기는 기록이에요</p>
       </div>
     </AppShell>
   )

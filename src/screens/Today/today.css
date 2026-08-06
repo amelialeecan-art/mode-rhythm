@@ -354,3 +354,14 @@
   margin-top: 8px;
   line-height: 1.5;
 }
+
+/* update5 · 지금 이어지는 흐름 보조 한 줄 (상태 영역 안, 조금 작고 부드럽게) */
+.today-state-line--flow {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin-top: 8px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}

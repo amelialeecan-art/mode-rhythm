@@ -230,7 +230,7 @@ export function SettingsScreen() {
       <GlassCard tint="mint">
         <SectionHeader title="개인정보" subtitle="로컬 우선" />
         <p className="setting-hint">
-          기록은 이 기기에 저장돼요. 계정·클라우드 동기화는 아직 사용하지 않아요. 진단이 아니라 기록 기반 해석이에요.
+          기록은 이 기기에 저장돼요. 계정·클라우드 동기화는 아직 사용하지 않아요. 몸과 마음을 스스로 남기는 기록이에요.
         </p>
       </GlassCard>
 

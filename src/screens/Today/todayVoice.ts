@@ -11,7 +11,7 @@ const FLOW_DOMAIN_LABEL: Record<FlowDomain, string> = {
   appetite: '식욕',
   sleep: '수면',
   body: '몸',
-  function: '생활기능',
+  function: '평소 하던 일',
 }
 
 /**

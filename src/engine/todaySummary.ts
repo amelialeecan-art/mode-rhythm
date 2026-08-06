@@ -87,9 +87,9 @@ function buildFactorCandidates(
     weighted.push({ w: scores.bodyLoad, c: { label: '몸 불편', tier: 'calculated', detail: '오늘 기록에서 몸 불편이 높게 계산됐어요.' } })
 
   if (cycle.isPeriod)
-    weighted.push({ w: scores.cycleLoad, c: { label: '생리 구간', tier: 'calculated', detail: '날짜 기준으로 생리 구간일 가능성이 있어요.' } })
+    weighted.push({ w: scores.cycleLoad, c: { label: '생리 구간', tier: 'calculated', detail: '기록한 생리 시작일 기준으로 오늘은 생리 구간이에요.' } })
   else if (cycle.isPremenstrualWindow)
-    weighted.push({ w: scores.cycleLoad, c: { label: '월경 전 구간', tier: 'calculated', detail: '날짜 기준으로 월경 전 구간일 가능성이 있어요.' } })
+    weighted.push({ w: scores.cycleLoad, c: { label: '월경 전 구간', tier: 'calculated', detail: '기록한 생리 시작일 기준으로 오늘은 월경 전 구간이에요.' } })
 
   // 강도 높은 오늘 있었던 일 (가장 센 것 1개)
   const topEvent = [...events].filter((e) => e.intensity >= 6).sort((a, b) => b.intensity - a.intensity)[0]
