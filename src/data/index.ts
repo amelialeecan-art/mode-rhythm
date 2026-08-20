@@ -1,11 +1,13 @@
 /* =====================================================================
    MODE · data 계층 공개 API
    ===================================================================== */
-export { db, ModeLocalDB } from './db'
-export { DB_NAME, DB_VERSION, SCHEMA_V1 } from './schema'
+export { db, ModeLocalDB, ALL_TABLES, V1_TABLES, V2_TABLES } from './db'
+export { DB_NAME, DB_VERSION, SCHEMA_V1, SCHEMA_V2 } from './schema'
+export * from './v2Validation'
 export { seedDemoData } from './seed'
 export { resetDatabase } from './reset'
 export * from './models'
+export * from './modelsV2'
 export {
   saveDailyEntry,
   loadDailyEntry,
@@ -79,4 +81,13 @@ export {
   dailyScoreRepository,
   patternInsightRepository,
   userSettingsRepository,
+  // V2 repositories
+  stateMeasurementRepository,
+  sleepEpisodeRepository,
+  mealEpisodeRepository,
+  activityEpisodeRepository,
+  medicationRepository,
+  healthExceptionRepository,
+  screenMetricRepository,
+  weightMeasurementRepository,
 } from './repositories'

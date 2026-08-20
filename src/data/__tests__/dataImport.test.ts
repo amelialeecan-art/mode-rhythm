@@ -378,7 +378,7 @@ describe('기존 export JSON 구조 불변', () => {
 describe('금지 사항 / 불변', () => {
   it('18. DB_NAME/DB_VERSION/SCHEMA_V1 불변', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(1)
+    expect(DB_VERSION).toBe(2)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
   })
 
@@ -393,6 +393,6 @@ describe('금지 사항 / 불변', () => {
   it('20. EXPORT_FORMAT_VERSION은 DB_VERSION과 별개 상수다', () => {
     // 값은 같아도 개념이 분리되어 있어야 한다(별도 export)
     expect(EXPORT_FORMAT_VERSION).toBe(1)
-    expect(DB_VERSION).toBe(1)
+    expect(DB_VERSION).toBe(2)
   })
 })
