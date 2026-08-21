@@ -16,10 +16,22 @@ import { getCheckpointSignals } from '../../data/services/rhythmForecastService'
 import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
 import { createSnapshotFlowLoader } from '../../lib/snapshotFlowLoader'
 import { getTodayISODate } from '../../lib/date'
-import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence, monthlyComparisonView } from './rhythmVoice'
+import { rhythmCompareSentence, cycleCompareSentence, recentFlowSentence, personalRhythmSentence, monthlyComparisonView, RHYTHM_METRIC_LABEL } from './rhythmVoice'
 import { presentRhythmRepeatedFlow, type RepeatedFlowCard } from './rhythmRepeatedFlow'
 import { CycleCompareChart } from './CycleCompareChart'
 import { buildCheckpoint, type CheckpointCard } from './checkpoint'
+import {
+  METRIC_ORDER,
+  METRIC_LABEL,
+  METRIC_COLOR,
+  METRIC_EXPLAIN,
+  PRESETS,
+  isNeutral,
+  toDisplayValue,
+  pickTickIndices,
+  formatTickDate,
+  formatTooltipDate,
+} from './rhythmOverlay'
 import './rhythm.css'
 
 const RANGES = [
@@ -29,13 +41,8 @@ const RANGES = [
   { key: '1y', label: '1년', days: 365, bucket: 'week' as const },
 ]
 
-const METRICS: { key: RhythmMetric; label: string; color: string }[] = [
-  { key: 'emotional', label: '감정', color: '#A985E8' },
-  { key: 'appetite', label: '식욕', color: '#FF9576' },
-  { key: 'sleep', label: '수면', color: '#74A8EC' },
-  { key: 'body', label: '몸', color: '#5BC79E' },
-  { key: 'recovery', label: '회복', color: '#46BBB0' },
-]
+const NAMED_PRESETS = PRESETS.filter((p) => p.key !== 'custom')
+const DEFAULT_METRICS: RhythmMetric[] = ['emotional', 'appetite', 'sleep', 'recovery', 'body']
 
 const PHASE_LABEL: Record<CyclePhase, string> = {
   period: '생리 중',
@@ -50,10 +57,17 @@ const PHASE_COLOR: Record<CyclePhase, string> = {
 
 type ViewMode = 'long' | 'cycle'
 
+function sameSet(a: RhythmMetric[], b: RhythmMetric[]): boolean {
+  return a.length === b.length && a.every((m) => b.includes(m))
+}
+
 export function RhythmScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('long')
-  const [rangeKey, setRangeKey] = useState('3m')
-  const [metric, setMetric] = useState<RhythmMetric>('emotional')
+  const [rangeKey, setRangeKey] = useState('30d')
+  // 겹쳐보기: 선택된 지표 집합(항상 METRIC_ORDER 순서 유지, 최소 1개).
+  const [selectedMetrics, setSelectedMetrics] = useState<RhythmMetric[]>(DEFAULT_METRICS)
+  // 주기 비교는 본질적으로 단일 곡선 → 별도 단일 선택.
+  const [cycleMetric, setCycleMetric] = useState<RhythmMetric>('emotional')
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
   const [cycleVm, setCycleVm] = useState<CycleCompareViewModel | null>(null)
   const [checkpoint, setCheckpoint] = useState<CheckpointCard | null>(null)
@@ -64,8 +78,19 @@ export function RhythmScreen() {
   const [loading, setLoading] = useState(true)
   const [cycleLoading, setCycleLoading] = useState(false)
 
-  const range = RANGES.find((r) => r.key === rangeKey) ?? RANGES[1]
-  const metricColor = METRICS.find((m) => m.key === metric)?.color ?? '#A985E8'
+  const range = RANGES.find((r) => r.key === rangeKey) ?? RANGES[0]
+  const activePresetKey = NAMED_PRESETS.find((p) => sameSet(p.metrics, selectedMetrics))?.key ?? 'custom'
+
+  const applyPreset = (metrics: RhythmMetric[]) =>
+    setSelectedMetrics(METRIC_ORDER.filter((m) => metrics.includes(m)))
+
+  const toggleMetric = (m: RhythmMetric) =>
+    setSelectedMetrics((prev) => {
+      const has = prev.includes(m)
+      if (has && prev.length === 1) return prev // 최소 1개 유지
+      const next = has ? prev.filter((x) => x !== m) : [...prev, m]
+      return METRIC_ORDER.filter((x) => next.includes(x))
+    })
 
   useEffect(() => {
     let cancelled = false
@@ -127,9 +152,21 @@ export function RhythmScreen() {
     }
   }, [viewMode, cycleVm])
 
+  // 겹쳐보기 시리즈: 선택된 각 지표를 방향 통일된 표시값으로. 원본 값은 raw로(툴팁용).
   const series: RhythmSeries[] = vm
-    ? [{ key: metric, color: metricColor, values: vm.buckets.map((b) => b[metric]) }]
+    ? selectedMetrics.map((m) => ({
+        key: m,
+        label: METRIC_LABEL[m],
+        color: METRIC_COLOR[m],
+        neutral: isNeutral(m),
+        values: vm.buckets.map((b) => toDisplayValue(m, b[m])),
+        raw: vm.buckets.map((b) => b[m]),
+      }))
     : []
+  const xTicks = vm
+    ? pickTickIndices(vm.buckets.length, 6).map((i) => ({ index: i, label: formatTickDate(vm.buckets[i].endDate) }))
+    : []
+  const tooltipDates = vm ? vm.buckets.map((b) => formatTooltipDate(b.endDate)) : []
   const presentPhases = vm
     ? (['period', 'premenstrual', 'ovulation'] as CyclePhase[]).filter((p) => vm.buckets.some((b) => b.cyclePhase === p))
     : []
@@ -155,28 +192,29 @@ export function RhythmScreen() {
         ))}
       </div>
 
-      {/* 항목 선택 (두 보기 공용) */}
-      <div className="rhythm-metrics" role="tablist" aria-label="항목 선택">
-        {METRICS.map((m) => {
-          const on = m.key === metric
-          return (
-            <button
-              key={m.key}
-              role="tab"
-              aria-selected={on}
-              className={`rhythm-metric${on ? ' rhythm-metric--on' : ''}`}
-              style={on ? { borderColor: m.color, color: m.color } : undefined}
-              onClick={() => setMetric(m.key)}
-            >
-              <span className="rhythm-metric__dot" style={{ background: m.color }} />
-              {m.label}
-            </button>
-          )
-        })}
-      </div>
-
       {viewMode === 'cycle' ? (
-        <CycleCompareView vm={cycleVm} loading={cycleLoading} metric={metric} color={metricColor} />
+        <>
+          {/* 주기 비교는 한 번에 한 지표 */}
+          <div className="rhythm-metrics" role="tablist" aria-label="항목 선택">
+            {METRIC_ORDER.map((m) => {
+              const on = m === cycleMetric
+              return (
+                <button
+                  key={m}
+                  role="tab"
+                  aria-selected={on}
+                  className={`rhythm-metric${on ? ' rhythm-metric--on' : ''}`}
+                  style={on ? { borderColor: METRIC_COLOR[m], color: METRIC_COLOR[m] } : undefined}
+                  onClick={() => setCycleMetric(m)}
+                >
+                  <span className="rhythm-metric__dot" style={{ background: METRIC_COLOR[m] }} />
+                  {METRIC_LABEL[m]}
+                </button>
+              )
+            })}
+          </div>
+          <CycleCompareView vm={cycleVm} loading={cycleLoading} metric={cycleMetric} color={METRIC_COLOR[cycleMetric]} />
+        </>
       ) : (
         <>
           {/* 기간 선택 */}
@@ -237,14 +275,67 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 3. 장기 그래프 (사용자가 직접 변화 확인) */}
+              {/* 3. 겹쳐보기 그래프 — 여러 지표를 같은 날짜축 위에서 겹쳐 본다 */}
               <GlassCard>
+                <SectionHeader title="겹쳐보기" />
+                <p className="rhythm-overlay-help">보고 싶은 조합을 골라. 위로 갈수록 편안, 아래로 갈수록 힘듦이야. 식욕은 중립(많고 적음)이라 방향을 매기지 않아.</p>
+
+                {/* 프리셋 */}
+                <div className="rhythm-presets" role="group" aria-label="겹쳐볼 조합">
+                  {NAMED_PRESETS.map((p) => (
+                    <button
+                      key={p.key}
+                      className={`rhythm-preset${activePresetKey === p.key ? ' rhythm-preset--on' : ''}`}
+                      aria-pressed={activePresetKey === p.key}
+                      onClick={() => applyPreset(p.metrics)}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 직접 고르기 (범례 겸 켜기/끄기) */}
+                <p className="rhythm-pick-label">직접 고르기</p>
+                <div className="rhythm-metrics" role="group" aria-label="지표 켜고 끄기">
+                  {METRIC_ORDER.map((m) => {
+                    const on = selectedMetrics.includes(m)
+                    return (
+                      <button
+                        key={m}
+                        aria-pressed={on}
+                        className={`rhythm-metric${on ? ' rhythm-metric--on' : ' rhythm-metric--off'}`}
+                        style={on ? { borderColor: METRIC_COLOR[m], color: METRIC_COLOR[m] } : undefined}
+                        onClick={() => toggleMetric(m)}
+                      >
+                        <span className="rhythm-metric__dot" style={{ background: on ? METRIC_COLOR[m] : 'var(--ink-3)' }} />
+                        {METRIC_LABEL[m]}
+                      </button>
+                    )
+                  })}
+                </div>
+
                 <RhythmChart
                   count={vm.buckets.length}
                   series={series}
                   phases={vm.buckets.map((b) => b.cyclePhase)}
                   todayIndex={vm.todayBucketIndex}
+                  xTicks={xTicks}
+                  tooltipDates={tooltipDates}
+                  baselineLabel="평소"
+                  showDirection
                 />
+
+                {/* 선택 지표가 무엇을 모은 값인지 */}
+                <ul className="rhythm-explain">
+                  {selectedMetrics.map((m) => (
+                    <li className="rhythm-explain__item" key={m}>
+                      <span className="rhythm-explain__dot" style={{ background: METRIC_COLOR[m] }} />
+                      <span className="rhythm-explain__name">{METRIC_LABEL[m]}</span>
+                      <span className="rhythm-explain__desc">{METRIC_EXPLAIN[m]}</span>
+                    </li>
+                  ))}
+                </ul>
+
                 {presentPhases.length > 0 && (
                   <div className="rhythm-phases">
                     {presentPhases.map((p) => (
@@ -279,19 +370,26 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 6. 기존 짧은 기간 비교 (최근 일주일 — 보조) */}
+              {/* 6. 최근 일주일 (선택한 지표별 · 보조) */}
               <GlassCard tint="lav">
                 <SectionHeader title="최근 일주일" />
-                <p className="rhythm-week">{rhythmCompareSentence(metric, vm.weekCompare[metric])}</p>
-                {vm.weekCompare[metric].enough && (
-                  <details className="rhythm-week-more">
-                    <summary>근거 보기</summary>
-                    <p className="rhythm-week-nums">
-                      최근 7일 평균 {vm.weekCompare[metric].recentMean} · 이전 28일 평균 {vm.weekCompare[metric].prevMean}
-                      {` (기록 ${vm.weekCompare[metric].recentN}일 / ${vm.weekCompare[metric].prevN}일)`}
-                    </p>
-                  </details>
-                )}
+                {selectedMetrics.map((m) => {
+                  const cmp = vm.weekCompare[m]
+                  return (
+                    <div className="rhythm-week-block" key={m}>
+                      <p className="rhythm-week">
+                        <span className="rhythm-week__tag" style={{ color: METRIC_COLOR[m] }}>{METRIC_LABEL[m]}</span>
+                        {rhythmCompareSentence(m, cmp)}
+                      </p>
+                      {cmp.enough && (
+                        <p className="rhythm-week-nums">
+                          {RHYTHM_METRIC_LABEL[m]} · 최근 7일 {cmp.recentMean} · 이전 28일 {cmp.prevMean}
+                          {` (기록 ${cmp.recentN}일 / ${cmp.prevN}일)`}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
               </GlassCard>
 
               {checkpoint && (

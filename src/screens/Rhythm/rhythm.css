@@ -159,10 +159,89 @@
 .rhythm-metric--on {
   background: rgba(255, 255, 255, 0.75);
 }
+.rhythm-metric--off {
+  opacity: 0.55;
+}
 .rhythm-metric__dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
+}
+
+/* ---------- 겹쳐보기 (프리셋 + 직접 고르기 + 설명) ---------- */
+.rhythm-overlay-help {
+  font-size: 12.5px;
+  line-height: 1.55;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin: 6px 0 10px;
+}
+.rhythm-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.rhythm-preset {
+  padding: 8px 12px;
+  border-radius: var(--pill);
+  border: 1.4px solid var(--line);
+  background: rgba(255, 255, 255, 0.4);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rhythm-preset--on {
+  border-color: var(--lav-2);
+  background: rgba(169, 133, 232, 0.16);
+  color: var(--lav-ink);
+}
+.rhythm-pick-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin: 2px 0 7px;
+}
+.rhythm-explain {
+  list-style: none;
+  margin: 12px 0 2px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rhythm-explain__item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.rhythm-explain__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  transform: translateY(1px);
+}
+.rhythm-explain__name {
+  font-weight: 700;
+  color: var(--ink);
+  flex: none;
+}
+.rhythm-explain__desc {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.rhythm-week-block + .rhythm-week-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline, rgba(0, 0, 0, 0.06));
+}
+.rhythm-week__tag {
+  font-weight: 800;
+  margin-right: 6px;
 }
 .rhythm-week {
   font-size: 14.5px;
