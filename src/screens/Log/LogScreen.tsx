@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { GlassCard, SectionHeader } from '../../design'
 import { getTodayISODate } from '../../lib/date'
+import { confirmLeaveIfDirty } from '../../lib/unsavedGuard'
 import { DayTimeline } from './timeline/DayTimeline'
 import { CheckInCard } from './checkIn/CheckInCard'
 import { SleepCard } from './episodes/SleepCard'
@@ -56,7 +57,11 @@ export function LogScreen() {
             type="date"
             value={date}
             max={getTodayISODate()}
-            onChange={(e) => setDate(e.target.value || getTodayISODate())}
+            // 날짜를 바꾸면 이 날짜의 draft가 다른 날짜 데이터로 대체된다 → 미저장이면 확인(§7).
+            onChange={(e) => {
+              const v = e.target.value || getTodayISODate()
+              if (confirmLeaveIfDirty()) setDate(v)
+            }}
           />
         </div>
       </GlassCard>

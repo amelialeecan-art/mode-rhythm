@@ -8,6 +8,7 @@ import { setFormBusy } from '../../../lib/pwaUpdate'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue } from '../episodes/time'
 import { useGlobalSaver } from '../checkIn/useGlobalSaver'
 import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
+import { activityDirty, activityCanSave } from './draftDirty'
 
 interface Props {
   editRecord?: ActivityEpisode | null
@@ -31,10 +32,10 @@ export function ActivityForm({ editRecord, onSaved, onCancelEdit }: Props) {
   const [saving, setSaving] = useState(false)
 
   const durNum = Number(duration)
-  const canSave = duration.trim() !== '' && Number.isFinite(durNum) && durNum >= 0
+  const canSave = activityCanSave(duration)
 
-  const onSave = async (): Promise<boolean> => {
-    if (!canSave) return false
+  const onSave = async (): Promise<boolean | { ok: false; message: string }> => {
+    if (!canSave) return { ok: false, message: '운동 기록에서 운동 시간(분)을 아직 안 적었어.' }
     const startIso = fromDatetimeLocalValue(startedAt) ?? new Date().toISOString()
     setSaving(true)
     setFormBusy(true)
@@ -68,7 +69,7 @@ export function ActivityForm({ editRecord, onSaved, onCancelEdit }: Props) {
     }
   }
 
-  useGlobalSaver('activity-episode', canSave, onSave, { label: '운동 기록', order: SAVE_ORDER.event })
+  useGlobalSaver('activity-episode', activityDirty(type, duration, rpe, steps), onSave, { label: '운동 기록', order: SAVE_ORDER.event })
 
   return (
     <div className="special-form">

@@ -85,16 +85,20 @@ describe('(10/14) saveAllDirty — 한 번에 저장, 중복 방지', () => {
   })
 })
 
-describe('(11/12) 일부 저장 실패 처리', () => {
-  it('한 영역 실패(false 반환/throw) → 실패 라벨 반환, 다른 영역은 정상', async () => {
+describe('(6/11/12) invalid draft + valid draft 동시 저장', () => {
+  it('valid는 저장, invalid(false/throw/{ok:false})는 구체 메시지로 남는다', async () => {
+    // 수면 valid(저장), 운동 invalid({ok:false,message}), 아침 throw
     registerSaver('sleep-episode', () => { reportDirty('sleep-episode', false); return true }, '수면 기록', SAVE_ORDER.sleep)
-    registerSaver('activity-episode', () => false, '운동 기록', SAVE_ORDER.event) // 저장 실패
-    registerSaver('checkin-morning', () => { throw new Error('boom') }, '아침 상태', SAVE_ORDER.checkin) // throw도 실패
+    registerSaver('activity-episode', () => ({ ok: false, message: '운동 기록에서 운동 시간을 아직 안 적었어.' }), '운동 기록', SAVE_ORDER.event)
+    registerSaver('checkin-morning', () => { throw new Error('boom') }, '아침 상태', SAVE_ORDER.checkin)
     for (const k of ['sleep-episode', 'activity-episode', 'checkin-morning']) reportDirty(k, true)
     const failed = await saveAllDirty()
-    expect(failed).toContain('운동 기록')
-    expect(failed).toContain('아침 상태')
-    expect(failed).not.toContain('수면 기록')
+    // 구체 메시지 그대로, 라벨 fallback 메시지도 포함
+    expect(failed.some((m) => m.includes('운동 시간을 아직 안 적었어'))).toBe(true)
+    expect(failed.some((m) => m.includes('아침 상태'))).toBe(true)
+    expect(failed.some((m) => m.includes('수면 기록'))).toBe(false)
+    // 수면은 저장돼 dirty 해제, 나머지는 남음
+    expect(hasSavableDirty()).toBe(true)
   })
 
   it('(12) 한 영역만 저장되고 다른 dirty가 남으면 저장바는 계속 표시', async () => {

@@ -4,12 +4,12 @@
    save는 성공 true / 실패 false(또는 throw)를 반환한다.
    ===================================================================== */
 import { useEffect, useRef } from 'react'
-import { reportDirty, registerSaver, unregisterSaver, clearDirty } from './dirtyRegistry'
+import { reportDirty, registerSaver, unregisterSaver, clearDirty, type SaveOutcome } from './dirtyRegistry'
 
 export function useGlobalSaver(
   key: string,
   dirty: boolean,
-  save: () => Promise<boolean | void> | boolean | void,
+  save: () => Promise<SaveOutcome> | SaveOutcome,
   opts: { label: string; order: number },
 ): void {
   const saveRef = useRef(save)

@@ -47,6 +47,7 @@ import { getTodayISODate, parseISODate, formatMonthDay } from '../../lib/date'
 import { setFormBusy } from '../../lib/pwaUpdate'
 import { serializeForm } from './dirty'
 import { reportDirty, clearDirty, registerSaver, unregisterSaver, SAVE_ORDER } from './checkIn/dirtyRegistry'
+import { confirmLeaveIfDirty } from '../../lib/unsavedGuard'
 
 const LEGACY_KEY = 'legacy-log'
 import type { EventCategory } from '../../data/types'
@@ -352,7 +353,10 @@ export function LegacyLogForm() {
             type="date"
             value={date}
             max={getTodayISODate()}
-            onChange={(e) => setDate(e.target.value || getTodayISODate())}
+            onChange={(e) => {
+              const v = e.target.value || getTodayISODate()
+              if (confirmLeaveIfDirty()) setDate(v)
+            }}
           />
         </div>
       </GlassCard>

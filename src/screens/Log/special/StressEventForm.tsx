@@ -8,6 +8,7 @@ import { setFormBusy } from '../../../lib/pwaUpdate'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue } from '../episodes/time'
 import { useGlobalSaver } from '../checkIn/useGlobalSaver'
 import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
+import { stressDirty, stressCanSave } from './draftDirty'
 
 interface Props {
   localDate: string
@@ -31,10 +32,12 @@ export function StressEventForm({ localDate, editRecord, onSaved, onCancelEdit }
   )
   const [saving, setSaving] = useState(false)
 
-  const canSave = category !== null && typeof intensity === 'number'
+  const canSave = stressCanSave(category, intensity)
 
-  const onSave = async (): Promise<boolean> => {
-    if (!canSave) return false
+  const onSave = async (): Promise<boolean | { ok: false; message: string }> => {
+    if (category === null || typeof intensity !== 'number') {
+      return { ok: false, message: category === null ? '스트레스 종류를 아직 안 골랐어.' : '스트레스 강도를 아직 안 골랐어.' }
+    }
     const at = fromDatetimeLocalValue(occurredAt) ?? new Date().toISOString()
     setSaving(true)
     setFormBusy(true)
@@ -65,8 +68,9 @@ export function StressEventForm({ localDate, editRecord, onSaved, onCancelEdit }
     }
   }
 
-  // 전역 저장바 연결: 저장 가능한 draft가 있으면 dirty(§3-A).
-  useGlobalSaver('stress-event', canSave, onSave, { label: '스트레스 기록', order: SAVE_ORDER.event })
+  // 전역 저장바 연결: dirty(입력 변화)와 canSave(저장 가능)는 별개다. dirty면 바 노출,
+  // 저장 시 invalid면 구체적 안내를 반환(조용히 무시 금지).
+  useGlobalSaver('stress-event', stressDirty(category, intensity), onSave, { label: '스트레스 기록', order: SAVE_ORDER.event })
 
   return (
     <div className="special-form">

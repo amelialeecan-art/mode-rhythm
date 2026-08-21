@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGlobalSaver } from '../checkIn/useGlobalSaver'
 import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
+import { medicationDirty } from './draftDirty'
 import { Chip, ChipGroup } from '../../../design'
 import { medicationRepository } from '../../../data/repositories'
 import type { MedicationDose, MedicationProfile } from '../../../data/modelsV2'
@@ -78,8 +79,8 @@ export function MedicationPanel({ editDose, onSaved, onCancelEdit }: Props) {
     }
   }
 
-  const onSaveDose = async (): Promise<boolean> => {
-    if (selectedId == null) return false
+  const onSaveDose = async (): Promise<boolean | { ok: false; message: string }> => {
+    if (selectedId == null) return { ok: false, message: '어떤 약인지 먼저 골라줘.' }
     const at = fromDatetimeLocalValue(takenAt) ?? new Date().toISOString()
     setSaving(true)
     setFormBusy(true)
@@ -112,8 +113,9 @@ export function MedicationPanel({ editDose, onSaved, onCancelEdit }: Props) {
     }
   }
 
-  // 약을 하나 골라 투여 기록을 남길 준비가 됐을 때 draft로 본다(약 profile 등록은 별도 atomic).
-  useGlobalSaver('medication-dose', selectedId != null, onSaveDose, { label: '약 기록', order: SAVE_ORDER.health })
+  // dirty = 약을 고르거나 용량을 입력함(초기 빈 상태는 dirty 아님). canSave = 약이 골라짐.
+  // (약 profile 등록은 별도 atomic 액션이라 여기 포함하지 않는다.)
+  useGlobalSaver('medication-dose', medicationDirty(selectedId, dose), onSaveDose, { label: '약 기록', order: SAVE_ORDER.health })
 
   return (
     <div className="special-form">

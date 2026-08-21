@@ -166,7 +166,7 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
 
   const pickAmount = (a: MealAmount) => setAmount((cur) => (cur === a ? null : a))
 
-  const onSave = async (): Promise<boolean> => {
+  const onSave = async (): Promise<boolean | { ok: false; message: string }> => {
     setSaving(true)
     setError('')
     setFormBusy(true)
@@ -186,8 +186,9 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
       return true
     } catch (e) {
       console.error('[MODE] 식사 후 기록 실패', e)
-      setError('시각 순서를 확인해 줘 (시작 → 종료).')
-      return false
+      const message = '식사 후 기록의 시각 순서를 확인해줘 (시작 → 종료).'
+      setError(message)
+      return { ok: false, message }
     } finally {
       setSaving(false)
       setFormBusy(false)

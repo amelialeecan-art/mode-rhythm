@@ -12,11 +12,6 @@ function isEditingElement(el: Element | null): boolean {
   return ['text', 'number', 'search', 'tel', 'url', 'email', 'password'].includes(type)
 }
 
-/** 저장 실패한 영역 라벨들을 사람말 한 문장으로. */
-function failMessage(failed: string[]): string {
-  if (failed.length === 1) return `${failed[0]}은(는) 저장하지 못했어. 한 번만 다시 해줘.`
-  return `${failed.join(' · ')}은(는) 저장하지 못했어. 한 번만 다시 해줘.`
-}
 
 /**
  * 기록 탭 하단 전역 저장바. 스크롤과 무관하게 항상 접근 가능.
@@ -45,7 +40,7 @@ export function FloatingSaveBar() {
   const onSave = async () => {
     setFailMsg('')
     const failed = await saveAllDirty()
-    setFailMsg(failed.length ? failMessage(failed) : '')
+    setFailMsg(failed.join(' '))
   }
 
   if ((!dirty && !saving) || editing) return null

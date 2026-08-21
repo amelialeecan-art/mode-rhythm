@@ -8,6 +8,7 @@ import { setFormBusy } from '../../../lib/pwaUpdate'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue } from '../episodes/time'
 import { useGlobalSaver } from '../checkIn/useGlobalSaver'
 import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
+import { healthDirty } from './draftDirty'
 
 interface Props {
   editRecord?: HealthException | null
@@ -58,9 +59,8 @@ export function HealthExceptionForm({ editRecord, onSaved, onCancelEdit }: Props
     }
   }
 
-  // category는 기본값(illness)이 있어 "종류를 바꿨거나 강도를 골랐을 때"만 draft로 본다(§3-A).
-  const dirty = editing || intensity !== null || category !== 'illness'
-  useGlobalSaver('health-exception', dirty, onSave, { label: '건강 예외 기록', order: SAVE_ORDER.health })
+  // dirty = 종류를 기본값에서 바꿨거나 강도를 골랐을 때(초기 빈 폼은 dirty 아님). 저장은 항상 가능.
+  useGlobalSaver('health-exception', healthDirty(category, intensity), onSave, { label: '건강 예외 기록', order: SAVE_ORDER.health })
 
   return (
     <div className="special-form">

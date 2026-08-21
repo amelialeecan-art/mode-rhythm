@@ -10,7 +10,9 @@
    ===================================================================== */
 import { setFormDirty } from '../../../lib/pwaUpdate'
 
-type Saver = () => Promise<boolean | void> | boolean | void
+/** 저장 결과: true/void=성공, false=실패(라벨로 안내), {ok:false,message}=실패(구체 안내). */
+export type SaveOutcome = boolean | void | { ok: boolean; message?: string }
+type Saver = () => Promise<SaveOutcome> | SaveOutcome
 interface Entry {
   dirty: boolean
   save?: Saver
@@ -116,11 +118,15 @@ export async function saveAllDirty(): Promise<string[]> {
       .sort((a, b) => a[1].order - b[1].order || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
     for (const [, e] of ordered) {
       try {
-        const ok = await e.save!()
-        if (ok === false) failed.push(e.label)
+        const r = await e.save!()
+        const ok = r === true || r === undefined || (typeof r === 'object' && r?.ok === true)
+        if (!ok) {
+          const msg = typeof r === 'object' && r?.message ? r.message : `${e.label}은(는) 저장하지 못했어. 한 번만 다시 해줘.`
+          failed.push(msg)
+        }
       } catch (err) {
         console.error('[MODE] 전역 저장 실패', e.label, err)
-        failed.push(e.label)
+        failed.push(`${e.label}은(는) 저장하지 못했어. 한 번만 다시 해줘.`)
       }
     }
   } finally {

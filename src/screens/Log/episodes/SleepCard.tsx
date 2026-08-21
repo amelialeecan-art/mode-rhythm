@@ -108,7 +108,7 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
   const durationText = formatSleepDuration(sleepDuration({ sleepOnsetAt: composed.sleepOnsetAt, wakeAt: composed.wakeAt }))
   const midIso = sleepMidpoint({ sleepOnsetAt: composed.sleepOnsetAt, wakeAt: composed.wakeAt })
 
-  const onSave = async (): Promise<boolean> => {
+  const onSave = async (): Promise<boolean | { ok: false; message: string }> => {
     const iso = composeSleepTimes(localDate, times)
     // §7 사람말 chronology 안내(rollover 반영 후 절대 시각 기준).
     const errs = validateSleepChronology(iso)
@@ -116,15 +116,17 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
       const bedT = iso.wentToBedAt ? Date.parse(iso.wentToBedAt) : undefined
       const onsetT = iso.sleepOnsetAt ? Date.parse(iso.sleepOnsetAt) : undefined
       const wakeT = iso.wakeAt ? Date.parse(iso.wakeAt) : undefined
+      let message: string
       if (bedT !== undefined && onsetT !== undefined && onsetT < bedT) {
-        setError('잠든 시간이 잠자리에 누운 시간보다 빨라. 시간을 한 번 확인해줘.')
+        message = '잠든 시간이 잠자리에 누운 시간보다 빨라. 시간을 한 번 확인해줘.'
       } else if (onsetT !== undefined && wakeT !== undefined && wakeT < onsetT) {
-        setError('일어난 시간이 잠든 시간보다 빨라. 시간을 한 번 확인해줘.')
+        message = '일어난 시간이 잠든 시간보다 빨라. 시간을 한 번 확인해줘.'
       } else {
-        setError('시간 순서가 맞는지 한 번 확인해줘.')
+        message = '수면 기록의 시간 순서가 맞는지 한 번 확인해줘.'
       }
+      setError(message)
       setStatus('error')
-      return false
+      return { ok: false, message }
     }
     setStatus('saving')
     setError('')
