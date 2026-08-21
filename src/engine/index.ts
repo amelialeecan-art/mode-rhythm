@@ -243,3 +243,14 @@ export {
   type EpisodeRecoveryActionTally,
   type SimilarRecoveryComparison,
 } from './recovery'
+// V2 파생값 (SleepEpisode / MealEpisode) — 저장하지 않는 pure derived
+export { minutesBetween, sleepDuration, sleepMidpoint, formatSleepDuration } from './sleepDerived'
+export {
+  mealDurationMinutes,
+  mealInterval,
+  computeMealIntervals,
+  timeSincePreviousMeal,
+  preCompleteness,
+  postCompleteness,
+  type Completeness,
+} from './mealDerived'

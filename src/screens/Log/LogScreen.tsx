@@ -4,9 +4,12 @@ import { GlassCard, SectionHeader } from '../../design'
 import { getTodayISODate } from '../../lib/date'
 import { TodayTimeline } from './checkIn/TodayTimeline'
 import { CheckInCard } from './checkIn/CheckInCard'
+import { SleepCard } from './episodes/SleepCard'
+import { MealSection } from './episodes/MealSection'
 import { LegacyLogForm } from './LegacyLogForm'
 import './log.css'
 import './checkIn/checkIn.css'
+import './episodes/episodes.css'
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -57,8 +60,16 @@ export function LogScreen() {
       {/* 오늘 타임라인 + 완료 여부 */}
       <TodayTimeline localDate={date} reloadToken={reloadToken} />
 
-      {/* 아침 / 저녁 체크인 */}
+      {/* 지난밤 수면 (SleepEpisode) */}
+      <SleepCard localDate={date} reloadToken={reloadToken} onSaved={bumpReload} />
+
+      {/* 아침 상태 */}
       <CheckInCard localDate={date} checkInType="morning" reloadToken={reloadToken} onSaved={bumpReload} />
+
+      {/* 식사/간식: 빠른 기록 + 오늘 식사 타임라인 */}
+      <MealSection localDate={date} reloadToken={reloadToken} onSaved={bumpReload} />
+
+      {/* 저녁 상태 */}
       <CheckInCard localDate={date} checkInType="evening" reloadToken={reloadToken} onSaved={bumpReload} />
 
       {/* 이전 방식 상세 기록 (레거시 호환) */}

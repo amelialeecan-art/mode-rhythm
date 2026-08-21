@@ -19,6 +19,7 @@ export {
   type IntensityCode,
 } from './services/dailyEntryService'
 export { recalculateDailyScore, getTodaySummary } from './services/dailyScoreService'
+export { resolveDailySleep, hasV2Sleep, type ResolvedSleep, type SleepSource } from './services/sleepResolveService'
 export {
   getCalendarMonth,
   getCalendarDayDetail,
