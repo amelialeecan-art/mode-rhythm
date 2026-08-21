@@ -27,6 +27,13 @@ export {
 } from './services/dataQualityService'
 export { getV2AnalysisBundle, type V2AnalysisBundle } from './services/analysisDatasetService'
 export {
+  getCycleAlignedInsights,
+  getStateClusters,
+  CYCLE_ALIGNED_METRICS,
+  type CycleAlignedInsights,
+  type CycleAlignedEntry,
+} from './services/longAnalysisService'
+export {
   buildDayTimeline,
   deleteTimelineEntry,
   sortTimelineEntries,

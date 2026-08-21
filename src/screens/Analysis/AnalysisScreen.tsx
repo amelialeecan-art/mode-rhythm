@@ -17,6 +17,8 @@ import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence
 import { suppressRedundantCumulative, selectCumulativeInsights, strongRecoveryInsights } from '../resultHierarchy'
 import { EventResponseChart } from './EventResponseChart'
 import { DataQualityCard } from './DataQualityCard'
+import { CycleAlignedCard } from './CycleAlignedCard'
+import { ClusterCard } from './ClusterCard'
 import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
 import { createEpisodeCardLoader, type AnalysisEpisodeCards, type CardSubsection, type EpisodeCardLoader } from './analysisEpisodeCards'
 import './analysis.css'
@@ -108,6 +110,10 @@ export function AnalysisScreen() {
         <>
           {/* ===== 기록 상태(데이터 품질/coverage) — 분석 전에 데이터 신뢰도부터 ===== */}
           <DataQualityCard />
+
+          {/* ===== 장기 자료 기반: 주기 정렬 사후 분석 · 상태 군집 (충분+안정할 때만) ===== */}
+          <CycleAlignedCard />
+          <ClusterCard />
 
           {/* ===== 0. 최근에 이어진 흐름 · 반복해서 나타난 순서 (있으면 맨 위) ===== */}
           <EpisodeFlowCards cards={episodeCards} />
