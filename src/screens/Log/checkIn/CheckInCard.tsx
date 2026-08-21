@@ -5,7 +5,7 @@ import { CORE_STATE_META, promptedMetricsFor } from '../../../data/catalog/coreS
 import { stateMeasurementRepository } from '../../../data/repositories'
 import type { RatingValue, StateMeasurement } from '../../../data/modelsV2'
 import { setFormBusy } from '../../../lib/pwaUpdate'
-import { reportDirty, clearDirty } from './dirtyRegistry'
+import { reportDirty, clearDirty, registerSaver, unregisterSaver, SAVE_ORDER } from './dirtyRegistry'
 import {
   buildMeasurementInput,
   currentTimezoneOffsetMinutes,
@@ -89,7 +89,7 @@ export function CheckInCard({ localDate, checkInType, reloadToken, onSaved }: Ch
       return next
     })
 
-  const onSave = async () => {
+  const onSave = async (): Promise<boolean> => {
     setStatus('saving')
     setFormBusy(true)
     try {
@@ -109,13 +109,23 @@ export function CheckInCard({ localDate, checkInType, reloadToken, onSaved }: Ch
       reportDirty(dirtyKey, false)
       setStatus('success')
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 체크인 저장 실패', e)
       setStatus('error')
+      return false
     } finally {
       setFormBusy(false)
     }
   }
+
+  // 전역 저장바가 이 카드의 canonical save를 호출하도록 등록(중복 저장 로직 없음).
+  const saveRef = useRef(onSave)
+  saveRef.current = onSave
+  useEffect(() => {
+    registerSaver(dirtyKey, () => saveRef.current(), checkInType === 'morning' ? '아침 상태' : '저녁 상태', SAVE_ORDER.checkin)
+    return () => unregisterSaver(dirtyKey)
+  }, [dirtyKey, checkInType])
 
   const answeredCount = prompted.filter((m) => {
     const v = values[m]

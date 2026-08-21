@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { GlassCard, SectionHeader } from '../../design'
 import { getTodayISODate } from '../../lib/date'
+import { confirmLeaveIfDirty } from '../../lib/unsavedGuard'
 import { DayTimeline } from './timeline/DayTimeline'
 import { CheckInCard } from './checkIn/CheckInCard'
 import { SleepCard } from './episodes/SleepCard'
 import { MealSection } from './episodes/MealSection'
 import { SpecialEventSection, type EditTarget } from './special/SpecialEventSection'
 import { LegacyLogForm } from './LegacyLogForm'
+import { FloatingSaveBar } from './FloatingSaveBar'
 import './log.css'
 import './checkIn/checkIn.css'
 import './episodes/episodes.css'
@@ -55,7 +57,11 @@ export function LogScreen() {
             type="date"
             value={date}
             max={getTodayISODate()}
-            onChange={(e) => setDate(e.target.value || getTodayISODate())}
+            // 날짜를 바꾸면 이 날짜의 draft가 다른 날짜 데이터로 대체된다 → 미저장이면 확인(§7).
+            onChange={(e) => {
+              const v = e.target.value || getTodayISODate()
+              if (confirmLeaveIfDirty()) setDate(v)
+            }}
           />
         </div>
       </GlassCard>
@@ -94,6 +100,10 @@ export function LogScreen() {
       </button>
 
       {showLegacy && <LegacyLogForm />}
+
+      {/* 저장바가 마지막 콘텐츠를 가리지 않도록 여백 확보 */}
+      <div className="save-bar-spacer" aria-hidden="true" />
+      <FloatingSaveBar />
     </>
   )
 }

@@ -199,3 +199,46 @@
   font-weight: 500;
   line-height: 1.5;
 }
+
+/* ---------- 하단 고정 저장바 (스크롤 무관 접근) ---------- */
+.save-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(64px + env(safe-area-inset-bottom)); /* 탭바 바로 위 */
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 18px;
+  z-index: var(--z-sticky);
+  pointer-events: none; /* 바 배경은 통과, 버튼만 클릭 */
+}
+.save-bar__btn {
+  pointer-events: auto;
+  width: 100%;
+  padding: 15px 0;
+  border: none;
+  border-radius: 16px;
+  background: var(--deep-2);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(90, 60, 150, 0.28);
+}
+.save-bar__btn:disabled { opacity: 0.7; }
+/* 마지막 콘텐츠가 저장바에 가리지 않도록 여백(바 높이만큼). */
+.save-bar-spacer { height: 76px; }
+
+.save-bar__msg {
+  pointer-events: none;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 149, 118, 0.16);
+  color: var(--coral-ink, #c0563a);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.45;
+}

@@ -161,3 +161,79 @@
 .tri {
   margin-top: 14px;
 }
+
+/* ---------- 시간 값 버튼(달력 없이 커스텀 picker 열기) ---------- */
+.dt-field__label { display: block; }
+.time-value {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.62);
+  border-radius: 14px;
+  padding: 12px 13px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.time-value--empty { color: var(--ink-3); font-weight: 600; }
+.dt-with-now .time-value { margin-top: 0; flex: 1 1 auto; }
+
+/* ---------- 커스텀 시간 picker (바텀시트) ---------- */
+.tp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(40, 28, 66, 0.32);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.tp-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface, #faf6fe);
+  border-radius: 22px 22px 0 0;
+  padding: 16px 18px calc(16px + env(safe-area-inset-bottom));
+  box-shadow: 0 -10px 40px rgba(60, 40, 100, 0.18);
+  animation: tp-rise 0.16s ease-out;
+}
+@keyframes tp-rise { from { transform: translateY(14px); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+.tp-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.tp-title { font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.tp-display { font-size: 22px; font-weight: 800; color: var(--deep-2); font-variant-numeric: tabular-nums; }
+.tp-mer { display: flex; gap: 8px; margin-bottom: 12px; }
+.tp-mer__btn {
+  flex: 1; padding: 11px 0; border-radius: 13px; font-family: inherit; font-size: 14px; font-weight: 700;
+  border: 1.6px solid rgba(120, 90, 180, 0.16); background: rgba(255,255,255,0.5); color: var(--ink-2); cursor: pointer;
+}
+.tp-mer__btn--on { border-color: var(--sky-ink); background: rgba(116,168,236,0.16); color: var(--sky-ink); }
+.tp-label { margin: 10px 0 6px; font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.tp-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; }
+.tp-mins { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; }
+.tp-chip {
+  padding: 11px 0; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700;
+  border: 1.5px solid rgba(120, 90, 180, 0.14); background: rgba(255,255,255,0.55); color: var(--ink); cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.tp-chip--on { border-color: var(--deep-2); background: rgba(169,133,232,0.18); color: var(--deep-2); }
+.tp-fine { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 10px; }
+.tp-fine__btn {
+  width: 44px; height: 44px; border-radius: 50%; font-size: 20px; font-weight: 800; line-height: 1;
+  border: 1.6px solid rgba(120, 90, 180, 0.18); background: rgba(255,255,255,0.6); color: var(--ink); cursor: pointer;
+}
+.tp-fine__val { font-size: 16px; font-weight: 800; color: var(--ink); min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+.tp-actions { display: flex; gap: 10px; margin-top: 18px; }
+.tp-cancel {
+  flex: 0 0 auto; padding: 13px 20px; border-radius: 14px; font-family: inherit; font-size: 15px; font-weight: 700;
+  border: 1.5px solid rgba(120, 90, 180, 0.16); background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.tp-confirm {
+  flex: 1; padding: 13px 0; border-radius: 14px; font-family: inherit; font-size: 15px; font-weight: 800;
+  border: none; background: var(--deep-2); color: #fff; cursor: pointer;
+}

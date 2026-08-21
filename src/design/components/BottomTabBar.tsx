@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
+import { confirmLeaveIfDirty } from '../../lib/unsavedGuard'
 import './components.css'
 
 interface TabDef {
@@ -44,10 +45,20 @@ const TABS: TabDef[] = [
 
 /** 하단 5탭 내비게이션. 라우트 활성 상태를 NavLink로 반영. */
 export function BottomTabBar() {
+  const location = useLocation()
   return (
     <nav className="tabbar" aria-label="주요 화면">
       {TABS.map((t) => (
-        <NavLink key={t.key} to={t.to} end={t.to === '/'} className={({ isActive }) => `tab${isActive ? ' tab--on' : ''}`}>
+        <NavLink
+          key={t.key}
+          to={t.to}
+          end={t.to === '/'}
+          // 미저장 기록이 있는 화면(기록 탭)을 떠날 때 조용히 버리지 않도록 확인(§7).
+          onClick={(e) => {
+            if (t.to !== location.pathname && !confirmLeaveIfDirty()) e.preventDefault()
+          }}
+          className={({ isActive }) => `tab${isActive ? ' tab--on' : ''}`}
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             {t.key === 'log' && <circle cx={12} cy={12} r={8.4} />}
             {t.key === 'calendar' && <rect x={4} y={5.4} width={16} height={14} rx={3.4} />}

@@ -5,6 +5,9 @@ import type { TriBoolean, WeightMeasurement } from '../../../data/modelsV2'
 import { toISODate } from '../../../lib/date'
 import { setFormBusy } from '../../../lib/pwaUpdate'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue } from '../episodes/time'
+import { useGlobalSaver } from '../checkIn/useGlobalSaver'
+import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
+import { weightDirty, weightCanSave } from './draftDirty'
 
 interface Props {
   editRecord?: WeightMeasurement | null
@@ -27,10 +30,10 @@ export function WeightForm({ editRecord, onSaved, onCancelEdit }: Props) {
   const [saving, setSaving] = useState(false)
 
   const weightNum = Number(weight)
-  const canSave = weight.trim() !== '' && Number.isFinite(weightNum) && weightNum > 0
+  const canSave = weightCanSave(weight)
 
-  const onSave = async () => {
-    if (!canSave) return
+  const onSave = async (): Promise<boolean | { ok: false; message: string }> => {
+    if (!canSave) return { ok: false, message: '체중 값을 한 번 확인해줘.' }
     const at = fromDatetimeLocalValue(measuredAt) ?? new Date().toISOString()
     setSaving(true)
     setFormBusy(true)
@@ -51,13 +54,17 @@ export function WeightForm({ editRecord, onSaved, onCancelEdit }: Props) {
         setMeasuredAt(nowDatetimeLocalValue())
       }
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 체중 저장 실패', e)
+      return false
     } finally {
       setSaving(false)
       setFormBusy(false)
     }
   }
+
+  useGlobalSaver('weight-measurement', weightDirty(weight, saw), onSave, { label: '체중 기록', order: SAVE_ORDER.health })
 
   return (
     <div className="special-form">

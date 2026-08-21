@@ -6,6 +6,9 @@ import type { HealthException, HealthExceptionCategory, RatingValue } from '../.
 import { toISODate } from '../../../lib/date'
 import { setFormBusy } from '../../../lib/pwaUpdate'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue } from '../episodes/time'
+import { useGlobalSaver } from '../checkIn/useGlobalSaver'
+import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
+import { healthDirty } from './draftDirty'
 
 interface Props {
   editRecord?: HealthException | null
@@ -26,7 +29,7 @@ export function HealthExceptionForm({ editRecord, onSaved, onCancelEdit }: Props
   )
   const [saving, setSaving] = useState(false)
 
-  const onSave = async () => {
+  const onSave = async (): Promise<boolean> => {
     const at = fromDatetimeLocalValue(occurredAt) ?? new Date().toISOString()
     setSaving(true)
     setFormBusy(true)
@@ -46,13 +49,18 @@ export function HealthExceptionForm({ editRecord, onSaved, onCancelEdit }: Props
         setOccurredAt(nowDatetimeLocalValue())
       }
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 건강 예외 저장 실패', e)
+      return false
     } finally {
       setSaving(false)
       setFormBusy(false)
     }
   }
+
+  // dirty = 종류를 기본값에서 바꿨거나 강도를 골랐을 때(초기 빈 폼은 dirty 아님). 저장은 항상 가능.
+  useGlobalSaver('health-exception', healthDirty(category, intensity), onSave, { label: '건강 예외 기록', order: SAVE_ORDER.health })
 
   return (
     <div className="special-form">
