@@ -18,14 +18,17 @@ describe('analyzeExperiment (A)', () => {
     const r = analyzeExperiment({ baselineValues: [5, 6], interventionValues: [4], plannedBaselineDays: 14, plannedInterventionDays: 14 })
     expect(r.status).toBe('insufficient')
   })
-  it('개입 후 낮아지면 effectDifference 음수 + 순응도/관측 반환', () => {
+  it('개입 후 낮아지면 effectDifference 음수 + 기록률/관측 반환 (adherence는 unavailable)', () => {
     const baseline = [7, 8, 7, 8, 7, 8]
     const intervention = [4, 5, 4, 5, 4, 5]
     const r = analyzeExperiment({ baselineValues: baseline, interventionValues: intervention, plannedBaselineDays: 6, plannedInterventionDays: 6 })
     expect(r.status).toBe('ok')
     expect(r.effectDifference).toBeLessThan(0) // intervention - baseline
     expect(r.usableObservations).toBe(12)
-    expect(r.adherence).toBeCloseTo(1, 6)
+    // 기록률(logging coverage)은 12/12 = 1. 이것은 개입 준수율(adherence)이 아니다.
+    expect(r.loggingCoverage).toBeCloseTo(1, 6)
+    // 실제 행동 준수 데이터가 없으므로 adherence는 unavailable(null).
+    expect(r.adherence).toBeNull()
     expect(r.ci).not.toBeNull()
   })
   it('"효과 입증" 같은 단정 문구를 만들지 않는다', () => {

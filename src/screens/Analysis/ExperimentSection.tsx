@@ -27,9 +27,11 @@ function resultLine(exp: Experiment, a: ExperimentAnalysis): string {
   }
   const dir = a.effectDifference >= 0 ? '높게' : '낮게'
   const amt = Math.abs(a.effectDifference).toFixed(1)
+  // ⚠️ "순응도"로 표시하지 않는다 — usableObservations/loggingCoverage는 기록량이지 개입 준수율이 아니다.
+  //    실제 행동 준수(adherence) 데이터가 없으므로 "기록률"로만 노출한다.
   return assertGuard(
     `${CORE_STATE_META[exp.targetMetric].label}이(가) 기준 기간보다 평균 ${amt}점 ${dir} 기록됐어요 ` +
-      `(기록 ${a.usableObservations}회 · 순응도 ${Math.round(a.adherence * 100)}%).`,
+      `(분석 가능한 기록 ${a.usableObservations}일 · 기록률 ${Math.round(a.loggingCoverage * 100)}%).`,
   )
 }
 

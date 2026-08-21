@@ -1014,3 +1014,12 @@
 .exp-meta { margin: 6px 0 0; font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
 .exp-actions { margin-top: 10px; display: flex; gap: 6px; }
 .exp-form { margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(120,90,180,0.16); }
+
+/* ---------- 시간 순서가 확인된 V2 패턴 카드 ---------- */
+.tmp-group { margin-top: 14px; }
+.tmp-group:first-of-type { margin-top: 10px; }
+.tmp-h { margin: 0 0 8px; font-size: 12px; font-weight: 800; color: var(--sky-ink); letter-spacing: 0.01em; }
+.tmp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.tmp-item { padding: 11px 13px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1.4px solid rgba(255,255,255,0.65); }
+.tmp-say { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.55; }
+.tmp-meta { margin: 7px 0 0; font-size: 11.5px; font-weight: 600; color: var(--ink-3); line-height: 1.5; font-variant-numeric: tabular-nums; }

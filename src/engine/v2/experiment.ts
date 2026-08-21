@@ -17,6 +17,7 @@ export interface ExperimentAnalysis {
   status: 'ok' | 'insufficient'
   baselineN: number
   interventionN: number
+  /** 분석에 실제 쓰인 표본 수(baseline+intervention의 숫자 관찰). 순응도가 아니다. */
   usableObservations: number
   baselineMean: number
   interventionMean: number
@@ -24,8 +25,18 @@ export interface ExperimentAnalysis {
   effectDifference: number
   /** 표준화 효과(pooled sd 기준). */
   standardizedEffect: number
-  /** 실제 기록 일수 / 계획 일수(두 구간 합)의 대략적 순응도. */
-  adherence: number
+  /**
+   * target metric 기록 커버리지 = 숫자 관찰 일수 / 계획 일수(두 구간 합).
+   * ⚠️ 이것은 "개입을 실제로 지켰는가(behavioral adherence)"가 아니라 "기록이 얼마나 있었나"다.
+   *    순응도로 표시하면 안 된다 — UI는 "기록률"로만 노출한다.
+   */
+  loggingCoverage: number
+  /**
+   * 실제 개입 행동 준수율(behavioral adherence). intervention code별 구조화된 준수 데이터가
+   * 있어야 계산 가능하다. 현재는 그런 데이터가 없어 항상 null(unavailable)이다.
+   * ⚠️ loggingCoverage(기록률)를 adherence로 대체하지 않는다.
+   */
+  adherence: number | null
   /** 두 그룹 평균차 CI(정규 근사). 불가하면 null. */
   ci: { lo: number; hi: number } | null
   ciExcludesZero: boolean
@@ -47,7 +58,10 @@ export function analyzeExperiment(input: ExperimentAnalysisInput): ExperimentAna
   const interventionN = i.length
   const usableObservations = baselineN + interventionN
   const plannedTotal = Math.max(1, input.plannedBaselineDays + input.plannedInterventionDays)
-  const adherence = Math.min(1, usableObservations / plannedTotal)
+  // 기록 커버리지(logging coverage) — 계획 일수 대비 숫자 관찰이 얼마나 있었나. 순응도가 아니다.
+  const loggingCoverage = Math.min(1, usableObservations / plannedTotal)
+  // 실제 행동 준수(adherence)는 구조화된 준수 데이터가 없으므로 계산하지 않는다(unavailable).
+  const adherence: number | null = null
 
   const base: ExperimentAnalysis = {
     status: 'insufficient',
@@ -58,6 +72,7 @@ export function analyzeExperiment(input: ExperimentAnalysisInput): ExperimentAna
     interventionMean: interventionN ? mean(i) : NaN,
     effectDifference: NaN,
     standardizedEffect: NaN,
+    loggingCoverage,
     adherence,
     ci: null,
     ciExcludesZero: false,
@@ -89,7 +104,7 @@ export function analyzeExperiment(input: ExperimentAnalysisInput): ExperimentAna
 
   const confidence = scoreV2Confidence({
     n: usableObservations,
-    coverageRate: adherence,
+    coverageRate: loggingCoverage,
     effectMagnitude: standardizedEffect,
     directionConsistency: 0.5, // 단일 실험은 반복성 근거가 약함 → 보수적
     uncertaintyAvailable: ci !== null,
