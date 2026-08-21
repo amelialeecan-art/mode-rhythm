@@ -12,7 +12,7 @@
    ===================================================================== */
 import { db } from '../db'
 import { DEFAULT_USER_SETTINGS } from '../models'
-import { EXPORT_FORMAT_VERSION, type ModeExportPayload } from './dataExportService'
+import { SUPPORTED_IMPORT_VERSIONS, type ModeExportPayload, type ModeExportV2Tables } from './dataExportService'
 
 /** 가져오기 실패 사유 코드 — 사용자 메시지는 UI에서 매핑한다(원문 미노출). */
 export type ImportErrorCode =
@@ -30,11 +30,17 @@ export const MAX_IMPORT_BYTES = 20 * 1024 * 1024 // 20MB
 /** 백업 요약 — 확인 화면 표시용. */
 export interface ImportSummary {
   exportedAt: string
+  formatVersion: number
   dailyLogs: number
   eventLogs: number
   cycleLogs: number
   recoveryLogs: number
   hasAnalysis: boolean // dailyScores 또는 patternInsights 포함 여부
+  // V2(원자료) 요약 — v1 백업이면 0.
+  stateMeasurements: number
+  mealEpisodes: number
+  sleepEpisodes: number
+  hasV2: boolean
 }
 
 export type ImportValidation =
@@ -64,7 +70,11 @@ type FieldKind = 'num' | 'str' | 'bool' | 'strArray' | 'date'
 
 // 각 테이블의 "필수 필드"만 검증한다. optional 필드는 아래 공통 검사(유한 숫자/배열/id)로만 확인해
 // 정상 version 1 백업이 optional 때문에 거부되지 않게 한다.
-const TABLE_REQUIRED: Record<keyof ModeExportPayload['tables'], Record<string, FieldKind>> = {
+/** V1 7테이블 이름(백업 포맷 v1/v2 공통 필수). */
+type V1TableName =
+  | 'dailyLogs' | 'eventLogs' | 'cycleLogs' | 'recoveryLogs' | 'dailyScores' | 'patternInsights' | 'userSettings'
+
+const TABLE_REQUIRED: Record<V1TableName, Record<string, FieldKind>> = {
   dailyLogs: {
     date: 'date', moodLow: 'num', anxiety: 'num', irritability: 'num', sadness: 'num', heaviness: 'num',
     calm: 'num', energy: 'num', focus: 'num', selfCriticism: 'num', impulsivity: 'num', appetite: 'num',
@@ -94,7 +104,28 @@ const TABLE_REQUIRED: Record<keyof ModeExportPayload['tables'], Record<string, F
   },
 }
 
-const TABLE_NAMES = Object.keys(TABLE_REQUIRED) as (keyof ModeExportPayload['tables'])[]
+const TABLE_NAMES = Object.keys(TABLE_REQUIRED) as V1TableName[]
+
+// V2 신규 9테이블의 "필수 필드"만 검증한다(optional 필드는 공통 검사로만).
+// metrics 같은 중첩 객체는 아래에서 별도로 plain-object 확인한다.
+const TABLE_REQUIRED_V2: Record<keyof ModeExportV2Tables, Record<string, FieldKind>> = {
+  stateMeasurements: {
+    localDate: 'date', recordedAt: 'str', timezoneOffsetMinutes: 'num', checkInType: 'str',
+    promptedMetrics: 'strArray', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str',
+  },
+  sleepEpisodes: { localDate: 'date', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
+  mealEpisodes: { localDate: 'date', startedAt: 'str', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
+  activityEpisodes: {
+    localDate: 'date', startedAt: 'str', durationMinutes: 'num', activityType: 'str',
+    source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str',
+  },
+  medicationProfiles: { name: 'str', active: 'bool', createdAt: 'str', updatedAt: 'str' },
+  medicationDoses: { medicationId: 'num', localDate: 'date', takenAt: 'str', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
+  healthExceptions: { localDate: 'date', category: 'str', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
+  screenMetrics: { localDate: 'date', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
+  weightMeasurements: { measuredAt: 'str', localDate: 'date', weightKg: 'num', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
+}
+const V2_TABLE_NAMES = Object.keys(TABLE_REQUIRED_V2) as (keyof ModeExportV2Tables)[]
 
 function checkField(value: unknown, kind: FieldKind): boolean {
   switch (kind) {
@@ -154,19 +185,22 @@ function hasDuplicateDates(rows: Record<string, unknown>[]): boolean {
 export function validateImportPayload(raw: unknown): ImportValidation {
   if (!isPlainObject(raw)) return { ok: false, code: 'invalid-structure' }
   if (raw.app !== 'MODE') return { ok: false, code: 'not-mode' }
-  if (raw.version !== EXPORT_FORMAT_VERSION) return { ok: false, code: 'unsupported-version' }
+  const version = raw.version
+  if (typeof version !== 'number' || !SUPPORTED_IMPORT_VERSIONS.includes(version as 1 | 2)) {
+    return { ok: false, code: 'unsupported-version' }
+  }
   if (!isValidDateTimeStr(raw.exportedAt)) {
     return { ok: false, code: 'invalid-structure' }
   }
   if (!isPlainObject(raw.tables)) return { ok: false, code: 'invalid-structure' }
 
   const tables = raw.tables
-  // 7개 테이블이 모두 배열로 존재해야 한다.
+  // V1 7개 테이블이 모두 배열로 존재해야 한다(v1/v2 공통).
   for (const name of TABLE_NAMES) {
     if (!Array.isArray(tables[name])) return { ok: false, code: 'invalid-structure' }
   }
 
-  // 레코드별 검증 + 중복 규칙.
+  // V1 레코드별 검증 + 중복 규칙. (⚠️ V1 값은 그대로 복원 — 애매한 0을 V2 0으로 바꾸지 않는다.)
   for (const name of TABLE_NAMES) {
     const rows = tables[name] as unknown[]
     const required = TABLE_REQUIRED[name]
@@ -177,6 +211,24 @@ export function validateImportPayload(raw: unknown): ImportValidation {
     if (hasDuplicateIds(typedRows)) return { ok: false, code: 'invalid-structure' }
     if ((name === 'dailyLogs' || name === 'dailyScores') && hasDuplicateDates(typedRows)) {
       return { ok: false, code: 'invalid-structure' }
+    }
+  }
+
+  // V2 테이블(v2 파일에만): 있으면 배열+레코드 검증, 없으면 [] 취급(관대).
+  if (version >= 2) {
+    for (const name of V2_TABLE_NAMES) {
+      const val = tables[name]
+      if (val === undefined) continue // 누락된 V2 테이블은 빈 배열로 간주
+      if (!Array.isArray(val)) return { ok: false, code: 'invalid-structure' }
+      const required = TABLE_REQUIRED_V2[name]
+      for (const rec of val) {
+        if (!isValidRecord(rec, required)) return { ok: false, code: 'invalid-structure' }
+        // stateMeasurements.metrics는 중첩 plain object여야 한다.
+        if (name === 'stateMeasurements' && !isPlainObject((rec as Record<string, unknown>).metrics)) {
+          return { ok: false, code: 'invalid-structure' }
+        }
+      }
+      if (hasDuplicateIds(val as Record<string, unknown>[])) return { ok: false, code: 'invalid-structure' }
     }
   }
 
@@ -192,11 +244,16 @@ export function validateImportPayload(raw: unknown): ImportValidation {
     payload,
     summary: {
       exportedAt: payload.exportedAt,
+      formatVersion: version,
       dailyLogs: t.dailyLogs.length,
       eventLogs: t.eventLogs.length,
       cycleLogs: t.cycleLogs.length,
       recoveryLogs: t.recoveryLogs.length,
       hasAnalysis: t.dailyScores.length > 0 || t.patternInsights.length > 0,
+      stateMeasurements: t.stateMeasurements?.length ?? 0,
+      mealEpisodes: t.mealEpisodes?.length ?? 0,
+      sleepEpisodes: t.sleepEpisodes?.length ?? 0,
+      hasV2: version >= 2,
     },
   }
 }
@@ -223,6 +280,16 @@ export interface ImportResultCounts {
   dailyScores: number
   patternInsights: number
   userSettings: number
+  // V2 (v1 백업이면 전부 0으로 교체됨)
+  stateMeasurements: number
+  sleepEpisodes: number
+  mealEpisodes: number
+  activityEpisodes: number
+  medicationProfiles: number
+  medicationDoses: number
+  healthExceptions: number
+  screenMetrics: number
+  weightMeasurements: number
 }
 
 /**
@@ -234,57 +301,91 @@ export interface ImportResultCounts {
  */
 export async function importAllData(payload: ModeExportPayload): Promise<ImportResultCounts> {
   const t = payload.tables
-  return db.transaction(
-    'rw',
-    [db.dailyLogs, db.eventLogs, db.cycleLogs, db.recoveryLogs, db.dailyScores, db.patternInsights, db.userSettings],
-    async () => {
-      await Promise.all([
-        db.dailyLogs.clear(),
-        db.eventLogs.clear(),
-        db.cycleLogs.clear(),
-        db.recoveryLogs.clear(),
-        db.dailyScores.clear(),
-        db.patternInsights.clear(),
-        db.userSettings.clear(),
-      ])
+  // V2 테이블은 v1 백업에 없을 수 있어 [] 기본값. (v1 복원 시 기존 V2 데이터는 스냅샷대로 비워진다)
+  const v2 = {
+    stateMeasurements: t.stateMeasurements ?? [],
+    sleepEpisodes: t.sleepEpisodes ?? [],
+    mealEpisodes: t.mealEpisodes ?? [],
+    activityEpisodes: t.activityEpisodes ?? [],
+    medicationProfiles: t.medicationProfiles ?? [],
+    medicationDoses: t.medicationDoses ?? [],
+    healthExceptions: t.healthExceptions ?? [],
+    screenMetrics: t.screenMetrics ?? [],
+    weightMeasurements: t.weightMeasurements ?? [],
+  }
+  const v1Handles = [db.dailyLogs, db.eventLogs, db.cycleLogs, db.recoveryLogs, db.dailyScores, db.patternInsights, db.userSettings]
+  const v2Handles = [
+    db.stateMeasurements, db.sleepEpisodes, db.mealEpisodes, db.activityEpisodes,
+    db.medicationProfiles, db.medicationDoses, db.healthExceptions, db.screenMetrics, db.weightMeasurements,
+  ]
+  return db.transaction('rw', [...v1Handles, ...v2Handles], async () => {
+    await Promise.all([...v1Handles, ...v2Handles].map((tbl) => tbl.clear()))
 
-      await db.dailyLogs.bulkAdd(t.dailyLogs)
-      await db.eventLogs.bulkAdd(t.eventLogs)
-      await db.cycleLogs.bulkAdd(t.cycleLogs)
-      await db.recoveryLogs.bulkAdd(t.recoveryLogs)
-      await db.dailyScores.bulkAdd(t.dailyScores)
-      await db.patternInsights.bulkAdd(t.patternInsights)
-      await db.userSettings.bulkAdd(t.userSettings)
+    // V1 (값 그대로 복원 — 재해석 없음)
+    await db.dailyLogs.bulkAdd(t.dailyLogs)
+    await db.eventLogs.bulkAdd(t.eventLogs)
+    await db.cycleLogs.bulkAdd(t.cycleLogs)
+    await db.recoveryLogs.bulkAdd(t.recoveryLogs)
+    await db.dailyScores.bulkAdd(t.dailyScores)
+    await db.patternInsights.bulkAdd(t.patternInsights)
+    await db.userSettings.bulkAdd(t.userSettings)
+    // V2 (원자료 그대로 복원 — 0/null/unknown 보존)
+    await db.stateMeasurements.bulkAdd(v2.stateMeasurements)
+    await db.sleepEpisodes.bulkAdd(v2.sleepEpisodes)
+    await db.mealEpisodes.bulkAdd(v2.mealEpisodes)
+    await db.activityEpisodes.bulkAdd(v2.activityEpisodes)
+    await db.medicationProfiles.bulkAdd(v2.medicationProfiles)
+    await db.medicationDoses.bulkAdd(v2.medicationDoses)
+    await db.healthExceptions.bulkAdd(v2.healthExceptions)
+    await db.screenMetrics.bulkAdd(v2.screenMetrics)
+    await db.weightMeasurements.bulkAdd(v2.weightMeasurements)
 
-      // 설정 없이 남지 않도록 같은 트랜잭션 안에서 기본 설정 생성.
-      if (t.userSettings.length === 0) {
-        const now = new Date().toISOString()
-        await db.userSettings.add({ ...DEFAULT_USER_SETTINGS, createdAt: now, updatedAt: now })
-      }
+    // 설정 없이 남지 않도록 같은 트랜잭션 안에서 기본 설정 생성.
+    if (t.userSettings.length === 0) {
+      const now = new Date().toISOString()
+      await db.userSettings.add({ ...DEFAULT_USER_SETTINGS, createdAt: now, updatedAt: now })
+    }
 
-      const counts: ImportResultCounts = {
-        dailyLogs: await db.dailyLogs.count(),
-        eventLogs: await db.eventLogs.count(),
-        cycleLogs: await db.cycleLogs.count(),
-        recoveryLogs: await db.recoveryLogs.count(),
-        dailyScores: await db.dailyScores.count(),
-        patternInsights: await db.patternInsights.count(),
-        userSettings: await db.userSettings.count(),
-      }
+    const counts: ImportResultCounts = {
+      dailyLogs: await db.dailyLogs.count(),
+      eventLogs: await db.eventLogs.count(),
+      cycleLogs: await db.cycleLogs.count(),
+      recoveryLogs: await db.recoveryLogs.count(),
+      dailyScores: await db.dailyScores.count(),
+      patternInsights: await db.patternInsights.count(),
+      userSettings: await db.userSettings.count(),
+      stateMeasurements: await db.stateMeasurements.count(),
+      sleepEpisodes: await db.sleepEpisodes.count(),
+      mealEpisodes: await db.mealEpisodes.count(),
+      activityEpisodes: await db.activityEpisodes.count(),
+      medicationProfiles: await db.medicationProfiles.count(),
+      medicationDoses: await db.medicationDoses.count(),
+      healthExceptions: await db.healthExceptions.count(),
+      screenMetrics: await db.screenMetrics.count(),
+      weightMeasurements: await db.weightMeasurements.count(),
+    }
 
-      // 개수 검증 — 하나라도 어긋나면 throw → 전체 롤백.
-      const expectedSettings = t.userSettings.length === 0 ? 1 : t.userSettings.length
-      const okCounts =
-        counts.dailyLogs === t.dailyLogs.length &&
-        counts.eventLogs === t.eventLogs.length &&
-        counts.cycleLogs === t.cycleLogs.length &&
-        counts.recoveryLogs === t.recoveryLogs.length &&
-        counts.dailyScores === t.dailyScores.length &&
-        counts.patternInsights === t.patternInsights.length &&
-        counts.userSettings === expectedSettings
-      if (!okCounts) throw new Error('import-count-mismatch')
+    // 개수 검증 — 하나라도 어긋나면 throw → 전체 롤백.
+    const expectedSettings = t.userSettings.length === 0 ? 1 : t.userSettings.length
+    const okCounts =
+      counts.dailyLogs === t.dailyLogs.length &&
+      counts.eventLogs === t.eventLogs.length &&
+      counts.cycleLogs === t.cycleLogs.length &&
+      counts.recoveryLogs === t.recoveryLogs.length &&
+      counts.dailyScores === t.dailyScores.length &&
+      counts.patternInsights === t.patternInsights.length &&
+      counts.userSettings === expectedSettings &&
+      counts.stateMeasurements === v2.stateMeasurements.length &&
+      counts.sleepEpisodes === v2.sleepEpisodes.length &&
+      counts.mealEpisodes === v2.mealEpisodes.length &&
+      counts.activityEpisodes === v2.activityEpisodes.length &&
+      counts.medicationProfiles === v2.medicationProfiles.length &&
+      counts.medicationDoses === v2.medicationDoses.length &&
+      counts.healthExceptions === v2.healthExceptions.length &&
+      counts.screenMetrics === v2.screenMetrics.length &&
+      counts.weightMeasurements === v2.weightMeasurements.length
+    if (!okCounts) throw new Error('import-count-mismatch')
 
-      return counts
-    },
-  )
+    return counts
+  })
 }

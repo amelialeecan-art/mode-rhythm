@@ -21,6 +21,11 @@ export {
 export { recalculateDailyScore, getTodaySummary } from './services/dailyScoreService'
 export { resolveDailySleep, hasV2Sleep, type ResolvedSleep, type SleepSource } from './services/sleepResolveService'
 export {
+  getDataQualitySummary,
+  getStateQualityReport,
+  type DataQualitySummary,
+} from './services/dataQualityService'
+export {
   buildDayTimeline,
   deleteTimelineEntry,
   sortTimelineEntries,
@@ -74,7 +79,9 @@ export {
   downloadExportJson,
   downloadExportPayload,
   EXPORT_FORMAT_VERSION,
+  SUPPORTED_IMPORT_VERSIONS,
   type ModeExportPayload,
+  type ModeExportV2Tables,
 } from './services/dataExportService'
 export {
   validateImportPayload,

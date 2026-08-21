@@ -16,6 +16,7 @@ import { formatMonthDay, parseISODate } from '../../lib/date'
 import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, cumulativeExposureSentence, type VoiceStrength } from './analysisVoice'
 import { suppressRedundantCumulative, selectCumulativeInsights, strongRecoveryInsights } from '../resultHierarchy'
 import { EventResponseChart } from './EventResponseChart'
+import { DataQualityCard } from './DataQualityCard'
 import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
 import { createEpisodeCardLoader, type AnalysisEpisodeCards, type CardSubsection, type EpisodeCardLoader } from './analysisEpisodeCards'
 import './analysis.css'
@@ -105,6 +106,9 @@ export function AnalysisScreen() {
         </GlassCard>
       ) : (
         <>
+          {/* ===== 기록 상태(데이터 품질/coverage) — 분석 전에 데이터 신뢰도부터 ===== */}
+          <DataQualityCard />
+
           {/* ===== 0. 최근에 이어진 흐름 · 반복해서 나타난 순서 (있으면 맨 위) ===== */}
           <EpisodeFlowCards cards={episodeCards} />
 

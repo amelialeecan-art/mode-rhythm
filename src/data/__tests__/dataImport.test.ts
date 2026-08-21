@@ -259,9 +259,13 @@ describe('importAllData — 원자적 전체 교체', () => {
     if (!v.ok) return
     const counts = await importAllData(v.payload)
 
+    // V2(6단계): 백업 포맷 v2는 V1 7테이블 + V2 9테이블을 복원한다.
+    // v1 payload(makePayload)에는 V2 테이블이 없어 전부 0으로 교체된다.
     expect(counts).toEqual({
       dailyLogs: 2, eventLogs: 1, cycleLogs: 1, recoveryLogs: 1,
       dailyScores: 2, patternInsights: 1, userSettings: 1,
+      stateMeasurements: 0, sleepEpisodes: 0, mealEpisodes: 0, activityEpisodes: 0,
+      medicationProfiles: 0, medicationDoses: 0, healthExceptions: 0, screenMetrics: 0, weightMeasurements: 0,
     })
     // 옛 레코드(1999)는 사라지고 백업 날짜만 남는다
     const dates = (await db.dailyLogs.toArray()).map((d) => d.date).sort()
@@ -333,21 +337,25 @@ describe('기존 export JSON 구조 불변', () => {
 
     // 최상위 키는 정확히 4개
     expect(Object.keys(payload).sort()).toEqual(['app', 'exportedAt', 'tables', 'version'])
-    // tables 키는 정확히 7개
+    // V2(6단계): tables 키는 V1 7 + V2 9 = 16개
     expect(Object.keys(payload.tables).sort()).toEqual(
-      ['cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings'].sort(),
+      [
+        'cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings',
+        'stateMeasurements', 'sleepEpisodes', 'mealEpisodes', 'activityEpisodes',
+        'medicationProfiles', 'medicationDoses', 'healthExceptions', 'screenMetrics', 'weightMeasurements',
+      ].sort(),
     )
     expect(payload.app).toBe('MODE')
     expect(payload.version).toBe(EXPORT_FORMAT_VERSION)
     // exportedAt은 유효한 ISO 날짜
     expect(Number.isNaN(Date.parse(payload.exportedAt))).toBe(false)
-    // 7개 값이 모두 배열
+    // 16개 값이 모두 배열
     for (const v of Object.values(payload.tables)) expect(Array.isArray(v)).toBe(true)
   })
 
-  it('빈 DB에서도 7테이블 배열 구조를 유지한다', async () => {
+  it('빈 DB에서도 16테이블(V1 7 + V2 9) 배열 구조를 유지한다', async () => {
     const payload = await buildExportPayload()
-    expect(Object.keys(payload.tables)).toHaveLength(7)
+    expect(Object.keys(payload.tables)).toHaveLength(16)
     for (const v of Object.values(payload.tables)) expect(Array.isArray(v)).toBe(true)
   })
 
@@ -392,7 +400,7 @@ describe('금지 사항 / 불변', () => {
 
   it('20. EXPORT_FORMAT_VERSION은 DB_VERSION과 별개 상수다', () => {
     // 값은 같아도 개념이 분리되어 있어야 한다(별도 export)
-    expect(EXPORT_FORMAT_VERSION).toBe(1)
+    expect(EXPORT_FORMAT_VERSION).toBe(2) // V2(6단계): 백업 포맷 v2 (import은 v1도 계속 허용)
     expect(DB_VERSION).toBe(2)
   })
 })

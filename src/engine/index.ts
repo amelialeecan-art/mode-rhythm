@@ -255,6 +255,27 @@ export {
   type EpisodeRecoveryActionTally,
   type SimilarRecoveryComparison,
 } from './recovery'
+// V2 데이터 품질/분석 가능성 (순수 — DB 미접촉)
+export {
+  classifyProvenance,
+  buildDataQualityReport,
+  detectQualityFlags,
+  canAnalyzeMetric,
+  canAnalyzePair,
+  hasEnoughRepeatedExposure,
+  analysisReadiness,
+  type ProvenanceCohort,
+  type MetricQuality,
+  type CheckInCoverage,
+  type DataQualityReport,
+  type QualityFlag,
+  type QualityFlagCode,
+  type QualitySeverity,
+  type MetricReadiness,
+  type PairReadiness,
+  type ExposureReadiness,
+  type AnalysisReadiness,
+} from './dataQuality'
 // V2 파생값 (SleepEpisode / MealEpisode) — 저장하지 않는 pure derived
 export { minutesBetween, sleepDuration, sleepMidpoint, formatSleepDuration } from './sleepDerived'
 export {
