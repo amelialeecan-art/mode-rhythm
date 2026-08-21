@@ -15,8 +15,20 @@ export {
 export {
   buildCycleContext,
   calcCycleLoad,
+  cycleStartDates,
+  cycleLengths,
+  currentCycleDay,
+  dataConfidence,
+  cycleHistoryStats,
+  prospectivePeriodWindow,
+  getRelativeDayToNextPeriod,
+  retrospectiveRelativeDay,
+  periodDuration,
   type CycleContext,
   type CycleConfidence,
+  type ProspectivePeriodWindow,
+  type CycleHistoryStats,
+  type OvulationEstimate,
 } from './cycle'
 export {
   classifyDay,
