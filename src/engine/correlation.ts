@@ -222,7 +222,7 @@ function buildFactorMessage(
   effectSize: number,
 ): string {
   const dir = effectSize >= 0 ? '높게' : '낮게'
-  return `최근 기록에서 ${factorLabel}이(가) ${WINDOW_PHRASE[window]} ${ANALYSIS_METRIC_LABEL[metric]} 점수가 평소보다 ${dir} 나타나는 경향이 있어요.`
+  return `최근 기록에서 ${factorLabel}이(가) ${WINDOW_PHRASE[window]} ${ANALYSIS_METRIC_LABEL[metric]} 점수가 평소보다 ${dir} 나타나는 경향이 있어.`
 }
 
 /**

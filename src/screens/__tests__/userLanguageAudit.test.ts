@@ -53,7 +53,7 @@ describe('Today 오늘의 결정 — 금지 표현 없음', () => {
     actionCode: 'sleep_early', actionLabel: '일찍 자기', category: 'body',
     combinedScore: 25, supportCount: 6, confidence: 72, confidenceTier: 'personal_helper', message: '',
   }
-  it('개인 회복 결정 문장이 "편이에요" 없이 직접 말한다', () => {
+  it('개인 회복 결정 문장이 "편이야" 없이 직접 말한다', () => {
     const d = resolveDailyStateDomains(makeLog({ emotionalStabilityLevel: 'mostly_stable', calm: 6 }))
     const decision = selectTodayDecision({ domains: d, isExceptionDay: false, recoveryRecs: [rec] })
     expect(decision?.source).toBe('personal')
@@ -107,7 +107,7 @@ describe('Rhythm 문장 — 금지 표현 없음', () => {
     clean('monthlyComparisonView', [view.lead, ...view.lines])
   })
 
-  it('cycleCompareSentence가 "편이에요" 없이 말한다', () => {
+  it('cycleCompareSentence가 "편이야" 없이 말한다', () => {
     const pts = (v: number) => Array.from({ length: 22 }, (_, i) => ({ rel: i - 14, mean: v }))
     const quieter = { baseline: 50, recent: pts(40), previous: pts(60) }
     clean('cycleCompareSentence', [cycleCompareSentence('emotional', quieter)])

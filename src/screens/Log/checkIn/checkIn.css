@@ -1,0 +1,118 @@
+/* =====================================================================
+   MODE · 아침/저녁 체크인 + 타임라인 스타일 (토큰 재사용)
+   ===================================================================== */
+
+/* ---------- 체크인 카드 헤더(토글) ---------- */
+.checkin-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.checkin-head__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.checkin-head__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+.checkin-head__sub {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.checkin-badge {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1.4px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--pill);
+  padding: 6px 11px;
+  white-space: nowrap;
+}
+.checkin-badge--done {
+  color: var(--mint-ink);
+  background: rgba(91, 199, 158, 0.16);
+  border-color: var(--mint-2);
+}
+
+.checkin-body {
+  margin-top: 14px;
+}
+.checkin-note-label {
+  display: block;
+  margin-top: 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+/* ---------- 타임라인 ---------- */
+.timeline-status {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.timeline-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--pill);
+  padding: 6px 12px;
+}
+.timeline-pill--done {
+  color: var(--mint-ink);
+  background: rgba(91, 199, 158, 0.16);
+  border-color: var(--mint-2);
+}
+.timeline-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1.4px solid rgba(255, 255, 255, 0.65);
+}
+.timeline-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: var(--deep-2);
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+.timeline-label {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 14px;
+  flex: 1 1 auto;
+}
+.timeline-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  flex: 0 0 auto;
+}

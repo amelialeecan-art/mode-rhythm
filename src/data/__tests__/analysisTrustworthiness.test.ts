@@ -262,10 +262,11 @@ describe('생리 데이터 표시 (27~28)', () => {
 describe('불변/결합 (29~30)', () => {
   it('29. DB_NAME/DB_VERSION/SCHEMA_V1 불변', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(1)
+    expect(DB_VERSION).toBe(3)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
-    // (참고) db 인스턴스도 동일 스키마
-    expect(db.tables.map((t) => t.name).sort()).toEqual(Object.keys(SCHEMA_V1).sort())
+    // (참고) db 인스턴스는 V1 7테이블 + V2 신규 테이블. V1 인덱스는 그대로 유지된다.
+    const tableNames = db.tables.map((t) => t.name)
+    for (const v1 of Object.keys(SCHEMA_V1)) expect(tableNames).toContain(v1)
   })
   it('30. 분석 서비스는 export/import/PWA 코드에 결합하지 않는다', () => {
     const code = serviceSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')

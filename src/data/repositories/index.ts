@@ -9,3 +9,6 @@ export { recoveryLogRepository } from './recoveryLogRepository'
 export { dailyScoreRepository } from './dailyScoreRepository'
 export { patternInsightRepository } from './patternInsightRepository'
 export { userSettingsRepository } from './userSettingsRepository'
+
+// V2 (N-of-1 데이터셋) repositories
+export * from './v2'

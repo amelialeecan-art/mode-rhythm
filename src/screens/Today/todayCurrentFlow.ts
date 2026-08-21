@@ -40,9 +40,9 @@ function clauseFor(key: string): string | null {
   if (STATE_CLAUSE[key]) return STATE_CLAUSE[key]
   if (SLEEP_CLAUSE[key]) return SLEEP_CLAUSE[key]
   const m = MIND_SIGNAL_LABEL.get(key)
-  if (m?.endsWith('어요')) return m.slice(0, -2)
+  if (m?.endsWith('어')) return m.slice(0, -1)
   const s = SLEEP_ISSUE_LABEL.get(key)
-  if (s?.endsWith('어요')) return s.slice(0, -2)
+  if (s?.endsWith('어')) return s.slice(0, -1)
   return null
 }
 
@@ -86,5 +86,5 @@ export function presentTodayCurrentFlow(snapshot: EpisodeInsightSnapshot, today:
   const lastClause = clauseFor(last.key)!
   const firstPrefix = first.calendarDays >= 2 ? '며칠째 ' : ''
   const nowWord = last.source === 'sleep' ? '어젯밤에는' : '오늘은'
-  return `${firstPrefix}${firstClause}고, ${nowWord} ${lastClause}어요.`
+  return `${firstPrefix}${firstClause}고, ${nowWord} ${lastClause}어.`
 }

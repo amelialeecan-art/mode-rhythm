@@ -36,11 +36,11 @@ export function buildCheckpoint(s: CheckpointSignals): CheckpointCard | null {
 
   // 1) 주기 근접이 최우선 (앞으로의 조건)
   if (s.cycleNear) {
-    if (w.sleep) return card('생리 예정일이 가까워지고 최근 수면도 흔들렸어요. 멘탈이 같이 터지는지 이틀 정도 봐요.')
-    if (w.emotional) return card('생리 예정일이 가깝고 최근 감정도 흔들렸어요. 정병 모드 오기 쉬운 타이밍이라 조금 지켜봐요.')
-    if (w.appetite) return card('이번 주기는 평소보다 일찍 식욕이 흔들리고 있어요. 조금 지켜봐요.')
-    if (w.body) return card('생리 예정일이 가깝고 최근 몸 상태도 무거웠어요. 조금 지켜봐요.')
-    return card('생리 예정일이 가까워요. 정병 모드가 오기 쉬운 타이밍이라 조금 지켜봐요.')
+    if (w.sleep) return card('생리 예정일이 가까워지고 최근 수면도 흔들렸어. 멘탈이 같이 터지는지 이틀 정도 봐.')
+    if (w.emotional) return card('생리 예정일이 가깝고 최근 감정도 흔들렸어. 정병 모드 오기 쉬운 타이밍이라 조금 지켜봐.')
+    if (w.appetite) return card('이번 주기는 평소보다 일찍 식욕이 흔들리고 있어. 조금 지켜봐.')
+    if (w.body) return card('생리 예정일이 가깝고 최근 몸 상태도 무거웠어. 조금 지켜봐.')
+    return card('생리 예정일이 가까워. 정병 모드가 오기 쉬운 타이밍이라 조금 지켜봐.')
   }
 
   // 2) 예정 일정 + 최근 악화
@@ -48,18 +48,18 @@ export function buildCheckpoint(s: CheckpointSignals): CheckpointCard | null {
     const first = worsenedList[0]
     if (first) {
       const lab = LABEL[first]
-      if (s.priorCombo) return card(`최근 ${wa(lab)} 다가오는 일정 압박이 겹쳤어요. 예전에 멘헤라 모드가 왔던 조합이에요.`)
-      return card(`최근 ${wa(lab)} 다가오는 일정 부담이 겹쳤어요. 며칠 정도 지켜봐요.`)
+      if (s.priorCombo) return card(`최근 ${wa(lab)} 다가오는 일정 압박이 겹쳤어. 예전에 멘헤라 모드가 왔던 조합이야.`)
+      return card(`최근 ${wa(lab)} 다가오는 일정 부담이 겹쳤어. 며칠 정도 지켜봐.`)
     }
-    return card('다가오는 일정 부담이 있지만 최근 컨디션은 평소와 비슷해요.')
+    return card('다가오는 일정 부담이 있지만 최근 컨디션은 평소와 비슷해.')
   }
 
   // 3) 최근 악화만
   if (worsenedList.length >= 2) {
-    return card(`최근 ${wa(LABEL[worsenedList[0]])} ${iga(LABEL[worsenedList[1]])} 같이 흔들렸어요. 이어지는지 며칠 지켜봐요.`)
+    return card(`최근 ${wa(LABEL[worsenedList[0]])} ${iga(LABEL[worsenedList[1]])} 같이 흔들렸어. 이어지는지 며칠 지켜봐.`)
   }
   if (worsenedList.length === 1) {
-    return card(`최근 ${iga(LABEL[worsenedList[0]])} 평소보다 흔들렸어요. 조금 지켜봐요.`)
+    return card(`최근 ${iga(LABEL[worsenedList[0]])} 평소보다 흔들렸어. 조금 지켜봐.`)
   }
 
   // 4) 모두 안정/평소 범위 → 카드 없음

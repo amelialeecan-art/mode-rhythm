@@ -1,11 +1,13 @@
 /* =====================================================================
    MODE · data 계층 공개 API
    ===================================================================== */
-export { db, ModeLocalDB } from './db'
-export { DB_NAME, DB_VERSION, SCHEMA_V1 } from './schema'
+export { db, ModeLocalDB, ALL_TABLES, V1_TABLES, V2_TABLES } from './db'
+export { DB_NAME, DB_VERSION, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from './schema'
+export * from './v2Validation'
 export { seedDemoData } from './seed'
 export { resetDatabase } from './reset'
 export * from './models'
+export * from './modelsV2'
 export {
   saveDailyEntry,
   loadDailyEntry,
@@ -17,6 +19,50 @@ export {
   type IntensityCode,
 } from './services/dailyEntryService'
 export { recalculateDailyScore, getTodaySummary } from './services/dailyScoreService'
+export { resolveDailySleep, hasV2Sleep, type ResolvedSleep, type SleepSource } from './services/sleepResolveService'
+export {
+  registerHealthProvider,
+  clearHealthProvider,
+  getHealthProvider,
+  hasHealthProvider,
+  type HealthDataProvider,
+  type HealthSampleBundle,
+  type HealthProviderCapabilities,
+} from './health/healthProvider'
+export { resolveBySourcePriority, SOURCE_PRIORITY, type SourceCandidate, type ResolvedValue } from './health/sourceResolver'
+export { ingestHealthBundle, type IngestCounts } from './services/healthIngestService'
+export {
+  getDataQualitySummary,
+  getStateQualityReport,
+  type DataQualitySummary,
+} from './services/dataQualityService'
+export { getV2AnalysisBundle, type V2AnalysisBundle } from './services/analysisDatasetService'
+export {
+  getCycleAlignedInsights,
+  getStateClusters,
+  CYCLE_ALIGNED_METRICS,
+  type CycleAlignedInsights,
+  type CycleAlignedEntry,
+} from './services/longAnalysisService'
+export { analyzeExperimentById, getExperimentsWithAnalysis } from './services/experimentService'
+export { EXPERIMENT_INTERVENTIONS, INTERVENTION_LABEL, type InterventionMeta } from './catalog/experiments'
+export {
+  buildDayTimeline,
+  deleteTimelineEntry,
+  sortTimelineEntries,
+  type TimelineEntry,
+  type TimelineKind,
+  type TimelineTone,
+} from './services/dayTimelineService'
+export {
+  STRESS_CATEGORIES,
+  STRESS_CATEGORY_CODES,
+  STRESS_CATEGORY_META,
+  buildStressEventInput,
+  isV2StressEvent,
+  type StressCategoryCode,
+} from './catalog/stressEvents'
+export { legacyFactorGroupToCanonicalStress, LEGACY_FACTORGROUP_TO_CANONICAL_STRESS } from './catalog/factorGroupMapping'
 export {
   getCalendarMonth,
   getCalendarDayDetail,
@@ -54,7 +100,9 @@ export {
   downloadExportJson,
   downloadExportPayload,
   EXPORT_FORMAT_VERSION,
+  SUPPORTED_IMPORT_VERSIONS,
   type ModeExportPayload,
+  type ModeExportV2Tables,
 } from './services/dataExportService'
 export {
   validateImportPayload,
@@ -79,4 +127,14 @@ export {
   dailyScoreRepository,
   patternInsightRepository,
   userSettingsRepository,
+  // V2 repositories
+  stateMeasurementRepository,
+  sleepEpisodeRepository,
+  mealEpisodeRepository,
+  activityEpisodeRepository,
+  medicationRepository,
+  healthExceptionRepository,
+  screenMetricRepository,
+  weightMeasurementRepository,
+  experimentRepository,
 } from './repositories'

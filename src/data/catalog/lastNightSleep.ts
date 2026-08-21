@@ -58,22 +58,22 @@ export const SLEEP_ISSUE_GROUPS: { title: string; items: { code: string; label: 
   {
     title: '잠들기 전',
     items: [
-      { code: 'bedtime_reluctance', label: '잠자리에 들 마음이 안 났어요' },
-      { code: 'bedtime_delay', label: '잘 시간인데도 자는 걸 미뤘어요' },
-      { code: 'intentional_wakefulness', label: '졸려도 일부러 깨어 있었어요' },
-      { code: 'phone_sleep_delay', label: '폰을 보며 잠을 미뤘어요' },
+      { code: 'bedtime_reluctance', label: '잠자리에 들 마음이 안 났어' },
+      { code: 'bedtime_delay', label: '잘 시간인데도 자는 걸 미뤘어' },
+      { code: 'intentional_wakefulness', label: '졸려도 일부러 깨어 있었어' },
+      { code: 'phone_sleep_delay', label: '폰을 보며 잠을 미뤘어' },
     ],
   },
   {
     title: '잠의 결과',
     items: [
-      { code: 'sleep_late', label: '평소보다 늦게 잠들었어요' },
-      { code: 'sleep_onset_difficulty', label: '누웠는데 잠이 안 왔어요' },
-      { code: 'sleep_waking', label: '자주 깼어요' },
-      { code: 'sleep_nightmare', label: '악몽을 꿨어요' },
-      { code: 'sleep_allnight', label: '밤을 새웠어요' },
-      { code: 'sleep_much', label: '너무 오래 잤어요' },
-      { code: 'woke_late', label: '늦게 일어났어요' },
+      { code: 'sleep_late', label: '평소보다 늦게 잠들었어' },
+      { code: 'sleep_onset_difficulty', label: '누웠는데 잠이 안 왔어' },
+      { code: 'sleep_waking', label: '자주 깼어' },
+      { code: 'sleep_nightmare', label: '악몽을 꿨어' },
+      { code: 'sleep_allnight', label: '밤을 새웠어' },
+      { code: 'sleep_much', label: '너무 오래 잤어' },
+      { code: 'woke_late', label: '늦게 일어났어' },
     ],
   },
 ]

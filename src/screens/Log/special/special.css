@@ -1,0 +1,47 @@
+/* =====================================================================
+   MODE · 특별한 일 기록(스트레스/운동/약/예외/체중) 스타일
+   ===================================================================== */
+.special-open-btn {
+  width: 100%;
+  margin-top: 13px;
+  border: 1.8px dashed var(--lav-2, rgba(150, 140, 200, 0.5));
+  background: rgba(150, 140, 200, 0.08);
+  color: var(--deep-2);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 15px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+.special-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.special-close {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.special-body {
+  margin-top: 6px;
+}
+.special-form {
+  margin-top: 8px;
+}
+.dt-inline-two {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dt-inline-two .custom-input {
+  flex: 1 1 0;
+  min-width: 0;
+}

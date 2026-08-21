@@ -12,10 +12,10 @@ const FRIENDS: { mood: 'teary' | 'hungry' | 'sleepy' | 'focus' | 'confused'; lab
 ]
 
 const POINTS = [
-  '원인을 직접 맞히지 않아도 돼요. 오늘 있었던 일만 기록해요.',
-  '생리주기는 날짜만 기록하면 앱이 구간을 계산해요.',
-  '뭐 했더니 좀 나아졌는지(회복 행동)도 함께 기록해요.',
-  '모든 기록은 기본적으로 이 기기에 저장돼요.',
+  '원인을 직접 맞히지 않아도 돼. 오늘 있었던 일만 기록해.',
+  '생리주기는 날짜만 기록하면 앱이 구간을 계산해.',
+  '뭐 했더니 좀 나아졌는지(회복 행동)도 함께 기록해.',
+  '모든 기록은 기본적으로 이 기기에 저장돼.',
 ]
 
 /** 온보딩: 첫인상 + 모드 친구들 + MODE 철학. "시작하기"로 완료 저장. */
@@ -50,7 +50,7 @@ export function OnboardingScreen() {
         <p className="onb__sub">
           기록은 사실만 남기고,
           <br />
-          패턴 해석은 MODE가 도와줘요.
+          패턴 해석은 MODE가 도와줘.
         </p>
 
         <div className="onb__friends">
@@ -74,7 +74,7 @@ export function OnboardingScreen() {
         <button className="btn-primary onb__btn" onClick={start}>
           시작하기
         </button>
-        <p className="onb__foot">기록은 하루 30초 · 몸과 마음을 스스로 남기는 기록이에요</p>
+        <p className="onb__foot">기록은 하루 30초 · 몸과 마음을 스스로 남기는 기록이야</p>
       </div>
     </AppShell>
   )

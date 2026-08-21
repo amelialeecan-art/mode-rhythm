@@ -44,7 +44,7 @@ describe('presentTodayCurrentFlow — 표시 조건', () => {
       leadingRunKeys: ['bedtime_delay'], followupRunKeys: ['state_tired'],
     })
     const s = line(ep)!
-    expect(s).toBe('자는 걸 미뤘고, 오늘은 몸이 쉽게 지쳤어요.')
+    expect(s).toBe('자는 걸 미뤘고, 오늘은 몸이 쉽게 지쳤어.')
   })
 
   it('(3) completed 흐름이면 표시하지 않는다', () => {

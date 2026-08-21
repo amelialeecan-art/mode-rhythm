@@ -1,0 +1,721 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { GlassCard, SectionHeader, Chip, ChipGroup } from '../../design'
+import { EVENT_CATALOG, EVENT_CATEGORY_LABEL, RECOVERY_DUP_EVENT_CODES, type EventCatalogItem } from '../../data/catalog/events'
+import {
+  LAST_NIGHT_SLEEP_CODES,
+  EVENT_LIST_HIDDEN_CODES,
+  SLEEP_HOUR_BUCKETS,
+  SLEEP_QUALITY_OPTIONS,
+  SLEEP_ISSUE_GROUPS,
+} from '../../data/catalog/lastNightSleep'
+import { MIND_SIGNAL_GROUPS } from '../../data/catalog/mindSignals'
+import {
+  FUNCTION_LEVELS,
+  FUNCTION_IMPACT_CHIPS,
+  FUNCTION_ONSET_OPTIONS,
+  isFunctionDetailLevel,
+} from '../../data/catalog/dailyFunction'
+import type { BodySignalCode, EmotionCode, FunctionLevel, RhythmExceptionCode } from '../../data/models'
+import { RECOVERY_ACTIONS, RECOVERY_EFFECTS } from '../../data/catalog/recoveryActions'
+import { INTENSITY_OPTIONS } from '../../data/catalog/intensity'
+import { CUSTOM_EVENT_CATEGORIES, makeCustomEventCode, makeCustomFactorGroup } from '../../data/catalog/customEvent'
+import {
+  BODY_ENERGY_OPTIONS,
+  BODY_SIGNAL_OPTIONS,
+  DAY_CONTEXT_OPTIONS,
+  MENTAL_SPACE_OPTIONS,
+  RHYTHM_EXCEPTION_OPTIONS,
+} from '../../data/catalog/dailyCheckIn'
+import {
+  EMOTION_STABILITY_OPTIONS,
+  EMOTION_OPTIONS,
+  EMOTION_IMPACT_OPTIONS,
+  FOCUS_OPTIONS,
+  SOCIAL_CAPACITY_OPTIONS,
+} from '../../data/catalog/emotionInput'
+import {
+  saveDailyEntry,
+  loadDailyEntry,
+  emptyDraft,
+  type DailyEntryDraft,
+  type EventDraft,
+  type IntensityCode,
+  type AppetiteRatings,
+} from '../../data/services/dailyEntryService'
+import { getTodayISODate, parseISODate, formatMonthDay } from '../../lib/date'
+import { setFormBusy, setFormDirty } from '../../lib/pwaUpdate'
+import { serializeForm } from './dirty'
+import type { EventCategory } from '../../data/types'
+import type { FlowLevel } from '../../data/models'
+import './log.css'
+
+// 오늘 있었던 일을 카테고리별로 묶음 (사건/상황 기록 — 원인 추측 아님).
+const EVENT_GROUPS = EVENT_CATALOG.reduce<Record<string, EventCatalogItem[]>>((acc, item) => {
+  ;(acc[item.category] ??= []).push(item)
+  return acc
+}, {})
+const EVENT_ORDER: EventCategory[] = ['sleep', 'food', 'work', 'relationship', 'control', 'appearance', 'digital', 'environment', 'movement', 'body', 'unknown']
+
+// 전체/사건 강도 칩 (전체 강도에는 '없음' 제외).
+const INTENSITY_CHIPS = INTENSITY_OPTIONS.filter((o) => o.code !== 'none') as { code: IntensityCode; label: string; value: number }[]
+
+const FLOW_OPTIONS: { code: FlowLevel; label: string }[] = [
+  { code: 'none', label: '없음' },
+  { code: 'light', label: '적음' },
+  { code: 'normal', label: '보통' },
+  { code: 'heavy', label: '많음' },
+]
+
+const PAIN_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: '없음' },
+  { value: 3, label: '조금' },
+  { value: 5, label: '보통' },
+  { value: 7, label: '많이' },
+  { value: 9, label: '매우 많이' },
+]
+
+// 식욕 상태 5항목 + 강도 옵션(0/3/5/7/9). "먹고 싶음"만 — 실제로 먹은 건 사건 카드로.
+const APPETITE_ITEMS: { key: keyof AppetiteRatings; label: string }[] = [
+  { key: 'appetite', label: '식욕' },
+  { key: 'sweetCraving', label: '단 음식 욕구' },
+  { key: 'saltyCraving', label: '짠 음식 욕구' },
+  { key: 'greasyCraving', label: '기름진 음식 욕구' },
+  { key: 'bingeUrge', label: '폭식욕' },
+]
+
+// 회복 그룹에서 실제 행동만 (sentinel은 positive 그룹에서만 노출)
+const RECOVERY_REAL_ACTIONS = RECOVERY_ACTIONS.filter((a) => a.code !== 'not_yet' && a.code !== 'none')
+const RECOVERY_SENTINELS = RECOVERY_ACTIONS.filter((a) => a.code === 'not_yet' || a.code === 'none')
+const APPETITE_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: '없음' },
+  { value: 3, label: '조금' },
+  { value: 5, label: '보통' },
+  { value: 7, label: '많이' },
+  { value: 9, label: '매우 많이' },
+]
+
+type SaveStatus = 'idle' | 'saving' | 'success' | 'error'
+
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * MODE V1(레거시) 상세 기록 폼.
+ * V2 아침/저녁 체크인 도입 후에도 과거 방식 기록/열람 호환을 위해 유지한다.
+ * ⚠️ 이 폼의 dailyLog 숫자는 V2 core state의 canonical source가 아니다.
+ *    energy/focus 등은 V2 체크인과 중복 질문으로 동시에 노출하지 않는다(호출부에서 분리).
+ */
+export function LegacyLogForm() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // 캘린더의 "이 날짜 기록하기"에서 넘어오면 해당 날짜로 시작 (없으면 오늘)
+  const initialDate = (() => {
+    const q = searchParams.get('date')
+    return q && ISO_RE.test(q) ? q : getTodayISODate()
+  })()
+  const [date, setDate] = useState<string>(initialDate)
+  const [draft, setDraft] = useState<DailyEntryDraft>(() => emptyDraft(initialDate))
+  const [symptomsText, setSymptomsText] = useState('')
+  const [hasSaved, setHasSaved] = useState(false)
+  const [status, setStatus] = useState<SaveStatus>('idle')
+  // 기본 기록(30초)만 먼저 보이고, 상세 기록은 사용자가 열 때만 펼친다.
+  const [showDetail, setShowDetail] = useState(false)
+  // 마지막으로 불러오거나 저장한 시점의 폼 스냅샷 — 이 값과 다르면 "저장하지 않은 입력"으로 본다.
+  const baselineRef = useRef<string>(serializeForm(draft, symptomsText))
+
+  // 커스텀 사건 추가 폼
+  const [showCustom, setShowCustom] = useState(false)
+  const [customName, setCustomName] = useState('')
+  const [customCategory, setCustomCategory] = useState<EventCategory>('sleep')
+  const [customIntensity, setCustomIntensity] = useState<IntensityCode>('some')
+  // 기능 저하 직접 추가 입력
+  const [impactCustomText, setImpactCustomText] = useState('')
+
+  // 날짜 변경/진입 시 기존 기록 불러오기
+  useEffect(() => {
+    let cancelled = false
+    void loadDailyEntry(date).then((loaded) => {
+      if (cancelled) return
+      const next = loaded ?? emptyDraft(date)
+      const nextSymptoms = next.cycle.symptoms.join(', ')
+      setDraft(next)
+      setSymptomsText(nextSymptoms)
+      setHasSaved(loaded != null)
+      setStatus('idle')
+      // 불러온 값이 새 baseline — 단순히 탭에 들어오거나 기존 기록을 여는 것은 dirty가 아니다.
+      baselineRef.current = serializeForm(next, nextSymptoms)
+      setFormDirty(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [date])
+
+  // 저장하지 않은 입력 감지 — baseline과 현재 폼이 다르면 dirty. 실제 입력 변화가 있을 때만 true.
+  useEffect(() => {
+    setFormDirty(serializeForm(draft, symptomsText) !== baselineRef.current)
+  }, [draft, symptomsText])
+
+  // 화면을 벗어나면 미저장 플래그를 정리한다 (Log 탭 밖에서는 업데이트 보류 사유가 아님).
+  useEffect(() => () => setFormDirty(false), [])
+
+  /* ---- draft 업데이트 헬퍼 ---- */
+  const toggleInArray = (arr: string[], key: string) =>
+    arr.includes(key) ? arr.filter((k) => k !== key) : [...arr, key]
+
+  const setAppetite = (key: keyof AppetiteRatings, value: number) =>
+    setDraft((d) => ({
+      ...d,
+      appetiteRatings: { ...d.appetiteRatings, [key]: d.appetiteRatings[key] === value ? undefined : value },
+    }))
+
+  const toggleExclusive = <T extends string,>(arr: T[], code: T, noneCode: T): T[] => {
+    if (arr.includes(code)) return arr.filter((c) => c !== code)
+    if (code === noneCode) return [noneCode]
+    return [...arr.filter((c) => c !== noneCode), code]
+  }
+  const toggleBodySignal = (code: BodySignalCode) =>
+    setDraft((d) => ({ ...d, bodySignalCodes: toggleExclusive(d.bodySignalCodes, code, 'none') }))
+  const toggleMindSignal = (code: string) =>
+    setDraft((d) => ({ ...d, mindSignalCodes: toggleInArray(d.mindSignalCodes, code) }))
+  const toggleRhythmException = (code: RhythmExceptionCode) =>
+    setDraft((d) => ({ ...d, rhythmExceptionCodes: toggleExclusive(d.rhythmExceptionCodes, code, 'none') }))
+
+  /* ---- 감정/집중/사회 여유 헬퍼 (단일·복수 선택) ---- */
+  const setEmotionStability = (code: DailyEntryDraft['emotionalStabilityLevel']) =>
+    setDraft((d) => ({ ...d, emotionalStabilityLevel: d.emotionalStabilityLevel === code ? undefined : code }))
+  // 두드러진 감정은 복수 선택. 모두 해제되면 영향 정도도 함께 비운다(유령 값 방지).
+  const toggleEmotion = (code: EmotionCode) =>
+    setDraft((d) => {
+      const emotionCodes = d.emotionCodes.includes(code)
+        ? d.emotionCodes.filter((c) => c !== code)
+        : [...d.emotionCodes, code]
+      return { ...d, emotionCodes, emotionImpactLevel: emotionCodes.length === 0 ? undefined : d.emotionImpactLevel }
+    })
+  const setEmotionImpact = (code: DailyEntryDraft['emotionImpactLevel']) =>
+    setDraft((d) => ({ ...d, emotionImpactLevel: d.emotionImpactLevel === code ? undefined : code }))
+  const setFocus = (code: DailyEntryDraft['focusLevel']) =>
+    setDraft((d) => ({ ...d, focusLevel: d.focusLevel === code ? undefined : code }))
+  const setSocialCapacity = (code: DailyEntryDraft['socialCapacityLevel']) =>
+    setDraft((d) => ({ ...d, socialCapacityLevel: d.socialCapacityLevel === code ? undefined : code }))
+
+  // 사건을 해제하면 관련 선후관계도 남지 않게 정리한다(유령 데이터 방지).
+  const toggleEvent = (code: string) =>
+    setDraft((d) => {
+      const next = toggleInArray(d.catalogEventCodes, code)
+      const removed = !next.includes(code)
+      return removed
+        ? { ...d, catalogEventCodes: next, eventRelationBefore: d.eventRelationBefore.filter((c) => c !== code), eventRelationAfter: d.eventRelationAfter.filter((c) => c !== code) }
+        : { ...d, catalogEventCodes: next }
+    })
+
+  /* ---- 오늘 일상 기능 헬퍼 ---- */
+  const setFunctionLevel = (level: FunctionLevel) =>
+    setDraft((d) => ({ ...d, functionLevel: d.functionLevel === level ? undefined : level }))
+  const toggleFunctionImpact = (code: string) =>
+    setDraft((d) => ({ ...d, functionImpactCodes: toggleInArray(d.functionImpactCodes, code) }))
+  const setFunctionOnset = (code: string) =>
+    setDraft((d) => ({ ...d, functionDropOnset: d.functionDropOnset === code ? undefined : code }))
+  const addImpactCustom = () => {
+    const name = impactCustomText.trim()
+    if (!name) return
+    setDraft((d) => (d.functionImpactCustom.includes(name) ? d : { ...d, functionImpactCustom: [...d.functionImpactCustom, name] }))
+    setImpactCustomText('')
+  }
+  const removeImpactCustom = (name: string) =>
+    setDraft((d) => ({ ...d, functionImpactCustom: d.functionImpactCustom.filter((c) => c !== name) }))
+  const toggleRelationBefore = (code: string) =>
+    setDraft((d) => ({ ...d, eventRelationBefore: toggleInArray(d.eventRelationBefore, code) }))
+  const toggleRelationAfter = (code: string) =>
+    setDraft((d) => ({ ...d, eventRelationAfter: toggleInArray(d.eventRelationAfter, code) }))
+
+  /* ---- 지난밤 수면 헬퍼 ---- */
+  const setSleepHours = (hours: number) =>
+    setDraft((d) => ({ ...d, lastNightSleep: { ...d.lastNightSleep, hours: d.lastNightSleep.hours === hours ? undefined : hours } }))
+  const setSleepQuality = (quality: number) =>
+    setDraft((d) => ({ ...d, lastNightSleep: { ...d.lastNightSleep, quality: d.lastNightSleep.quality === quality ? undefined : quality } }))
+  const toggleSleepIssue = (code: string) =>
+    setDraft((d) => ({ ...d, lastNightSleep: { ...d.lastNightSleep, issues: toggleInArray(d.lastNightSleep.issues, code) } }))
+  // 같은 칩은 도움/안 맞음 중 한쪽에만 — 한쪽 선택 시 반대쪽에서 제거
+  const toggleRecovery = (code: string) =>
+    setDraft((d) => ({
+      ...d,
+      recoveryCodes: toggleInArray(d.recoveryCodes, code),
+      recoveryNegativeCodes: d.recoveryNegativeCodes.filter((c) => c !== code),
+    }))
+  const toggleRecoveryNegative = (code: string) =>
+    setDraft((d) => ({
+      ...d,
+      recoveryNegativeCodes: toggleInArray(d.recoveryNegativeCodes, code),
+      recoveryCodes: d.recoveryCodes.filter((c) => c !== code),
+    }))
+
+  const addCustomEvent = () => {
+    const name = customName.trim()
+    if (!name) return
+    const ev: EventDraft = {
+      eventCode: makeCustomEventCode(),
+      eventLabel: name,
+      category: customCategory,
+      // 발생일은 이 기록의 날짜와 같다 → timing='today'(occurrenceDate=기록 날짜).
+      timing: 'today',
+      intensity: INTENSITY_OPTIONS.find((o) => o.code === customIntensity)?.value ?? 5,
+      isCustom: true,
+      customLabel: name,
+      mappedFactorGroup: makeCustomFactorGroup(customCategory, name),
+    }
+    setDraft((d) => ({ ...d, customEvents: [...d.customEvents, ev] }))
+    setCustomName('')
+    setShowCustom(false)
+  }
+
+  const removeCustomEvent = (code: string) =>
+    setDraft((d) => ({
+      ...d,
+      customEvents: d.customEvents.filter((e) => e.eventCode !== code),
+      eventRelationBefore: d.eventRelationBefore.filter((c) => c !== code),
+      eventRelationAfter: d.eventRelationAfter.filter((c) => c !== code),
+    }))
+
+  const onSave = async () => {
+    setStatus('saving')
+    setFormBusy(true) // 저장 중에는 PWA 업데이트(reload)를 보류
+    const symptoms = symptomsText
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const toSave: DailyEntryDraft = { ...draft, date, cycle: { ...draft.cycle, symptoms } }
+    try {
+      await saveDailyEntry(toSave)
+      setHasSaved(true)
+      setStatus('success')
+      // 저장 성공 → 현재 폼이 새 baseline, dirty 해제.
+      baselineRef.current = serializeForm(draft, symptomsText)
+      setFormDirty(false)
+    } catch (e) {
+      console.error('[MODE] 저장 실패', e)
+      setStatus('error')
+    } finally {
+      setFormBusy(false)
+    }
+  }
+
+  const saveLabel =
+    status === 'saving' ? '저장 중…' : status === 'success' ? '저장됐어' : status === 'error' ? '저장 실패' : '기록 저장'
+
+  // 지난밤 수면은 "깨어난 날짜"(=date)에 귀속 → "전날 밤 → 오늘 아침"으로 표시.
+  const wakeDate = parseISODate(date)
+  const sleepSpan = `${formatMonthDay(new Date(wakeDate.getTime() - 86_400_000))} 밤 → ${formatMonthDay(wakeDate)} 아침`
+
+  // 선후관계 대상 = today 사건만 (지난밤 수면 코드는 이미 제외됨). yesterday/recent는 제외.
+  const showFunctionDetail = isFunctionDetailLevel(draft.functionLevel)
+  const relationEvents: { code: string; label: string }[] = [
+    ...(draft.eventTiming === 'today'
+      ? draft.catalogEventCodes
+          .filter((c) => !LAST_NIGHT_SLEEP_CODES.has(c))
+          .map((c) => EVENT_CATALOG.find((e) => e.code === c))
+          .filter((e): e is EventCatalogItem => e != null)
+          .map((e) => ({ code: e.code, label: e.label }))
+      : []),
+    ...draft.customEvents.filter((c) => c.timing === 'today').map((c) => ({ code: c.eventCode, label: c.eventLabel })),
+  ]
+
+  return (
+    <>
+      <p className="state-hint" style={{ marginBottom: 4 }}>
+        이전 방식 상세 기록이야. 감정·몸·사건·회복을 칩으로 남겨요. (아침/저녁 체크인과 별개)
+      </p>
+
+      {/* 날짜 선택 */}
+      <GlassCard>
+        <div className="log-daterow">
+          <div>
+            <SectionHeader title="날짜" />
+            {hasSaved && <span className="log-saved-badge">이 날짜에 저장된 기록이 있어</span>}
+          </div>
+          <input
+            className="log-date-input"
+            type="date"
+            value={date}
+            max={getTodayISODate()}
+            onChange={(e) => setDate(e.target.value || getTodayISODate())}
+          />
+        </div>
+      </GlassCard>
+
+      {/* 1. 감정 안정감 + 두드러진 감정 + 영향 정도 */}
+      <GlassCard>
+        <SectionHeader title="오늘 감정, 어땠어?" subtitle="안정감과 두드러진 감정을 따로 남겨요" />
+        <p className="event-group__label">감정 안정감</p>
+        <ChipGroup label="감정 안정감">
+          {EMOTION_STABILITY_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="lav" selected={draft.emotionalStabilityLevel === o.code} onToggle={() => setEmotionStability(o.code)} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 16 }}>두드러진 감정 (여러 개 가능)</p>
+        <ChipGroup label="두드러진 감정">
+          {EMOTION_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="coral" selected={draft.emotionCodes.includes(o.code)} onToggle={() => toggleEmotion(o.code)} />
+          ))}
+        </ChipGroup>
+        {draft.emotionCodes.length > 0 && (
+          <>
+            <p className="event-group__label" style={{ marginTop: 16 }}>그 감정이 오늘 얼마나 영향을 줬어?</p>
+            <ChipGroup label="영향 정도">
+              {EMOTION_IMPACT_OPTIONS.map((o) => (
+                <Chip key={o.code} label={o.label} tone="coral" selected={draft.emotionImpactLevel === o.code} onToggle={() => setEmotionImpact(o.code)} />
+              ))}
+            </ChipGroup>
+          </>
+        )}
+        <p className="state-hint">안정감과 감정은 함께 골라도 돼. 대체로 안정적이지만 잠깐 흔들린 순간도 함께 남길 수 있어.</p>
+      </GlassCard>
+
+      {/* 2. 몸 에너지·머릿속 여유·집중·사람 대할 여유 (직접 입력) */}
+      <GlassCard tint="mint">
+        <SectionHeader title="몸과 머릿속" subtitle="느끼는 그대로 직접 남겨요" />
+        <p className="event-group__label">몸 컨디션</p>
+        <ChipGroup label="몸 컨디션">
+          {BODY_ENERGY_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="mint" selected={draft.bodyEnergyLevel === o.code} onToggle={() => setDraft((d) => ({ ...d, bodyEnergyLevel: d.bodyEnergyLevel === o.code ? undefined : o.code }))} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 16 }}>머릿속 여유</p>
+        <ChipGroup label="머릿속 여유">
+          {MENTAL_SPACE_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="lav" selected={draft.mentalSpaceLevel === o.code} onToggle={() => setDraft((d) => ({ ...d, mentalSpaceLevel: d.mentalSpaceLevel === o.code ? undefined : o.code }))} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 16 }}>집중 가능 정도</p>
+        <ChipGroup label="집중 가능 정도">
+          {FOCUS_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="sky" selected={draft.focusLevel === o.code} onToggle={() => setFocus(o.code)} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 16 }}>사람을 대할 여유</p>
+        <ChipGroup label="사람을 대할 여유">
+          {SOCIAL_CAPACITY_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="sky" selected={draft.socialCapacityLevel === o.code} onToggle={() => setSocialCapacity(o.code)} />
+          ))}
+        </ChipGroup>
+      </GlassCard>
+
+      {/* 3. 생활 맥락 (출근/재택/휴일/특별일) */}
+      <GlassCard>
+        <SectionHeader title="오늘의 생활 맥락" subtitle="원인이 아니라 그날의 생활 조건을 남겨요" />
+        <ChipGroup label="생활 유형">
+          {DAY_CONTEXT_OPTIONS.map((o) => (
+            <Chip key={o.code} label={o.label} tone="sky" selected={draft.dayContext === o.code} onToggle={() => setDraft((d) => ({ ...d, dayContext: d.dayContext === o.code ? undefined : o.code }))} />
+          ))}
+        </ChipGroup>
+      </GlassCard>
+
+      {/* 4. 식욕 상태 (직접 입력 — state preset보다 우선) */}
+      <GlassCard tint="coral">
+        <SectionHeader title="식욕 상태" subtitle="식욕, 단 음식 욕구, 폭식욕을 따로 남겨요" />
+        {APPETITE_ITEMS.map((item) => (
+          <div className="event-group" key={item.key}>
+            <p className="event-group__label">{item.label}</p>
+            <ChipGroup label={item.label}>
+              {APPETITE_OPTIONS.map((o) => (
+                <Chip
+                  key={o.value}
+                  label={o.label}
+                  tone="coral"
+                  selected={draft.appetiteRatings[item.key] === o.value}
+                  onToggle={() => setAppetite(item.key, o.value)}
+                />
+              ))}
+            </ChipGroup>
+          </div>
+        ))}
+      </GlassCard>
+
+      {/* 5. 지난밤 수면 (깨어난 날짜에 귀속 — 일반 사건과 분리) */}
+      <GlassCard tint="sky">
+        <SectionHeader title="지난밤 수면" subtitle={sleepSpan} />
+        <p className="event-group__label">몇 시간 잤어?</p>
+        <ChipGroup label="수면시간">
+          {SLEEP_HOUR_BUCKETS.map((b) => (
+            <Chip key={b.code} label={b.label} tone="sky" selected={draft.lastNightSleep.hours === b.hours} onToggle={() => setSleepHours(b.hours)} />
+          ))}
+        </ChipGroup>
+        <p className="event-group__label" style={{ marginTop: 14 }}>잘 잤어?</p>
+        <ChipGroup label="수면 만족도">
+          {SLEEP_QUALITY_OPTIONS.map((q) => (
+            <Chip key={q.value} label={q.label} tone="sky" selected={draft.lastNightSleep.quality === q.value} onToggle={() => setSleepQuality(q.value)} />
+          ))}
+        </ChipGroup>
+        {SLEEP_ISSUE_GROUPS.map((group) => (
+          <div key={group.title}>
+            <p className="event-group__label" style={{ marginTop: 14 }}>{group.title}</p>
+            <ChipGroup label={group.title}>
+              {group.items.map((s) => (
+                <Chip key={s.code} label={s.label} tone="sky" selected={draft.lastNightSleep.issues.includes(s.code)} onToggle={() => toggleSleepIssue(s.code)} />
+              ))}
+            </ChipGroup>
+          </div>
+        ))}
+        <p className="state-hint">낮잠은 여기가 아니라 상세 기록의 "오늘 있었던 일"에 남겨요.</p>
+      </GlassCard>
+
+      {/* 6. 오늘 일상 기능 (평소엔 질문 1개, 무너짐일 때만 세부) */}
+      <GlassCard>
+        <SectionHeader title="오늘 일상 기능" subtitle="오늘 해야 할 일을 얼마나 할 수 있었어?" />
+        <ChipGroup label="오늘 일상 기능">
+          {FUNCTION_LEVELS.map((f) => (
+            <Chip key={f.level} label={f.label} tone="lav" selected={draft.functionLevel === f.level} onToggle={() => setFunctionLevel(f.level)} />
+          ))}
+        </ChipGroup>
+
+        {showFunctionDetail && (
+          <>
+            <p className="event-group__label" style={{ marginTop: 16 }}>무엇을 못 했어? (여러 개 가능)</p>
+            <ChipGroup label="기능 저하 항목">
+              {FUNCTION_IMPACT_CHIPS.map((o) => (
+                <Chip key={o.code} label={o.label} tone="lav" selected={draft.functionImpactCodes.includes(o.code)} onToggle={() => toggleFunctionImpact(o.code)} />
+              ))}
+            </ChipGroup>
+            {draft.functionImpactCustom.length > 0 && (
+              <div className="custom-list" style={{ marginTop: 10 }}>
+                {draft.functionImpactCustom.map((name) => (
+                  <span className="custom-chip" key={name}>
+                    {name}
+                    <button className="custom-chip__x" aria-label="삭제" onClick={() => removeImpactCustom(name)}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="custom-form__actions" style={{ marginTop: 10 }}>
+              <input className="custom-input" placeholder="직접 추가 (예: 전화 못 받음)" value={impactCustomText} onChange={(e) => setImpactCustomText(e.target.value)} />
+              <button className="custom-add-btn" onClick={addImpactCustom} disabled={!impactCustomText.trim()}>추가</button>
+            </div>
+
+            <p className="event-group__label" style={{ marginTop: 16 }}>언제부터 무너졌어?</p>
+            <ChipGroup label="무너짐 시작 시점">
+              {FUNCTION_ONSET_OPTIONS.map((o) => (
+                <Chip key={o.code} label={o.label} tone="lav" selected={draft.functionDropOnset === o.code} onToggle={() => setFunctionOnset(o.code)} />
+              ))}
+            </ChipGroup>
+
+            {relationEvents.length > 0 && (
+              <>
+                <p className="event-group__label" style={{ marginTop: 18 }}>오늘 사건은 언제 있었어?</p>
+                <p className="state-hint" style={{ marginTop: 4 }}>선택은 참고용이야. 표시 안 하면 "모름"으로 둬요.</p>
+                <p className="event-group__label" style={{ marginTop: 12 }}>상태가 나빠지기 전부터 있었던 것</p>
+                <ChipGroup label="나빠지기 전부터">
+                  {relationEvents.map((e) => (
+                    <Chip key={`b-${e.code}`} label={e.label} tone="mint" selected={draft.eventRelationBefore.includes(e.code)} onToggle={() => toggleRelationBefore(e.code)} />
+                  ))}
+                </ChipGroup>
+                <p className="event-group__label" style={{ marginTop: 12 }}>나빠진 뒤 나타난 것</p>
+                <ChipGroup label="나빠진 뒤">
+                  {relationEvents.map((e) => (
+                    <Chip key={`a-${e.code}`} label={e.label} tone="coral" selected={draft.eventRelationAfter.includes(e.code)} onToggle={() => toggleRelationAfter(e.code)} />
+                  ))}
+                </ChipGroup>
+              </>
+            )}
+          </>
+        )}
+        <p className="state-hint">일상 기능은 오늘 하루가 어땠는지 스스로 남기는 기록이야.</p>
+      </GlassCard>
+
+      {/* ---- 상세 기록 토글 (기본은 여기까지, 아래는 열 때만) ---- */}
+      <button
+        className="log-detail-toggle"
+        aria-expanded={showDetail}
+        onClick={() => setShowDetail((v) => !v)}
+      >
+        {showDetail ? '상세 기록 접기 ▲' : '상세 기록 더 남기기 ▼'}
+      </button>
+
+      {showDetail && (
+        <>
+          {/* 오늘 머릿속과 마음 (감정·머릿속 여유와 별개 · 여러 개 가능) */}
+          <GlassCard tint="lav">
+            <SectionHeader title="오늘 머릿속과 마음" subtitle="오늘 실제로 느낀 것만 골라 (여러 개 가능)" />
+            {MIND_SIGNAL_GROUPS.map((group) => (
+              <div className="event-group" key={group.title}>
+                <p className="event-group__label">{group.title}</p>
+                <ChipGroup label={group.title}>
+                  {group.items.map((m) => (
+                    <Chip key={m.code} label={m.label} tone="lav" selected={draft.mindSignalCodes.includes(m.code)} onToggle={() => toggleMindSignal(m.code)} />
+                  ))}
+                </ChipGroup>
+              </div>
+            ))}
+          </GlassCard>
+
+          {/* 7. 몸 신호 */}
+          <GlassCard tint="mint">
+            <SectionHeader title="오늘의 몸 신호" subtitle="여러 개 골라도 돼" />
+            <ChipGroup label="오늘의 몸 신호">
+              {BODY_SIGNAL_OPTIONS.map((o) => (
+                <Chip key={o.code} label={o.label} tone="mint" selected={draft.bodySignalCodes.includes(o.code)} onToggle={() => toggleBodySignal(o.code)} />
+              ))}
+            </ChipGroup>
+            <p className="state-hint">생리통은 아래 생리 기록에, 몸살은 예외일(감기·몸살)에 남겨요.</p>
+          </GlassCard>
+
+          {/* 8. 평소 리듬 밖의 예외 */}
+          <GlassCard>
+            <SectionHeader title="평소 리듬 밖의 예외" subtitle="감기·몸살·약 변경처럼 그날만의 예외를 남겨요" />
+            <ChipGroup label="평소 리듬 밖의 예외">
+              {RHYTHM_EXCEPTION_OPTIONS.map((o) => (
+                <Chip key={o.code} label={o.label} tone="neutral" selected={draft.rhythmExceptionCodes.includes(o.code)} onToggle={() => toggleRhythmException(o.code)} />
+              ))}
+            </ChipGroup>
+            <p className="state-hint">예외일은 기록에는 남지만 장기 반복 흐름을 만들 때는 분리해서 봐.</p>
+          </GlassCard>
+
+          {/* 9. 오늘 있었던 일 (발생일 = 이 기록의 날짜) */}
+          <GlassCard>
+            <SectionHeader title="오늘 있었던 일" subtitle="원인이 아니라 사건·상황 기록이야" />
+
+            <p className="event-group__label">사건 강도</p>
+            <ChipGroup label="사건 강도">
+              {INTENSITY_CHIPS.map((o) => (
+                <Chip key={o.code} label={o.label} tone="coral" selected={draft.eventIntensity === o.code} onToggle={() => setDraft((d) => ({ ...d, eventIntensity: o.code }))} />
+              ))}
+            </ChipGroup>
+
+            {EVENT_ORDER.filter((c) => EVENT_GROUPS[c]).map((cat) => {
+              // 지난밤 수면 코드는 별도 카드에서 입력, 운동·산책·씻음은 회복 행동에서 입력 → 여기선 감춘다.
+              // 지난밤 수면 코드 전체 + phone_in_bed는 지난밤 수면 카드에서만 입력(일반 사건에서 숨김).
+              const items = EVENT_GROUPS[cat].filter((e) => !EVENT_LIST_HIDDEN_CODES.has(e.code) && !RECOVERY_DUP_EVENT_CODES.has(e.code))
+              if (items.length === 0) return null
+              return (
+                <div className="event-group" key={cat}>
+                  <p className="event-group__label">{EVENT_CATEGORY_LABEL[cat]}</p>
+                  <ChipGroup label={EVENT_CATEGORY_LABEL[cat]}>
+                    {items.map((e) => (
+                      <Chip key={e.code} label={e.label} tone="coral" selected={draft.catalogEventCodes.includes(e.code)} onToggle={() => toggleEvent(e.code)} />
+                    ))}
+                  </ChipGroup>
+                </div>
+              )
+            })}
+
+            {/* 커스텀 사건 */}
+            {draft.customEvents.length > 0 && (
+              <div className="event-group">
+                <p className="event-group__label">직접 추가한 일</p>
+                <div className="custom-list">
+                  {draft.customEvents.map((e) => (
+                    <span className="custom-chip" key={e.eventCode}>
+                      {e.eventLabel}
+                      <button className="custom-chip__x" aria-label="삭제" onClick={() => removeCustomEvent(e.eventCode)}>
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!showCustom ? (
+              <button className="custom-add-btn" onClick={() => setShowCustom(true)}>
+                ＋ 오늘 있었던 일 추가
+              </button>
+            ) : (
+              <div className="custom-form">
+                <input className="custom-input" placeholder="이름 (예: 체중계 올라감)" value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                <p className="event-group__label">카테고리</p>
+                <ChipGroup label="카테고리">
+                  {CUSTOM_EVENT_CATEGORIES.map((c) => (
+                    <Chip key={c.code} label={c.label} tone="coral" selected={customCategory === c.code} onToggle={() => setCustomCategory(c.code)} />
+                  ))}
+                </ChipGroup>
+                <p className="event-group__label" style={{ marginTop: 12 }}>강도</p>
+                <ChipGroup label="강도">
+                  {INTENSITY_CHIPS.map((o) => (
+                    <Chip key={o.code} label={o.label} tone="coral" selected={customIntensity === o.code} onToggle={() => setCustomIntensity(o.code)} />
+                  ))}
+                </ChipGroup>
+                <div className="custom-form__actions">
+                  <button className="custom-add-btn" onClick={addCustomEvent} disabled={!customName.trim()}>
+                    추가하기
+                  </button>
+                  <button className="custom-cancel-btn" onClick={() => setShowCustom(false)}>
+                    취소
+                  </button>
+                </div>
+              </div>
+            )}
+          </GlassCard>
+
+          {/* 10. 생리 기록 — 별도 섹션. 원인 칩 아님. */}
+          <GlassCard tint="lav">
+            <SectionHeader title="생리 기록" subtitle="생리·주기는 원인이 아니라 사실 기록이야. 패턴은 앱이 계산해" />
+            <ChipGroup label="생리 상태">
+              <Chip label="생리 시작" tone="rose" selected={draft.cycle.periodStart} onToggle={() => setDraft((d) => ({ ...d, cycle: { ...d.cycle, periodStart: !d.cycle.periodStart } }))} />
+              <Chip label="생리 종료" tone="rose" selected={draft.cycle.periodEnd} onToggle={() => setDraft((d) => ({ ...d, cycle: { ...d.cycle, periodEnd: !d.cycle.periodEnd } }))} />
+            </ChipGroup>
+            <p className="event-group__label" style={{ marginTop: 14 }}>출혈량</p>
+            <ChipGroup label="출혈량">
+              {FLOW_OPTIONS.map((f) => (
+                <Chip key={f.code} label={f.label} tone="rose" selected={draft.cycle.flowLevel === f.code} onToggle={() => setDraft((d) => ({ ...d, cycle: { ...d.cycle, flowLevel: d.cycle.flowLevel === f.code ? undefined : f.code } }))} />
+              ))}
+            </ChipGroup>
+            <p className="event-group__label" style={{ marginTop: 14 }}>생리통</p>
+            <ChipGroup label="생리통">
+              {PAIN_OPTIONS.map((p) => (
+                <Chip key={p.value} label={p.label} tone="rose" selected={draft.cycle.periodPain === p.value} onToggle={() => setDraft((d) => ({ ...d, cycle: { ...d.cycle, periodPain: d.cycle.periodPain === p.value ? undefined : p.value } }))} />
+              ))}
+            </ChipGroup>
+            <p className="event-group__label" style={{ marginTop: 14 }}>특이 사항 (선택)</p>
+            <input className="custom-input" placeholder="쉼표로 구분 (예: 허리 묵직함, 두통)" value={symptomsText} onChange={(e) => setSymptomsText(e.target.value)} />
+          </GlassCard>
+
+          {/* 11. 회복 행동 — 도움/안 맞음 두 그룹 (같은 칩이 날마다 다른 쪽에 갈 수 있음) */}
+          <GlassCard tint="mint">
+            <SectionHeader title="뭐 했더니 좀 나아졌어?" subtitle="도움 된 것과 오히려 안 맞았던 것을 나눠 남겨요" />
+            <p className="event-group__label">도움 된 것</p>
+            <ChipGroup label="도움 된 회복 행동">
+              {RECOVERY_REAL_ACTIONS.map((a) => (
+                <Chip key={a.code} label={a.label} tone="mint" selected={draft.recoveryCodes.includes(a.code)} onToggle={() => toggleRecovery(a.code)} />
+              ))}
+              {RECOVERY_SENTINELS.map((a) => (
+                <Chip key={a.code} label={a.label} tone="neutral" selected={draft.recoveryCodes.includes(a.code)} onToggle={() => toggleRecovery(a.code)} />
+              ))}
+            </ChipGroup>
+            <p className="event-group__label" style={{ marginTop: 16 }}>그래서 좀 어땠어?</p>
+            <ChipGroup label="효과">
+              {RECOVERY_EFFECTS.map((e) => (
+                <Chip key={e.code} label={e.label} tone="mint" selected={draft.recoveryEffect === e.code} onToggle={() => setDraft((d) => ({ ...d, recoveryEffect: d.recoveryEffect === e.code ? '' : e.code }))} />
+              ))}
+            </ChipGroup>
+            <p className="event-group__label" style={{ marginTop: 18 }}>오히려 안 맞았던 것</p>
+            <ChipGroup label="안 맞았던 행동">
+              {RECOVERY_REAL_ACTIONS.map((a) => (
+                <Chip key={a.code} label={a.label} tone="coral" selected={draft.recoveryNegativeCodes.includes(a.code)} onToggle={() => toggleRecoveryNegative(a.code)} />
+              ))}
+            </ChipGroup>
+            <p className="recovery-note">같은 행동도 날에 따라 다르게 작동할 수 있어. 판단이 아니라 기록이야.</p>
+          </GlassCard>
+
+          {/* 12. 메모 */}
+          <GlassCard>
+            <SectionHeader title="메모" subtitle="남기고 싶은 한 줄 (선택)" />
+            <textarea className="memo" placeholder="오늘 떠오르는 걸 자유롭게…" value={draft.memo} onChange={(e) => setDraft((d) => ({ ...d, memo: e.target.value }))} rows={3} />
+          </GlassCard>
+        </>
+      )}
+
+      <button className="btn-primary log__done" onClick={onSave} disabled={status === 'saving'}>
+        {saveLabel}
+      </button>
+
+      {status === 'success' && (
+        <div className="log-feedback log-feedback--ok">
+          저장됐어. 오늘 화면에서 모드를 확인할 수 있어.
+          <button className="log-gohome" onClick={() => navigate('/')}>
+            오늘 화면 보기
+          </button>
+        </div>
+      )}
+      {status === 'error' && <p className="log-feedback log-feedback--err">저장에 실패했어. 잠시 후 다시 시도해 줘.</p>}
+    </>
+  )
+}

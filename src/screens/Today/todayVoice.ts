@@ -20,9 +20,9 @@ const FLOW_DOMAIN_LABEL: Record<FlowDomain, string> = {
 export function recentChangeSentence(flow: RecentFlow | null): string | null {
   if (!flow || !flow.displayable) return null
   const names = flow.leading.map((d) => FLOW_DOMAIN_LABEL[d]).join('·')
-  if (flow.status === 'depleting') return `최근 며칠 ${names || '몇 영역'}이 조금씩 떨어지는 흐름이에요.`
-  if (flow.status === 'recovering') return `최근 며칠 ${names || '몇 영역'}이 회복되는 흐름이에요.`
-  if (flow.status === 'mixed') return '최근 며칠은 영역마다 오르내림이 섞인 흐름이에요.'
+  if (flow.status === 'depleting') return `최근 며칠 ${names || '몇 영역'}이 조금씩 떨어지는 흐름이야.`
+  if (flow.status === 'recovering') return `최근 며칠 ${names || '몇 영역'}이 회복되는 흐름이야.`
+  if (flow.status === 'mixed') return '최근 며칠은 영역마다 오르내림이 섞인 흐름이야.'
   return null // stable 등은 숨김
 }
 
@@ -33,5 +33,5 @@ export function followUpSentence(driver: FlowDriverCard | null): string | null {
   if (!driver) return null
   const domain = driver.affectedDomains.map((d) => FLOW_DOMAIN_LABEL[d]).join('·')
   const lead = driver.cumulative ? '이어진 뒤' : '뒤'
-  return `이전에 ${driver.label}이 ${lead} ${domain || '리듬'} 흐름이 함께 바뀐 적이 있어요.`
+  return `이전에 ${driver.label}이 ${lead} ${domain || '리듬'} 흐름이 함께 바뀐 적이 있어.`
 }

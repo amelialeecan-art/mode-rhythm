@@ -36,9 +36,9 @@ const LOAD_ROWS: { key: keyof TodaySummary['scores']; label: string; color: stri
 
 // 주기 데이터 상태 → 표시 (calcCycleLoad 공식은 변경하지 않음, 표시의 정직성만 개선)
 const CYCLE_DISPLAY: Record<string, { value: string; hint: string } | null> = {
-  none: { value: '데이터 없음', hint: '생리 시작일을 기록하면 주기 구간을 계산해요.' },
-  low: { value: '데이터 부족', hint: '생리 시작 기록이 아직 적어요.' },
-  medium: { value: '', hint: '생리 시작을 반복 기록하고 있어요.' },
+  none: { value: '데이터 없음', hint: '생리 시작일을 기록하면 주기 구간을 계산해.' },
+  low: { value: '데이터 부족', hint: '생리 시작 기록이 아직 적어.' },
+  medium: { value: '', hint: '생리 시작을 반복 기록하고 있어.' },
   high: null, // 일반 표시
 }
 
@@ -114,8 +114,8 @@ function EmptyToday({ onRecord }: { onRecord: () => void }) {
     <GlassCard>
       <div className="today-empty">
         <Mascot mood="calm" size={96} />
-        <p className="today-empty__title">아직 오늘 기록이 없어요</p>
-        <p className="today-empty__sub">30초 기록을 남기면 오늘의 모드를 계산해볼게요.</p>
+        <p className="today-empty__title">아직 오늘 기록이 없어</p>
+        <p className="today-empty__sub">30초 기록을 남기면 오늘의 모드를 계산해볼 수 있어.</p>
         <button className="btn-primary today-empty__btn" onClick={onRecord}>
           오늘 기록하기
         </button>
@@ -162,8 +162,8 @@ function FilledToday({
       {/* 1. 예외일 배너 (해당할 때만, 최상단) */}
       {isException && (
         <GlassCard tint="coral">
-          <SectionHeader title="오늘은 평소 리듬과 분리해서 봐요" subtitle={rhythmExceptions.join(' · ')} />
-          <p className="today-rec-empty">기록은 그대로 남기되, 오늘은 평소 소모나 주기로 해석하지 않고 회복·기본 생활 중심으로 봐요.</p>
+          <SectionHeader title="오늘은 평소 리듬과 분리해서 봐" subtitle={rhythmExceptions.join(' · ')} />
+          <p className="today-rec-empty">기록은 그대로 남기되, 오늘은 평소 소모나 주기로 해석하지 않고 회복·기본 생활 중심으로 봐.</p>
         </GlassCard>
       )}
 
@@ -171,7 +171,7 @@ function FilledToday({
       <ModeHeroCard modeName={classification.label} subLabel={classification.subLabel} body={classification.description} mascotMood={mascot} />
       {(stateNarrative.length > 0 || currentFlowLine) && (
         <GlassCard>
-          <SectionHeader title="오늘 상태" subtitle="유지되는 영역과 떨어진 영역을 나눠 봤어요" />
+          <SectionHeader title="오늘 상태" subtitle="유지되는 영역과 떨어진 영역을 나눠 봤어" />
           {stateNarrative.map((line, i) => (
             <p className="today-state-line" key={i}>
               {line}
@@ -185,7 +185,7 @@ function FilledToday({
       {/* 3. 오늘의 결정 — 최대 1개 */}
       {decision && (
         <GlassCard tint="mint">
-          <SectionHeader title="오늘의 결정" subtitle={decision.source === 'personal' ? '비슷한 상태의 기록을 참고했어요' : '오늘 상태를 기준으로 한 가지만 골랐어요'} star />
+          <SectionHeader title="오늘의 결정" subtitle={decision.source === 'personal' ? '비슷한 상태의 기록을 참고했어' : '오늘 상태를 기준으로 한 가지만 골랐어'} star />
           <p className="today-decision">{decision.text}</p>
         </GlassCard>
       )}
@@ -207,8 +207,8 @@ function FilledToday({
 
         {/* 오늘의 종합 부하 + 항목별 요약 */}
         <GlassCard>
-          <SectionHeader title="오늘의 버거움" subtitle="오늘 기록 기준으로 계산했어요" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
-          <p className="load-explain">오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱에서 정한 가중치로 합친 값이에요. 의학 점수나 호르몬 수치가 아니에요.</p>
+          <SectionHeader title="오늘의 버거움" subtitle="오늘 기록 기준으로 계산했어" right={<span className="rhythm-num">{scores.rhythmLoad}</span>} />
+          <p className="load-explain">오늘 기록한 감정·식욕·수면·몸·주기·사건 점수를 앱에서 정한 가중치로 합친 값이야. 의학 점수나 호르몬 수치가 아니야.</p>
           <div className="loadbars">
             {LOAD_ROWS.map((r) => (
               <div className="loadbar" key={r.key}>
@@ -240,7 +240,7 @@ function FilledToday({
         <GlassCard>
           <SectionHeader title="오늘 있었던 일" subtitle={`오늘 있었던 일 ${eventSummary.count}개`} />
           {eventSummary.count === 0 ? (
-            <p className="today-rec-empty">오늘 기록된 사건이 없어요.</p>
+            <p className="today-rec-empty">오늘 기록된 사건이 없어.</p>
           ) : (
             <div className="recovery-rec">
               {eventSummary.top.map((e, i) => (
@@ -255,7 +255,7 @@ function FilledToday({
         {/* 오늘 기록 기반 요인 후보 — 근거가 약한 후보(데이터 부족·관찰)는 노출하지 않는다 */}
         {strongFactors.length > 0 && (
           <GlassCard>
-            <SectionHeader title="오늘 기록 기반 요인 후보" subtitle="원인이 아니라, 오늘 기록에서 함께 관찰된 요소예요" />
+            <SectionHeader title="오늘 기록 기반 요인 후보" subtitle="원인이 아니라, 오늘 기록에서 함께 관찰된 요소야" />
             <ul className="factor-list">
               {strongFactors.map((f, i) => (
                 <li className="factor" key={`${f.label}-${i}`}>
@@ -273,7 +273,7 @@ function FilledToday({
         {/* 오늘 기록된 회복 행동 */}
         {recordedRecovery.length > 0 && (
           <GlassCard>
-            <SectionHeader title="오늘 기록된 회복 행동" subtitle="오늘 남긴 기록이에요" />
+            <SectionHeader title="오늘 기록된 회복 행동" subtitle="오늘 남긴 기록이야" />
             <div className="recovery-rec">
               {recordedRecovery.map((r) => (
                 <span className="recovery-rec__chip recovery-rec__chip--plain" key={r}>

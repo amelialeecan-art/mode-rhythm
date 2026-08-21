@@ -92,12 +92,12 @@ describe('presentRhythmRepeatedFlow — 카드 개수', () => {
 describe('presentRhythmRepeatedFlow — 문장', () => {
   it('(5) 2단계 문장', () => {
     const [card] = presentRhythmRepeatedFlow(snap([TWO()]))
-    expect(card.sentence).toBe('최근 세 번의 비슷한 흐름에서는 같은 생각이 계속 맴돈 다음 날 평소 하던 일이 버거워졌어요.')
+    expect(card.sentence).toBe('최근 세 번의 비슷한 흐름에서는 같은 생각이 계속 맴돈 다음 날 평소 하던 일이 버거워졌어.')
   })
 
   it('(6) 3단계 문장(예시와 동일)', () => {
     const [card] = presentRhythmRepeatedFlow(snap([THREE()]))
-    expect(card.sentence).toBe('최근 세 번의 비슷한 흐름에서는 같은 생각이 계속 맴돈 다음 날 자는 걸 미뤘고, 그 뒤 1~2일 안에 평소 하던 일이 버거워졌어요.')
+    expect(card.sentence).toBe('최근 세 번의 비슷한 흐름에서는 같은 생각이 계속 맴돈 다음 날 자는 걸 미뤘고, 그 뒤 1~2일 안에 평소 하던 일이 버거워졌어.')
   })
 
   // 첫 단계 lag 표현을 확인(둘째 단계는 {1,1}로 고정해 "같은 날 동시발생만" 방어에 걸리지 않게 한다).
@@ -147,7 +147,7 @@ describe('presentRhythmRepeatedFlow — 시작일', () => {
   })
 
   it('(9b) 3번 이하면 "최근에는" 없이 시작일만', () => {
-    expect(presentRhythmRepeatedFlow(snap([THREE()]))[0].dates).toBe('5월 1일 · 6월 10일 · 7월 20일에 시작됐어요.')
+    expect(presentRhythmRepeatedFlow(snap([THREE()]))[0].dates).toBe('5월 1일 · 6월 10일 · 7월 20일에 시작됐어.')
   })
 
   it('(10) 해가 바뀌는 경우 연도를 포함한다', () => {

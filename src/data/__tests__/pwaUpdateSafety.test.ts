@@ -40,7 +40,7 @@ describe('PWA 업데이트 흐름의 데이터 안전성', () => {
 
   it('DB 이름/버전/스키마는 그대로다', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(1)
+    expect(DB_VERSION).toBe(3)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
     expect(SCHEMA_V1.dailyLogs).toBe('++id, &date')
     expect(SCHEMA_V1.dailyScores).toBe('++id, &date, dayType')

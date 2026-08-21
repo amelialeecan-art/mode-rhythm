@@ -26,13 +26,13 @@ import './settings.css'
 
 /** 가져오기 실패 코드 → 사용자 메시지(원문 미노출). */
 const IMPORT_ERROR_MESSAGE: Record<ImportErrorCode, string> = {
-  'file-read': '파일을 읽을 수 없어요.',
+  'file-read': '파일을 읽을 수 없어.',
   'too-large': '파일이 너무 커요. (최대 20MB)',
-  'not-mode': 'MODE 백업 파일이 아니에요.',
-  'unsupported-version': '이 버전의 백업은 아직 지원하지 않아요.',
-  'invalid-structure': '백업 파일이 손상됐거나 형식이 달라요.',
-  'backup-failed': '현재 데이터 백업을 만들지 못해 가져오기를 중단했어요.',
-  'import-failed': '데이터를 가져오지 못했어요. 기존 기록은 그대로예요.',
+  'not-mode': 'MODE 백업 파일이 아니야.',
+  'unsupported-version': '이 버전의 백업은 아직 지원하지 않아.',
+  'invalid-structure': '백업 파일이 손상됐거나 형식이 달라.',
+  'backup-failed': '현재 데이터 백업을 만들지 못해 가져오기를 중단했어.',
+  'import-failed': '데이터를 가져오지 못했어. 기존 기록은 그대로야.',
 }
 
 interface ImportPreview {
@@ -97,7 +97,7 @@ export function SettingsScreen() {
     setDataMsg('')
     try {
       await downloadExportJson()
-      setDataMsg('내보내기 파일을 저장했어요. 민감한 기록이니 안전하게 보관해 주세요.')
+      setDataMsg('내보내기 파일을 저장했어. 민감한 기록이니 안전하게 보관해 줘.')
     } catch (e) {
       setDataMsg(`내보내기 실패: ${String(e)}`)
     }
@@ -108,7 +108,7 @@ export function SettingsScreen() {
     await resetDatabase()
     const s = await userSettingsRepository.ensureDefault()
     setSettings(s)
-    setDataMsg('로컬 데이터를 모두 비웠어요.')
+    setDataMsg('로컬 데이터를 모두 비웠어.')
   }
 
   /* ---- 가져오기(복원) ---- */
@@ -185,9 +185,9 @@ export function SettingsScreen() {
     setChecking(true)
     setUpdateMsg('')
     const result = await checkForUpdateNow()
-    if (result === 'update-available') setUpdateMsg('새 버전이 있어요. 위의 업데이트 배너에서 진행해 주세요.')
-    else if (result === 'up-to-date') setUpdateMsg('최신 버전이에요.')
-    else setUpdateMsg('이 환경에서는 업데이트 확인을 지원하지 않아요. (개발 모드/미지원 브라우저)')
+    if (result === 'update-available') setUpdateMsg('새 버전이 있어. 위의 업데이트 배너에서 진행해 줘.')
+    else if (result === 'up-to-date') setUpdateMsg('최신 버전이야.')
+    else setUpdateMsg('이 환경에서는 업데이트 확인을 지원하지 않아. (개발 모드/미지원 브라우저)')
     setChecking(false)
   }
 
@@ -199,7 +199,7 @@ export function SettingsScreen() {
       const total = Object.values(summary).reduce((a, b) => a + b, 0)
       const s = await userSettingsRepository.ensureDefault()
       setSettings(s)
-      setDevMsg(`개발용 demo data ${total}건을 넣었어요.`)
+      setDevMsg(`개발용 demo data ${total}건을 넣었어.`)
     } catch (e) {
       setDevMsg(`실패: ${String(e)}`)
     } finally {
@@ -218,7 +218,7 @@ export function SettingsScreen() {
 
       {/* 말투 */}
       <GlassCard>
-        <SectionHeader title="말투" subtitle="앱이 말 거는 톤을 골라요" />
+        <SectionHeader title="말투" subtitle="앱이 말 거는 톤을 골라" />
         <ChipGroup label="말투">
           {TONE_OPTIONS.map((t) => (
             <Chip key={t.code} label={t.label} tone="lav" selected={settings?.toneMode === t.code} onToggle={() => update({ toneMode: t.code })} />
@@ -230,13 +230,13 @@ export function SettingsScreen() {
       <GlassCard tint="mint">
         <SectionHeader title="개인정보" subtitle="로컬 우선" />
         <p className="setting-hint">
-          기록은 이 기기에 저장돼요. 계정·클라우드 동기화는 아직 사용하지 않아요. 몸과 마음을 스스로 남기는 기록이에요.
+          기록은 이 기기에 저장돼. 계정·클라우드 동기화는 아직 사용하지 않아. 몸과 마음을 스스로 남기는 기록이야.
         </p>
       </GlassCard>
 
       {/* 생리 주기 */}
       <GlassCard>
-        <SectionHeader title="생리 주기" subtitle="주기 구간 계산에 사용돼요" />
+        <SectionHeader title="생리 주기" subtitle="주기 구간 계산에 사용돼" />
         <div className="setting-row">
           <span className="setting-row__label">생리·주기 기능 사용</span>
           <Toggle on={settings?.cycleEnabled ?? true} onChange={(v) => update({ cycleEnabled: v })} label="생리·주기 기능 사용" />
@@ -257,7 +257,7 @@ export function SettingsScreen() {
             }}
           />
         </div>
-        <p className="setting-hint">생리는 사실만 기록하고, 주기 구간은 앱이 날짜로 계산해요. 원인으로 고르는 항목이 아니에요.</p>
+        <p className="setting-hint">생리는 사실만 기록하고, 주기 구간은 앱이 날짜로 계산해. 원인으로 고르는 항목이 아니야.</p>
       </GlassCard>
 
       {/* 알림 placeholder */}
@@ -267,7 +267,7 @@ export function SettingsScreen() {
           <span className="setting-row__label">하루 기록 알림</span>
           <Toggle on={settings?.reminderEnabled ?? false} onChange={(v) => update({ reminderEnabled: v })} label="하루 기록 알림" />
         </div>
-        <p className="setting-hint">기록 알림은 아직 준비 중이에요. 지금은 설정값만 저장돼요.</p>
+        <p className="setting-hint">기록 알림은 아직 준비 중이야. 지금은 설정값만 저장돼.</p>
       </GlassCard>
 
       {/* 데이터 관리 */}
@@ -276,7 +276,7 @@ export function SettingsScreen() {
         <button className="data-btn" onClick={onExport}>
           데이터 내보내기 (JSON)
         </button>
-        <p className="setting-hint">민감한 개인 기록이에요. 서버로 보내지 않고, 파일은 이 기기에 저장돼요.</p>
+        <p className="setting-hint">민감한 개인 기록이야. 서버로 보내지 않고, 파일은 이 기기에 저장돼.</p>
 
         {/* 가져오기(복원) — 숨김 file input을 버튼으로 트리거 */}
         <input
@@ -290,7 +290,7 @@ export function SettingsScreen() {
           데이터 가져오기 (JSON)
         </button>
         <p className="setting-hint">
-          다른 기기·구버전에서 내보낸 백업 JSON을 복원해요. 가져오기 전에 현재 데이터를 자동으로 백업해요.
+          다른 기기·구버전에서 내보낸 백업 JSON을 복원해. 가져오기 전에 현재 데이터를 자동으로 백업해.
         </p>
         {importError && <p className="import-error">{importError}</p>}
 
@@ -302,7 +302,7 @@ export function SettingsScreen() {
 
       {/* 앱 버전 / 업데이트 */}
       <GlassCard>
-        <SectionHeader title="앱 버전" subtitle="업데이트해도 기록은 그대로 유지돼요" />
+        <SectionHeader title="앱 버전" subtitle="업데이트해도 기록은 그대로 유지돼" />
         <div className="setting-row">
           <span className="setting-row__label">빌드</span>
           <span className="setting-build">{BUILD_ID}</span>
@@ -340,7 +340,7 @@ export function SettingsScreen() {
           <div className="sheet-scrim" onClick={() => setConfirmReset(false)} />
           <div className="confirm" role="dialog" aria-label="로컬 데이터 초기화 확인">
             <p className="confirm__title">로컬 데이터 초기화</p>
-            <p className="confirm__body">모든 로컬 기록이 삭제됩니다. 되돌릴 수 없어요.</p>
+            <p className="confirm__body">모든 로컬 기록이 지워져. 되돌릴 수 없어.</p>
             <div className="confirm__actions">
               <button className="confirm__cancel" onClick={() => setConfirmReset(false)}>
                 취소
@@ -371,7 +371,7 @@ export function SettingsScreen() {
             </ul>
             <p className="confirm__body import-warn">
               현재 기기의 모든 기록이 <b>가져온 백업으로 완전히 교체</b>됩니다. 가져오기 직전 현재 데이터를 자동으로
-              백업(다운로드)하니, 그 파일도 안전하게 보관해 주세요.
+              백업(다운로드)하니, 그 파일도 안전하게 보관해 줘.
             </p>
             <div className="confirm__actions">
               <button className="confirm__cancel" disabled={importStage === 'importing'} onClick={cancelImport}>
@@ -394,8 +394,8 @@ export function SettingsScreen() {
         <>
           <div className="sheet-scrim" />
           <div className="confirm" role="dialog" aria-label="가져오기 완료">
-            <p className="confirm__title">데이터를 안전하게 가져왔어요</p>
-            <p className="confirm__body">앱을 다시 열면 복원된 기록이 표시됩니다.</p>
+            <p className="confirm__title">데이터를 안전하게 가져왔어</p>
+            <p className="confirm__body">앱을 다시 열면 복원된 기록이 보여.</p>
             <div className="confirm__actions">
               <button className="confirm__danger" onClick={() => window.location.reload()}>
                 복원된 데이터 열기

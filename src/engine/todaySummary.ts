@@ -78,28 +78,28 @@ function buildFactorCandidates(
   const weighted: { c: FactorCandidate; w: number }[] = []
 
   if (scores.sleepLoad >= HIGH)
-    weighted.push({ w: scores.sleepLoad, c: { label: '수면 문제 정도', tier: 'calculated', detail: '오늘 기록에서 수면 문제 정도가 높게 계산됐어요.' } })
+    weighted.push({ w: scores.sleepLoad, c: { label: '수면 문제 정도', tier: 'calculated', detail: '오늘 기록에서 수면 문제 정도가 높게 계산됐어.' } })
   if (scores.appetiteLoad >= HIGH)
-    weighted.push({ w: scores.appetiteLoad, c: { label: '식욕 흔들림', tier: 'calculated', detail: '오늘 기록에서 식욕 흔들림이 높게 계산됐어요.' } })
+    weighted.push({ w: scores.appetiteLoad, c: { label: '식욕 흔들림', tier: 'calculated', detail: '오늘 기록에서 식욕 흔들림이 높게 계산됐어.' } })
   if (scores.emotionalLoad >= HIGH)
-    weighted.push({ w: scores.emotionalLoad, c: { label: '감정 흔들림', tier: 'calculated', detail: '오늘 기록에서 감정 흔들림이 높게 계산됐어요.' } })
+    weighted.push({ w: scores.emotionalLoad, c: { label: '감정 흔들림', tier: 'calculated', detail: '오늘 기록에서 감정 흔들림이 높게 계산됐어.' } })
   if (scores.bodyLoad >= HIGH)
-    weighted.push({ w: scores.bodyLoad, c: { label: '몸 불편', tier: 'calculated', detail: '오늘 기록에서 몸 불편이 높게 계산됐어요.' } })
+    weighted.push({ w: scores.bodyLoad, c: { label: '몸 불편', tier: 'calculated', detail: '오늘 기록에서 몸 불편이 높게 계산됐어.' } })
 
   if (cycle.isPeriod)
-    weighted.push({ w: scores.cycleLoad, c: { label: '생리 구간', tier: 'calculated', detail: '기록한 생리 시작일 기준으로 오늘은 생리 구간이에요.' } })
+    weighted.push({ w: scores.cycleLoad, c: { label: '생리 구간', tier: 'calculated', detail: '기록한 생리 시작일 기준으로 오늘은 생리 구간이야.' } })
   else if (cycle.isPremenstrualWindow)
-    weighted.push({ w: scores.cycleLoad, c: { label: '월경 전 구간', tier: 'calculated', detail: '기록한 생리 시작일 기준으로 오늘은 월경 전 구간이에요.' } })
+    weighted.push({ w: scores.cycleLoad, c: { label: '월경 전 구간', tier: 'calculated', detail: '기록한 생리 시작일 기준으로 오늘은 월경 전 구간이야.' } })
 
   // 강도 높은 오늘 있었던 일 (가장 센 것 1개)
   const topEvent = [...events].filter((e) => e.intensity >= 6).sort((a, b) => b.intensity - a.intensity)[0]
   if (topEvent)
-    weighted.push({ w: topEvent.intensity * 8, c: { label: '오늘 있었던 일', tier: 'recorded', detail: `오늘 있었던 일에 '${topEvent.eventLabel}' 기록이 있어요.` } })
+    weighted.push({ w: topEvent.intensity * 8, c: { label: '오늘 있었던 일', tier: 'recorded', detail: `오늘 있었던 일에 '${topEvent.eventLabel}' 기록이 있어.` } })
 
   const sorted = weighted.sort((a, b) => b.w - a.w).map((x) => x.c).slice(0, 4)
 
   if (sorted.length === 0) {
-    sorted.push({ label: '설명되지 않은 부분', tier: 'not_enough_data', detail: '아직 장기 패턴 분석 전이라 일부는 설명하지 않아요.' })
+    sorted.push({ label: '설명되지 않은 부분', tier: 'not_enough_data', detail: '아직 장기 패턴 분석 전이라 일부는 설명하지 않아.' })
   }
   return sorted
 }

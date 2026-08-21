@@ -200,7 +200,7 @@ export function RhythmScreen() {
             </GlassCard>
           ) : !vm.hasData ? (
             <GlassCard>
-              <p className="rhythm-empty">아직 흐름을 그리기엔 기록이 부족해요. 며칠 더 쌓이면 여기 선으로 보여줄게요.</p>
+              <p className="rhythm-empty">아직 흐름을 그리기엔 기록이 부족해. 며칠 더 쌓이면 여기 선으로 보여줄게.</p>
             </GlassCard>
           ) : (
             <>
@@ -333,7 +333,7 @@ function CycleCompareView({
   if (!vm.eligible) {
     return (
       <GlassCard>
-        <p className="rhythm-empty">주기 비교를 하려면 생리 시작 기록이 {vm.neededMore}번 더 필요해요.</p>
+        <p className="rhythm-empty">주기 비교를 하려면 생리 시작 기록이 {vm.neededMore}번 더 필요해.</p>
       </GlassCard>
     )
   }
@@ -363,7 +363,7 @@ function CycleCompareView({
       <details className="cc-more">
         <summary>근거 보기</summary>
         <div className="cc-nums">
-          <span>평소 기준선 {curve.baseline} · 비교 주기 {vm.compareCycles}개</span>
+          <span>평소 수준 {curve.baseline} · 비교한 주기 {vm.compareCycles}개</span>
           {curve.recent.map((p) => {
             const prev = curve.previous.find((q) => q.rel === p.rel)
             const label = p.rel === 0 ? '생리 시작' : p.rel < 0 ? `${-p.rel}일 전` : `${p.rel}일 후`

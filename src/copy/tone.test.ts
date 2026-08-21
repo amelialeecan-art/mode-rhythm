@@ -4,10 +4,10 @@ import { findAssertion, containsAssertion, getToneCopy, type ToneKey, type ToneM
 describe('findAssertion (단정 가드)', () => {
   it('앱 단정 표현을 잡는다', () => {
     expect(containsAssertion('이건 수면 부족이 원인입니다')).toBe(true)
-    expect(containsAssertion('수면 부족 때문에 그래요')).toBe(true)
-    expect(containsAssertion('반드시 산책하세요')).toBe(true)
+    expect(containsAssertion('수면 부족 때문에 그래')).toBe(true)
+    expect(containsAssertion('반드시 산책하줘')).toBe(true)
     expect(containsAssertion('내일은 회복 우선일입니다')).toBe(true)
-    expect(containsAssertion('이 행동이 치료예요')).toBe(true)
+    expect(containsAssertion('이 행동이 치료야')).toBe(true)
   })
 
   it('사용자 사건 라벨의 "때문에"는 예외(허용)', () => {
@@ -17,10 +17,10 @@ describe('findAssertion (단정 가드)', () => {
   })
 
   it('부정/완곡 표현은 허용', () => {
-    expect(containsAssertion('진단이 아니라 기록 기반 해석이에요')).toBe(false)
-    expect(containsAssertion('내일은 회복 우선일 가능성이 있어요')).toBe(false)
-    expect(containsAssertion('함께 나타나는 경향이 있어요')).toBe(false)
-    expect(containsAssertion('확정은 아니에요')).toBe(false)
+    expect(containsAssertion('진단이 아니라 기록 기반 해석이야')).toBe(false)
+    expect(containsAssertion('내일은 회복 우선일 가능성이 있어')).toBe(false)
+    expect(containsAssertion('함께 나타나는 경향이 있어')).toBe(false)
+    expect(containsAssertion('확정은 아니야')).toBe(false)
   })
 })
 

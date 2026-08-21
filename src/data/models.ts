@@ -5,6 +5,7 @@
    이 파일은 순수 타입만 — 계산/엔진 로직 없음.
    ===================================================================== */
 import type { ISODate } from './types'
+import type { DataSource, LhTestResult, CervicalMucusType, TriBoolean } from './modelsV2'
 
 export type { ISODate }
 
@@ -262,6 +263,15 @@ export interface EventLog {
   mappedFactorGroup: string
   /** timing='exact'일 때의 정확한 발생일 (비인덱스 optional — 스키마/마이그레이션 변경 없음). */
   occurredOn?: ISODate
+  /**
+   * V2 확장 (비인덱스 optional — 스키마/인덱스/마이그레이션 변경 없음).
+   * V2 입력은 사건마다 실제 발생 시각(occurredAt)을 갖는다. relationToShift를 억지로
+   * 묻지 않고, occurredAt이 있으면 분석 시 시간 순서로 계산한다.
+   * "eventIntensity 하나를 모든 코드에 복사"하는 옛 구조는 V2 입력에서 쓰지 않는다.
+   */
+  occurredAt?: string
+  source?: DataSource
+  schemaVersion?: number
   /** 여러 날 이어진 사건의 지속기간 (비인덱스 optional). 미입력=undefined. */
   durationDays?: EventDuration
   /**
@@ -286,6 +296,13 @@ export interface CycleLog {
   flowLevel?: FlowLevel
   periodPain?: number // 0~10
   symptoms?: string[]
+  /**
+   * V2 확장 (비인덱스 optional — 스키마/인덱스/마이그레이션 변경 없음).
+   * periodStart/flow 등 기존 사실 기록은 그대로 유지하고 아래를 더한다.
+   */
+  spotting?: TriBoolean
+  lhTest?: LhTestResult
+  cervicalMucus?: CervicalMucusType
   createdAt: string
   updatedAt: string
 }

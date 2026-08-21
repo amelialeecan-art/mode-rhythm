@@ -151,11 +151,11 @@ function qualifyingRec(recs: RecoveryActionInsight[] | undefined): RecoveryActio
 }
 
 const FLOW_DEPLETION_ACTION: Record<FlowDomain, string> = {
-  emotional: '오늘은 큰 결정을 미루고 마음을 회복할 시간을 먼저 두세요.',
-  sleep: '오늘은 수면 시간을 먼저 확보하세요.',
-  appetite: '오늘은 다른 계획보다 규칙적인 한 끼를 먼저 챙기세요.',
-  body: '오늘은 무리하지 말고 몸을 회복할 여유를 먼저 두세요.',
-  function: '오늘은 해야 할 일을 줄이고 중요한 것 하나에 집중하세요.',
+  emotional: '오늘은 큰 결정을 미루고 마음을 회복할 시간을 먼저 두줘.',
+  sleep: '오늘은 수면 시간을 먼저 확보하줘.',
+  appetite: '오늘은 다른 계획보다 규칙적인 한 끼를 먼저 챙기줘.',
+  body: '오늘은 무리하지 말고 몸을 회복할 여유를 먼저 두줘.',
+  function: '오늘은 해야 할 일을 줄이고 중요한 것 하나에 집중하줘.',
 }
 
 export const isHard = (r: DomainReading | undefined): boolean => {
@@ -175,27 +175,27 @@ export function selectTodayDecision(input: TodayDecisionInput): TodayDecision | 
   // 1) 예외일 — 평소 소모/주기로 해석하지 않고 회복·기본생활 중심(진단·치료 문장 금지).
   if (isExceptionDay) {
     const prefix = exceptionLabels && exceptionLabels.length > 0 ? `오늘은 ${exceptionLabels.join('·')} 기록이 있어` : '오늘은 예외 기록이 있어'
-    return { text: `${prefix} 무리한 운동이나 할 일을 늘리기보다 회복과 기본 생활을 먼저 챙기세요.`, source: 'default', kind: 'exception' }
+    return { text: `${prefix} 무리한 운동이나 할 일을 늘리기보다 회복과 기본 생활을 먼저 챙기줘.`, source: 'default', kind: 'exception' }
   }
 
   // 2) 오늘 가장 크게 떨어진 기본 기능 (조합 우선 → 단일 최악)
   const fnDiff = difficulty(d.functionLevel) ?? 0
-  if (fnDiff >= 78) return { text: '오늘은 해야 할 일을 하나만 남기고 나머지는 미뤄두세요.', source: 'default', kind: 'basic_function' }
-  if (isHard(d.sleep) && isHard(d.bodyEnergy)) return { text: '오늘은 운동 강도를 높이기보다 수면 시간을 먼저 확보하세요.', source: 'default', kind: 'basic_function' }
-  if (isHard(d.appetite) && fnDiff >= HARD_MIN) return { text: '오늘은 다른 계획보다 규칙적인 한 끼를 먼저 챙기세요.', source: 'default', kind: 'basic_function' }
+  if (fnDiff >= 78) return { text: '오늘은 해야 할 일을 하나만 남기고 나머지는 미뤄두줘.', source: 'default', kind: 'basic_function' }
+  if (isHard(d.sleep) && isHard(d.bodyEnergy)) return { text: '오늘은 운동 강도를 높이기보다 수면 시간을 먼저 확보하줘.', source: 'default', kind: 'basic_function' }
+  if (isHard(d.appetite) && fnDiff >= HARD_MIN) return { text: '오늘은 다른 계획보다 규칙적인 한 끼를 먼저 챙기줘.', source: 'default', kind: 'basic_function' }
   if (isHard(d.socialCapacity) && isHard(d.mentalSpace))
-    return { text: '오늘은 퇴근 후 일정을 더 늘리지 말고 혼자 쉬는 시간을 먼저 확보하세요.', source: 'default', kind: 'basic_function' }
+    return { text: '오늘은 퇴근 후 일정을 더 늘리지 말고 혼자 쉬는 시간을 먼저 확보하줘.', source: 'default', kind: 'basic_function' }
 
   // 단일 최악 영역(어려움 최댓값) → 해당 기본 행동
   const singles: { key: keyof DailyStateDomains; text: string }[] = [
-    { key: 'functionLevel', text: '오늘은 해야 할 일을 줄이고 중요한 것 하나에 집중하세요.' },
-    { key: 'sleep', text: '오늘은 수면 시간을 먼저 확보하세요.' },
-    { key: 'bodyEnergy', text: '오늘은 무리하지 말고 몸을 회복할 여유를 두세요.' },
-    { key: 'socialCapacity', text: '오늘은 사람을 많이 만나는 일정을 줄이고 혼자 쉬는 시간을 확보하세요.' },
-    { key: 'mentalSpace', text: '오늘은 새로운 일을 벌이기보다 지금 있는 일부터 하나씩 정리하세요.' },
-    { key: 'appetite', text: '오늘은 규칙적인 한 끼를 먼저 챙기세요.' },
-    { key: 'bodyDiscomfort', text: '오늘은 몸 신호에 맞춰 무리한 일정을 줄이세요.' },
-    { key: 'focus', text: '오늘은 집중이 필요한 큰 일보다 가벼운 일부터 시작하세요.' },
+    { key: 'functionLevel', text: '오늘은 해야 할 일을 줄이고 중요한 것 하나에 집중하줘.' },
+    { key: 'sleep', text: '오늘은 수면 시간을 먼저 확보하줘.' },
+    { key: 'bodyEnergy', text: '오늘은 무리하지 말고 몸을 회복할 여유를 두줘.' },
+    { key: 'socialCapacity', text: '오늘은 사람을 많이 만나는 일정을 줄이고 혼자 쉬는 시간을 확보하줘.' },
+    { key: 'mentalSpace', text: '오늘은 새로운 일을 벌이기보다 지금 있는 일부터 하나씩 정리하줘.' },
+    { key: 'appetite', text: '오늘은 규칙적인 한 끼를 먼저 챙기줘.' },
+    { key: 'bodyDiscomfort', text: '오늘은 몸 신호에 맞춰 무리한 일정을 줄이줘.' },
+    { key: 'focus', text: '오늘은 집중이 필요한 큰 일보다 가벼운 일부터 시작하줘.' },
   ]
   let worst: { text: string; diff: number } | null = null
   for (const s of singles) {
@@ -204,7 +204,7 @@ export function selectTodayDecision(input: TodayDecisionInput): TodayDecision | 
   }
   // 감정도 크게 흔들렸으면 기본 기능 후보에 포함
   if (isHard(d.emotionalStability) && (!worst || (difficulty(d.emotionalStability) ?? 0) > worst.diff)) {
-    worst = { text: '오늘은 큰 결정을 잠시 미루고 마음이 가라앉을 시간을 두세요.', diff: difficulty(d.emotionalStability) ?? 0 }
+    worst = { text: '오늘은 큰 결정을 잠시 미루고 마음이 가라앉을 시간을 두줘.', diff: difficulty(d.emotionalStability) ?? 0 }
   }
   if (worst) return { text: worst.text, source: 'default', kind: 'basic_function' }
 
@@ -217,7 +217,7 @@ export function selectTodayDecision(input: TodayDecisionInput): TodayDecision | 
   const rec = qualifyingRec(recoveryRecs)
   if (rec) {
     return {
-      text: `비슷한 상태였던 날 ${rec.actionLabel} 뒤에 도움이 됐다고 남겼어요. 오늘도 ${rec.actionLabel}을 먼저 챙겨보세요.`,
+      text: `비슷한 상태였던 날 ${rec.actionLabel} 뒤에 도움이 됐다고 남겼어. 오늘도 ${rec.actionLabel}을 먼저 챙겨보줘.`,
       source: 'personal',
       kind: 'personal',
     }
@@ -226,5 +226,5 @@ export function selectTodayDecision(input: TodayDecisionInput): TodayDecision | 
   // 5) 근거가 없을 때 — 부담 낮은 기본 행동. 단, 상태 입력이 거의 없으면 null(억지 금지).
   const anyInput = Object.values(d).some((v) => v !== undefined)
   if (!anyInput) return null
-  return { text: '오늘은 새로운 일을 늘리기보다 지금 상태를 유지하는 데 집중하세요.', source: 'default', kind: 'gentle' }
+  return { text: '오늘은 새로운 일을 늘리기보다 지금 상태를 유지하는 데 집중하줘.', source: 'default', kind: 'gentle' }
 }

@@ -180,8 +180,10 @@ describe('legacy 호환 / export·import / 불변', () => {
 
   it('DB_NAME/DB_VERSION/SCHEMA_V1 불변', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(1)
+    expect(DB_VERSION).toBe(3)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
-    expect(db.tables.map((t) => t.name).sort()).toEqual(Object.keys(SCHEMA_V1).sort())
+    // db 인스턴스는 V1 7테이블 + V2 신규 테이블. V1 테이블은 모두 유지된다.
+    const tableNames = db.tables.map((t) => t.name)
+    for (const v1 of Object.keys(SCHEMA_V1)) expect(tableNames).toContain(v1)
   })
 })

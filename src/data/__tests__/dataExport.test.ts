@@ -12,13 +12,17 @@ describe('exportAllData', () => {
     await seedDemoData()
     const payload = await exportAllData()
     expect(payload.app).toBe('MODE')
-    expect(payload.version).toBe(1)
+    expect(payload.version).toBe(2) // V2(6단계): 백업 포맷 v2
     expect(payload.exportedAt).toBeTruthy()
     expect(payload.tables.dailyLogs.length).toBeGreaterThan(0)
     expect(payload.tables.userSettings.length).toBe(1)
-    // 7개 테이블 키 모두 존재
+    // V1 7 + V2 9 = 16개 테이블 키 모두 존재
     expect(Object.keys(payload.tables).sort()).toEqual(
-      ['cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings'].sort(),
+      [
+        'cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings',
+        'stateMeasurements', 'sleepEpisodes', 'mealEpisodes', 'activityEpisodes',
+        'medicationProfiles', 'medicationDoses', 'healthExceptions', 'screenMetrics', 'weightMeasurements', 'experiments',
+      ].sort(),
     )
   })
 

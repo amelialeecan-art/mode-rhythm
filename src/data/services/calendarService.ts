@@ -223,28 +223,28 @@ function stateLabelsFor(dailyLog?: DailyLog): string[] {
   const out: string[] = []
 
   // 감정 안정감(수용력) — 높으면 안정, 낮으면 흔들림.
-  const stab = capLabel(d.emotionalStability, '감정이 쉽게 흔들렸어요', '감정이 대체로 안정적이었어요', '감정이 조금 흔들렸어요')
+  const stab = capLabel(d.emotionalStability, '감정이 쉽게 흔들렸어', '감정이 대체로 안정적이었어', '감정이 조금 흔들렸어')
   if (stab) out.push(stab)
 
   // 두드러진 감정(감정 부담 대체) — 실제 고른 감정만.
   const codes: string[] = (dailyLog.emotionCodes as EmotionCode[] | undefined)?.length
     ? (dailyLog.emotionCodes as EmotionCode[]).map((c) => EMOTION_WORD[c])
     : (dailyLog.stateCodes ?? []).map((c) => LEGACY_EMOTION_WORD[c]).filter(Boolean)
-  if (codes.length > 0) out.push(`${codes.slice(0, 3).join('·')} 같은 감정이 영향을 줬어요`)
+  if (codes.length > 0) out.push(`${codes.slice(0, 3).join('·')} 같은 감정이 영향을 줬어`)
 
-  const bodyEnergy = capLabel(d.bodyEnergy, '몸이 쉽게 지쳤어요', '몸 상태는 괜찮았어요', '몸이 조금 무거웠어요')
+  const bodyEnergy = capLabel(d.bodyEnergy, '몸이 쉽게 지쳤어', '몸 상태는 괜찮았어', '몸이 조금 무거웠어')
   if (bodyEnergy) out.push(bodyEnergy)
-  const mental = capLabel(d.mentalSpace, '머리가 복잡했어요', '머릿속이 여유로웠어요', '머리가 조금 복잡했어요')
+  const mental = capLabel(d.mentalSpace, '머리가 복잡했어', '머릿속이 여유로웠어', '머리가 조금 복잡했어')
   if (mental) out.push(mental)
-  const focus = capLabel(d.focus, '집중하기 어려웠어요', '집중이 잘 됐어요', '집중이 조금 흐트러졌어요')
+  const focus = capLabel(d.focus, '집중하기 어려웠어', '집중이 잘 됐어', '집중이 조금 흐트러졌어')
   if (focus) out.push(focus)
-  const social = capLabel(d.socialCapacity, '사람을 대하기 버거웠어요', '사람을 대할 여유가 있었어요', '사람 대하기가 조금 버거웠어요')
+  const social = capLabel(d.socialCapacity, '사람을 대하기 버거웠어', '사람을 대할 여유가 있었어', '사람 대하기가 조금 버거웠어')
   if (social) out.push(social)
-  const sleep = strainLabel(d.sleep, '잠이 부족했어요', '잠은 잘 잤어요', '잠이 조금 부족했어요')
+  const sleep = strainLabel(d.sleep, '잠이 부족했어', '잠은 잘 잤어', '잠이 조금 부족했어')
   if (sleep) out.push(sleep)
-  const appetite = strainLabel(d.appetite, '식욕이 흔들렸어요', '식욕은 안정적이었어요', '식욕이 조금 흔들렸어요')
+  const appetite = strainLabel(d.appetite, '식욕이 흔들렸어', '식욕은 안정적이었어', '식욕이 조금 흔들렸어')
   if (appetite) out.push(appetite)
-  const fn = strainLabel(d.functionLevel, '평소 하던 일이 버거웠어요', '평소처럼 지냈어요', '평소 하던 일이 조금 버거웠어요')
+  const fn = strainLabel(d.functionLevel, '평소 하던 일이 버거웠어', '평소처럼 지냈어', '평소 하던 일이 조금 버거웠어')
   if (fn) out.push(fn)
 
   return out

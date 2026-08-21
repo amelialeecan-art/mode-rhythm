@@ -111,8 +111,8 @@ export function forecastRhythmDay(input: ForecastInput): RhythmForecastDay {
   const confidence = forecastConfidence(recent.length, cycle, dayOffset)
   const note =
     confidence <= 35
-      ? '아직 기록이 적어 참고용으로만 봐주세요.'
-      : '최근 기록과 주기 위치를 바탕으로 한 참고예요. 확정은 아니에요.'
+      ? '아직 기록이 적어 참고용으로만 봐줘.'
+      : '최근 기록과 주기 위치를 바탕으로 한 참고야. 확정은 아니야.'
 
   return {
     date: targetDate,

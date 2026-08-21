@@ -42,7 +42,7 @@ const STATE_CLAUSE: Record<string, string> = {
   state_emotion_unsteady: '마음이 쉽게 흔들렸',
   state_emotions_linger: '예민함이나 짜증이 오래 갔',
 }
-/** 마지막 단계 상태는 "…해졌어요"처럼 변화가 도착한 말투로 마무리(있을 때만). */
+/** 마지막 단계 상태는 "…해졌어"처럼 변화가 도착한 말투로 마무리(있을 때만). */
 const STATE_BECAME: Record<string, string> = {
   state_mind_busy: '머리가 복잡해졌',
   state_daily_tasks_hard: '평소 하던 일이 버거워졌',
@@ -75,9 +75,9 @@ function clauseFor(key: string): string | null {
   if (STATE_CLAUSE[key]) return STATE_CLAUSE[key]
   if (SLEEP_CLAUSE[key]) return SLEEP_CLAUSE[key]
   const m = MIND_SIGNAL_LABEL.get(key)
-  if (m?.endsWith('어요')) return m.slice(0, -2)
+  if (m?.endsWith('어')) return m.slice(0, -1)
   const s = SLEEP_ISSUE_LABEL.get(key)
-  if (s?.endsWith('어요')) return s.slice(0, -2)
+  if (s?.endsWith('어')) return s.slice(0, -1)
   return null
 }
 /** 마지막 단계의 마무리 어간(상태면 "…해졌", 그 외엔 연결 어간과 동일). */
@@ -136,9 +136,9 @@ function buildSentence(m: RepeatedEpisodeMotif): string {
   if (m.sequenceKeys.length >= 3) {
     const r1 = m.typicalLagRanges[1]
     const step2 = r1.min === r1.max ? lagWord(r1.min) : `그 뒤 ${r1.min}~${r1.max}일 안에`
-    body = `${lead} ${clauses[1]}고, ${step2} ${terminalClauseFor(m.sequenceKeys[2])}어요.`
+    body = `${lead} ${clauses[1]}고, ${step2} ${terminalClauseFor(m.sequenceKeys[2])}어.`
   } else {
-    body = `${lead} ${terminalClauseFor(m.sequenceKeys[1])}어요.`
+    body = `${lead} ${terminalClauseFor(m.sequenceKeys[1])}어.`
   }
   return `최근 ${cw} 번의 비슷한 흐름에서는 ${body}`
 }
@@ -152,7 +152,7 @@ function buildDates(m: RepeatedEpisodeMotif): string {
   const joined = starts.map((s) => fmtStart(s, baseYear)).join(' · ')
   // 4번 이상 되풀이됐으면 "최근에는"으로 최근 몇 번만 보여준다는 걸 밝힌다.
   const prefix = m.occurrenceCount >= 4 ? '최근에는 ' : ''
-  return `${prefix}${joined}에 시작됐어요.`
+  return `${prefix}${joined}에 시작됐어.`
 }
 
 /**

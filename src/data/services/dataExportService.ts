@@ -13,19 +13,48 @@ import type {
   RecoveryLog,
   UserSettings,
 } from '../models'
+import type {
+  StateMeasurement,
+  SleepEpisode,
+  MealEpisode,
+  ActivityEpisode,
+  MedicationProfile,
+  MedicationDose,
+  HealthException,
+  ScreenMetric,
+  WeightMeasurement,
+  Experiment,
+} from '../modelsV2'
 
 /**
  * 백업 파일(형식) 버전. ⚠️ DB_VERSION과 별개 개념이다.
- * DB_VERSION이 바뀌어도 이 값이 자동으로 따라 바뀌지 않는다 —
- * 백업 파일 구조가 실제로 달라질 때만 별도로 올린다.
+ * v1: V1 7테이블만. v2: V1 7테이블 + V2 신규 9테이블(원자료 전부).
+ * ⚠️ v1 백업도 계속 import 가능해야 한다(하위호환). 이 값을 올려도 import는 두 버전을 모두 받는다.
  */
-export const EXPORT_FORMAT_VERSION = 1
+export const EXPORT_FORMAT_VERSION = 2
+/** import이 허용하는 백업 포맷 버전 목록(하위호환). */
+export const SUPPORTED_IMPORT_VERSIONS = [1, 2] as const
+
+/** V2 신규 테이블 묶음(백업/복원 단위). v1 파일에는 존재하지 않는다. */
+export interface ModeExportV2Tables {
+  stateMeasurements: StateMeasurement[]
+  sleepEpisodes: SleepEpisode[]
+  mealEpisodes: MealEpisode[]
+  activityEpisodes: ActivityEpisode[]
+  medicationProfiles: MedicationProfile[]
+  medicationDoses: MedicationDose[]
+  healthExceptions: HealthException[]
+  screenMetrics: ScreenMetric[]
+  weightMeasurements: WeightMeasurement[]
+  experiments: Experiment[]
+}
 
 export interface ModeExportPayload {
   app: 'MODE'
   version: number
   exportedAt: string
   tables: {
+    // V1 (항상 존재)
     dailyLogs: DailyLog[]
     eventLogs: EventLog[]
     cycleLogs: CycleLog[]
@@ -33,27 +62,48 @@ export interface ModeExportPayload {
     dailyScores: DailyScore[]
     patternInsights: PatternInsight[]
     userSettings: UserSettings[]
-  }
+  } & Partial<ModeExportV2Tables> // V2 테이블은 v1 파일엔 없을 수 있어 optional
 }
 
-/** 모든 테이블을 모아 export payload를 만든다. (다운로드와 분리 — 자동 백업에서도 재사용) */
+/**
+ * 모든 테이블(V1 + V2)을 모아 v2 export payload를 만든다.
+ * 원자료를 모두 담아 분석 캐시(dailyScores/patternInsights)가 없어도 앱을 복구할 수 있게 한다.
+ */
 export async function buildExportPayload(): Promise<ModeExportPayload> {
-  const [dailyLogs, eventLogs, cycleLogs, recoveryLogs, dailyScores, patternInsights, userSettings] =
-    await Promise.all([
-      db.dailyLogs.toArray(),
-      db.eventLogs.toArray(),
-      db.cycleLogs.toArray(),
-      db.recoveryLogs.toArray(),
-      db.dailyScores.toArray(),
-      db.patternInsights.toArray(),
-      db.userSettings.toArray(),
-    ])
+  const [
+    dailyLogs, eventLogs, cycleLogs, recoveryLogs, dailyScores, patternInsights, userSettings,
+    stateMeasurements, sleepEpisodes, mealEpisodes, activityEpisodes,
+    medicationProfiles, medicationDoses, healthExceptions, screenMetrics, weightMeasurements,
+  ] = await Promise.all([
+    db.dailyLogs.toArray(),
+    db.eventLogs.toArray(),
+    db.cycleLogs.toArray(),
+    db.recoveryLogs.toArray(),
+    db.dailyScores.toArray(),
+    db.patternInsights.toArray(),
+    db.userSettings.toArray(),
+    db.stateMeasurements.toArray(),
+    db.sleepEpisodes.toArray(),
+    db.mealEpisodes.toArray(),
+    db.activityEpisodes.toArray(),
+    db.medicationProfiles.toArray(),
+    db.medicationDoses.toArray(),
+    db.healthExceptions.toArray(),
+    db.screenMetrics.toArray(),
+    db.weightMeasurements.toArray(),
+  ])
+  const experiments = await db.experiments.toArray()
 
   return {
     app: 'MODE',
     version: EXPORT_FORMAT_VERSION,
     exportedAt: new Date().toISOString(),
-    tables: { dailyLogs, eventLogs, cycleLogs, recoveryLogs, dailyScores, patternInsights, userSettings },
+    tables: {
+      dailyLogs, eventLogs, cycleLogs, recoveryLogs, dailyScores, patternInsights, userSettings,
+      stateMeasurements, sleepEpisodes, mealEpisodes, activityEpisodes,
+      medicationProfiles, medicationDoses, healthExceptions, screenMetrics, weightMeasurements,
+      experiments,
+    },
   }
 }
 

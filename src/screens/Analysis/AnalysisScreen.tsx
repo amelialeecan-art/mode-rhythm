@@ -16,6 +16,11 @@ import { formatMonthDay, parseISODate } from '../../lib/date'
 import { factorPhrase, episodeTrigger, eventResponseSentence, flowDriverSentence, cumulativeExposureSentence, type VoiceStrength } from './analysisVoice'
 import { suppressRedundantCumulative, selectCumulativeInsights, strongRecoveryInsights } from '../resultHierarchy'
 import { EventResponseChart } from './EventResponseChart'
+import { DataQualityCard } from './DataQualityCard'
+import { V2TemporalCard } from './V2TemporalCard'
+import { CycleAlignedCard } from './CycleAlignedCard'
+import { ClusterCard } from './ClusterCard'
+import { ExperimentSection } from './ExperimentSection'
 import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
 import { createEpisodeCardLoader, type AnalysisEpisodeCards, type CardSubsection, type EpisodeCardLoader } from './analysisEpisodeCards'
 import './analysis.css'
@@ -105,7 +110,16 @@ export function AnalysisScreen() {
         </GlassCard>
       ) : (
         <>
-          {/* ===== 0. 최근에 이어진 흐름 · 반복해서 나타난 순서 (있으면 맨 위) ===== */}
+          {/* ===== 최종 계층: 1) 데이터 품질 2) 시간 순서 확인된 V2 패턴 3) 주기 4) 장기 상태
+                    5) 탐색적 과거 패턴(V1) 6) 실험 ===== */}
+          {/* 1. 데이터 품질 / 기록 상태 */}
+          <DataQualityCard />
+
+          {/* 2. 시간 순서가 확인된 V2 패턴 (timestamp/lag 정렬 · 품질 gate 통과분만) */}
+          <V2TemporalCard />
+
+          {/* ===== 이하 5. 탐색적 과거 패턴 (V1 patternAnalysisService — 시간 순서 미확정) ===== */}
+          {/* 최근에 이어진 흐름 · 반복해서 나타난 순서 */}
           <EpisodeFlowCards cards={episodeCards} />
 
           {/* ===== 1. 흐름을 바꾼 누적 요인 (없으면 섹션 전체 숨김) ===== */}
@@ -139,7 +153,7 @@ export function AnalysisScreen() {
           {/* ===== 3. 반복되는 조건과 결과 (핵심 최대 3개) ===== */}
           {showComparison && coreFactors.length > 0 && (
             <GlassCard>
-              <SectionHeader title="반복되는 조건과 결과" />
+              <SectionHeader title="반복되는 조건과 결과" subtitle="과거 기록 기반 탐색 패턴 (시간 순서는 확정 아님)" />
               <ul className="pat-list">
                 {coreFactors.map(({ f, strength }) => (
                   <FactorRow key={f.factorGroup} f={f} strength={strength} />
@@ -209,7 +223,16 @@ export function AnalysisScreen() {
             <RecoveryComparisonCardView rc={vm.recoveryComparison} shownActions={strongRecs} />
           )}
 
-          {/* ===== 6. 그 밖의 기록 (초기 빈도 · 미제) — 결과 있을 때만 노출 ===== */}
+          {/* 4. cycle 패턴 (완료된 3+ 주기, 충분할 때만) */}
+          <CycleAlignedCard />
+
+          {/* 5. 장기 상태 패턴 (충분+안정할 때만) */}
+          <ClusterCard />
+
+          {/* 6. 개인 실험 (N-of-1) */}
+          <ExperimentSection />
+
+          {/* ===== 그 밖의 기록 (초기 빈도 · 미제) — 결과 있을 때만 노출 ===== */}
           {((!showComparison && vm.eventFrequency.length > 0) || vm.unexplained.length > 0) && (
             <details className="more more--block">
               <summary className="more__sum">그 밖의 기록</summary>
@@ -407,7 +430,7 @@ function EpisodeRow({ ep }: { ep: EpisodeCard }) {
       <SignalSection title="전날 추가된 신호" section={ep.dayBeforeNew} tone="warn" />
       <SignalSection title="나빠진 뒤 행동" section={ep.afterBehaviors} tone="after" />
 
-      {noSignals && <p className="ep__empty">이 구간엔 앞뒤로 함께 기록된 신호가 뚜렷하지 않아요.</p>}
+      {noSignals && <p className="ep__empty">이 구간엔 앞뒤로 함께 기록된 신호가 뚜렷하지 않아.</p>}
 
       {hasCollapsed && (
         <details className="ep__more">
@@ -502,7 +525,7 @@ function ComboRow({ c }: { c: ComboCard }) {
       <div className="pat__head">
         <span className="pat__name">{c.titleA} + {c.titleB}</span>
       </div>
-      <p className="pat__say">둘이 겹친 날 {c.metricLabel.replace(/ 정도$/, '')}가 유독 더 힘들었어요.</p>
+      <p className="pat__say">둘이 겹친 날 {c.metricLabel.replace(/ 정도$/, '')}가 유독 더 힘들었어.</p>
     </li>
   )
 }

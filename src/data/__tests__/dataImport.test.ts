@@ -60,7 +60,7 @@ function makePatternInsight(id?: number): Record<string, unknown> {
   return {
     ...(id !== undefined ? { id } : {}),
     insightType: 'factor', targetMetric: 'emotional', factorCodes: ['work'], effectSize: 0.4,
-    confidence: 55, supportCount: 6, message: '함께 나타나는 경향이 있어요', createdAt: '2026-07-01T00:00:00.000Z',
+    confidence: 55, supportCount: 6, message: '함께 나타나는 경향이 있어', createdAt: '2026-07-01T00:00:00.000Z',
   }
 }
 function makeUserSettings(id?: number): Record<string, unknown> {
@@ -259,9 +259,13 @@ describe('importAllData — 원자적 전체 교체', () => {
     if (!v.ok) return
     const counts = await importAllData(v.payload)
 
+    // V2(6단계): 백업 포맷 v2는 V1 7테이블 + V2 9테이블을 복원한다.
+    // v1 payload(makePayload)에는 V2 테이블이 없어 전부 0으로 교체된다.
     expect(counts).toEqual({
       dailyLogs: 2, eventLogs: 1, cycleLogs: 1, recoveryLogs: 1,
       dailyScores: 2, patternInsights: 1, userSettings: 1,
+      stateMeasurements: 0, sleepEpisodes: 0, mealEpisodes: 0, activityEpisodes: 0,
+      medicationProfiles: 0, medicationDoses: 0, healthExceptions: 0, screenMetrics: 0, weightMeasurements: 0, experiments: 0,
     })
     // 옛 레코드(1999)는 사라지고 백업 날짜만 남는다
     const dates = (await db.dailyLogs.toArray()).map((d) => d.date).sort()
@@ -320,7 +324,7 @@ describe('importAllData — 원자적 전체 교체', () => {
     const insights = await db.patternInsights.toArray()
     // fixture에 넣은 값이 그대로 (엔진 재계산이면 confidence/message가 달라짐)
     expect(scores.find((s) => s.date === '2026-07-05')?.emotionalLoad).toBe(40)
-    expect(insights[0].message).toBe('함께 나타나는 경향이 있어요')
+    expect(insights[0].message).toBe('함께 나타나는 경향이 있어')
     expect(insights[0].confidence).toBe(55)
   })
 
@@ -333,21 +337,25 @@ describe('기존 export JSON 구조 불변', () => {
 
     // 최상위 키는 정확히 4개
     expect(Object.keys(payload).sort()).toEqual(['app', 'exportedAt', 'tables', 'version'])
-    // tables 키는 정확히 7개
+    // V2(6단계): tables 키는 V1 7 + V2 9 = 16개
     expect(Object.keys(payload.tables).sort()).toEqual(
-      ['cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings'].sort(),
+      [
+        'cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings',
+        'stateMeasurements', 'sleepEpisodes', 'mealEpisodes', 'activityEpisodes',
+        'medicationProfiles', 'medicationDoses', 'healthExceptions', 'screenMetrics', 'weightMeasurements', 'experiments',
+      ].sort(),
     )
     expect(payload.app).toBe('MODE')
     expect(payload.version).toBe(EXPORT_FORMAT_VERSION)
     // exportedAt은 유효한 ISO 날짜
     expect(Number.isNaN(Date.parse(payload.exportedAt))).toBe(false)
-    // 7개 값이 모두 배열
+    // 16개 값이 모두 배열
     for (const v of Object.values(payload.tables)) expect(Array.isArray(v)).toBe(true)
   })
 
-  it('빈 DB에서도 7테이블 배열 구조를 유지한다', async () => {
+  it('빈 DB에서도 17테이블(V1 7 + V2 10) 배열 구조를 유지한다', async () => {
     const payload = await buildExportPayload()
-    expect(Object.keys(payload.tables)).toHaveLength(7)
+    expect(Object.keys(payload.tables)).toHaveLength(17)
     for (const v of Object.values(payload.tables)) expect(Array.isArray(v)).toBe(true)
   })
 
@@ -378,7 +386,7 @@ describe('기존 export JSON 구조 불변', () => {
 describe('금지 사항 / 불변', () => {
   it('18. DB_NAME/DB_VERSION/SCHEMA_V1 불변', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(1)
+    expect(DB_VERSION).toBe(3)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
   })
 
@@ -392,7 +400,7 @@ describe('금지 사항 / 불변', () => {
 
   it('20. EXPORT_FORMAT_VERSION은 DB_VERSION과 별개 상수다', () => {
     // 값은 같아도 개념이 분리되어 있어야 한다(별도 export)
-    expect(EXPORT_FORMAT_VERSION).toBe(1)
-    expect(DB_VERSION).toBe(1)
+    expect(EXPORT_FORMAT_VERSION).toBe(2) // V2(6단계): 백업 포맷 v2 (import은 v1도 계속 허용)
+    expect(DB_VERSION).toBe(3)
   })
 })

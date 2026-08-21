@@ -51,7 +51,7 @@ export async function getRhythmForecastViewModel(opts: RhythmForecastOptions = {
       dayCount,
       tomorrow: null,
       next3Days: [],
-      note: '아직 기록이 적어요. 며칠 더 기록하면 가까운 리듬 참고를 보여드릴게요.',
+      note: '아직 기록이 적어. 며칠 더 기록하면 가까운 리듬 참고를 보여드릴게.',
     }
   }
 
@@ -68,7 +68,7 @@ export async function getRhythmForecastViewModel(opts: RhythmForecastOptions = {
     dayCount,
     tomorrow: next3Days[0],
     next3Days,
-    note: '실제 기록이 아니라, 최근 흐름과 주기 위치를 바탕으로 한 참고예요.',
+    note: '실제 기록이 아니라, 최근 흐름과 주기 위치를 바탕으로 한 참고야.',
   }
 }
 

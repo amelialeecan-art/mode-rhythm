@@ -949,3 +949,91 @@
   font-weight: 600;
   color: var(--ink-2);
 }
+
+/* ---------- 기록 상태(데이터 품질/coverage) 카드 ---------- */
+.dq-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.dq-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1.4px solid rgba(255, 255, 255, 0.65);
+}
+.dq-num {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--deep);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.dq-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.dq-hint {
+  margin-top: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+/* ---------- 주기 정렬 사후 분석 카드 ---------- */
+.ca-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.ca-item { padding: 12px 13px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1.4px solid rgba(255,255,255,0.65); }
+.ca-say { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.55; }
+.ca-meta { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+.ca-data { font-size: 11.5px; font-weight: 700; color: var(--deep-2); font-variant-numeric: tabular-nums; }
+.ca-conf { font-size: 11px; font-weight: 600; color: var(--ink-3); }
+.ca-conf--strong { color: var(--mint-ink); }
+.ca-conf--moderate { color: var(--sky-ink); }
+
+/* ---------- 하루 유형(군집) 카드 ---------- */
+.cl-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cl-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1.4px solid rgba(255,255,255,0.65); }
+.cl-label { font-size: 14px; font-weight: 700; color: var(--ink); }
+.cl-share { font-size: 13px; font-weight: 800; color: var(--deep-2); font-variant-numeric: tabular-nums; }
+
+/* ---------- 개인 실험 카드 ---------- */
+.exp-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.exp-item { padding: 12px 13px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1.4px solid rgba(255,255,255,0.65); }
+.exp-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.exp-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+.exp-status { font-size: 11px; font-weight: 700; color: var(--ink-3); background: rgba(120,90,180,0.08); border-radius: var(--pill); padding: 3px 9px; white-space: nowrap; }
+.exp-status--intervention { color: var(--mint-ink); background: rgba(91,199,158,0.16); }
+.exp-status--completed { color: var(--deep-2); }
+.exp-say { margin: 8px 0 0; font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.5; }
+.exp-meta { margin: 6px 0 0; font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+.exp-actions { margin-top: 10px; display: flex; gap: 6px; }
+.exp-form { margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(120,90,180,0.16); }
+
+/* ---------- 시간 순서가 확인된 V2 패턴 카드 ---------- */
+.tmp-group { margin-top: 14px; }
+.tmp-group:first-of-type { margin-top: 10px; }
+.tmp-h { margin: 0 0 8px; font-size: 12px; font-weight: 800; color: var(--sky-ink); letter-spacing: 0.01em; }
+.tmp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.tmp-item { padding: 11px 13px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1.4px solid rgba(255,255,255,0.65); }
+.tmp-say { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.55; }
+.tmp-meta { margin: 7px 0 0; font-size: 11.5px; font-weight: 600; color: var(--ink-3); line-height: 1.5; font-variant-numeric: tabular-nums; }
+
+/* 시간 순서 카드 — 사람말 메인 + 상세(자세히 보기) 2층 */
+.tmp-num { margin: 5px 0 0; font-size: 12.5px; font-weight: 700; color: var(--deep-2); line-height: 1.5; font-variant-numeric: tabular-nums; }
+.tmp-more { margin-top: 7px; }
+.tmp-more > summary { cursor: pointer; font-size: 11.5px; font-weight: 700; color: var(--sky-ink); list-style: none; }
+.tmp-more > summary::-webkit-details-marker { display: none; }
+.tmp-more[open] > summary { margin-bottom: 5px; }
+
+/* 가벼운 한마디(양념) — 데이터 문장 뒤 보조 */
+.tmp-aside { margin: 3px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-3); line-height: 1.5; }
+
+/* 핵심 관계 해석 강조(hunger vs craving 등) */
+.ca-highlight { margin: 12px 0 4px; padding: 12px 13px; border-radius: 14px; background: rgba(169,133,232,0.12); border: 1.4px solid rgba(169,133,232,0.28); }
+.ca-highlight .ca-say { font-weight: 800; }

@@ -55,11 +55,11 @@ describe('Rhythm 반복 흐름 — 실제 service-fed 경로', () => {
     // 문장은 실제 반복 순서(마음 → 다음 날 수면 → 일 저하)를 사람말로 말한다.
     expect(cards[0].sentence).toContain('최근 세 번의 비슷한 흐름에서는')
     expect(cards[0].sentence).toContain('같은 생각이 계속 맴돈')
-    expect(cards[0].sentence).toContain('평소 하던 일이 버거워졌어요')
+    expect(cards[0].sentence).toContain('평소 하던 일이 버거워졌어')
     // 실제 시작일(2025-09-01 · 2025-11-01 · 2026-01-05) — 기준 연도(최근=2026)는 연도 생략,
     // 다른 해(2025)만 연도 포함.
     expect(cards[0].dates).toContain('2025년 9월 1일')
-    expect(cards[0].dates).toContain('1월 5일에 시작됐어요')
+    expect(cards[0].dates).toContain('1월 5일에 시작됐어')
     // 진행 중/현재 일치/내부 key/금지 표현은 노출하지 않는다.
     expect(cards[0].sentence).not.toMatch(FORBIDDEN)
     expect(cards[0].dates).not.toMatch(FORBIDDEN)
