@@ -5,7 +5,7 @@ import type { RatingValue, SleepEpisode } from '../../../data/modelsV2'
 import { sleepDuration, sleepMidpoint, formatSleepDuration } from '../../../engine/sleepDerived'
 import { validateSleepChronology } from '../../../data/v2Validation'
 import { setFormBusy } from '../../../lib/pwaUpdate'
-import { reportDirty, clearDirty, registerSaver, unregisterSaver } from '../checkIn/dirtyRegistry'
+import { reportDirty, clearDirty, registerSaver, unregisterSaver, SAVE_ORDER } from '../checkIn/dirtyRegistry'
 import { formatClock } from './time'
 import {
   clockFromIso,
@@ -108,7 +108,7 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
   const durationText = formatSleepDuration(sleepDuration({ sleepOnsetAt: composed.sleepOnsetAt, wakeAt: composed.wakeAt }))
   const midIso = sleepMidpoint({ sleepOnsetAt: composed.sleepOnsetAt, wakeAt: composed.wakeAt })
 
-  const onSave = async () => {
+  const onSave = async (): Promise<boolean> => {
     const iso = composeSleepTimes(localDate, times)
     // §7 사람말 chronology 안내(rollover 반영 후 절대 시각 기준).
     const errs = validateSleepChronology(iso)
@@ -124,7 +124,7 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
         setError('시간 순서가 맞는지 한 번 확인해줘.')
       }
       setStatus('error')
-      return
+      return false
     }
     setStatus('saving')
     setError('')
@@ -145,20 +145,22 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
       reportDirty(DIRTY_KEY, false)
       setStatus('success')
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 수면 저장 실패', e)
       setError('저장하지 못했어. 시간을 한 번 확인해줘.')
       setStatus('error')
+      return false
     } finally {
       setFormBusy(false)
     }
   }
 
-  // 플로팅 저장바가 이 카드의 canonical save를 그대로 호출하도록 등록(중복 저장 로직 없음).
+  // 전역 저장바가 이 카드의 canonical save를 그대로 호출하도록 등록(중복 저장 로직 없음).
   const saveRef = useRef(onSave)
   saveRef.current = onSave
   useEffect(() => {
-    registerSaver(DIRTY_KEY, () => saveRef.current())
+    registerSaver(DIRTY_KEY, () => saveRef.current(), '수면 기록', SAVE_ORDER.sleep)
     return () => unregisterSaver(DIRTY_KEY)
   }, [])
 

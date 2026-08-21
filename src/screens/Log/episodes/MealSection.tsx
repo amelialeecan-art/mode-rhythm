@@ -5,7 +5,7 @@ import type { MealAmount, MealEpisode, RatingValue, TriBoolean } from '../../../
 import { computeMealIntervals, formatSleepDuration } from '../../../engine'
 import { toISODate } from '../../../lib/date'
 import { setFormBusy } from '../../../lib/pwaUpdate'
-import { reportDirty, clearDirty, registerSaver, unregisterSaver } from '../checkIn/dirtyRegistry'
+import { reportDirty, clearDirty, registerSaver, unregisterSaver, SAVE_ORDER } from '../checkIn/dirtyRegistry'
 import { TriChoice } from './TriChoice'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue, formatClock } from './time'
 
@@ -71,9 +71,9 @@ function MealQuickAdd({ onSaved }: { onSaved: () => void }) {
   }, [open, hunger, craving, binge])
   useEffect(() => () => clearDirty(DIRTY_KEY), [])
 
-  const onSave = async () => {
+  const onSave = async (): Promise<boolean> => {
     const startIso = fromDatetimeLocalValue(startedAt)
-    if (!startIso) return
+    if (!startIso) return false
     setSaving(true)
     setFormBusy(true)
     try {
@@ -90,8 +90,10 @@ function MealQuickAdd({ onSaved }: { onSaved: () => void }) {
       reset()
       setOpen(false)
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 식사 저장 실패', e)
+      return false
     } finally {
       setSaving(false)
       setFormBusy(false)
@@ -101,7 +103,7 @@ function MealQuickAdd({ onSaved }: { onSaved: () => void }) {
   const saveRef = useRef(onSave)
   saveRef.current = onSave
   useEffect(() => {
-    registerSaver(DIRTY_KEY, () => saveRef.current())
+    registerSaver(DIRTY_KEY, () => saveRef.current(), '식사 기록', SAVE_ORDER.meal)
     return () => unregisterSaver(DIRTY_KEY)
   }, [])
 
@@ -164,7 +166,7 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
 
   const pickAmount = (a: MealAmount) => setAmount((cur) => (cur === a ? null : a))
 
-  const onSave = async () => {
+  const onSave = async (): Promise<boolean> => {
     setSaving(true)
     setError('')
     setFormBusy(true)
@@ -181,9 +183,11 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
       baselineRef.current = snapshot()
       reportDirty(DIRTY_KEY, false)
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 식사 후 기록 실패', e)
       setError('시각 순서를 확인해 줘 (시작 → 종료).')
+      return false
     } finally {
       setSaving(false)
       setFormBusy(false)
@@ -193,7 +197,7 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
   const saveRef = useRef(onSave)
   saveRef.current = onSave
   useEffect(() => {
-    registerSaver(DIRTY_KEY, () => saveRef.current())
+    registerSaver(DIRTY_KEY, () => saveRef.current(), '식사 후 기록', SAVE_ORDER.meal)
     return () => unregisterSaver(DIRTY_KEY)
   }, [DIRTY_KEY])
 

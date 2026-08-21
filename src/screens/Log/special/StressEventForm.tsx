@@ -6,6 +6,8 @@ import type { EventLog } from '../../../data/models'
 import type { RatingValue } from '../../../data/modelsV2'
 import { setFormBusy } from '../../../lib/pwaUpdate'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue } from '../episodes/time'
+import { useGlobalSaver } from '../checkIn/useGlobalSaver'
+import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
 
 interface Props {
   localDate: string
@@ -31,8 +33,8 @@ export function StressEventForm({ localDate, editRecord, onSaved, onCancelEdit }
 
   const canSave = category !== null && typeof intensity === 'number'
 
-  const onSave = async () => {
-    if (!canSave) return
+  const onSave = async (): Promise<boolean> => {
+    if (!canSave) return false
     const at = fromDatetimeLocalValue(occurredAt) ?? new Date().toISOString()
     setSaving(true)
     setFormBusy(true)
@@ -53,13 +55,18 @@ export function StressEventForm({ localDate, editRecord, onSaved, onCancelEdit }
         setOccurredAt(nowDatetimeLocalValue())
       }
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 스트레스 사건 저장 실패', e)
+      return false
     } finally {
       setSaving(false)
       setFormBusy(false)
     }
   }
+
+  // 전역 저장바 연결: 저장 가능한 draft가 있으면 dirty(§3-A).
+  useGlobalSaver('stress-event', canSave, onSave, { label: '스트레스 기록', order: SAVE_ORDER.event })
 
   return (
     <div className="special-form">

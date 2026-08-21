@@ -6,6 +6,8 @@ import type { ActivityEpisode, ActivityType, RatingValue } from '../../../data/m
 import { toISODate } from '../../../lib/date'
 import { setFormBusy } from '../../../lib/pwaUpdate'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue } from '../episodes/time'
+import { useGlobalSaver } from '../checkIn/useGlobalSaver'
+import { SAVE_ORDER } from '../checkIn/dirtyRegistry'
 
 interface Props {
   editRecord?: ActivityEpisode | null
@@ -31,8 +33,8 @@ export function ActivityForm({ editRecord, onSaved, onCancelEdit }: Props) {
   const durNum = Number(duration)
   const canSave = duration.trim() !== '' && Number.isFinite(durNum) && durNum >= 0
 
-  const onSave = async () => {
-    if (!canSave) return
+  const onSave = async (): Promise<boolean> => {
+    if (!canSave) return false
     const startIso = fromDatetimeLocalValue(startedAt) ?? new Date().toISOString()
     setSaving(true)
     setFormBusy(true)
@@ -56,13 +58,17 @@ export function ActivityForm({ editRecord, onSaved, onCancelEdit }: Props) {
         setStartedAt(nowDatetimeLocalValue())
       }
       onSaved()
+      return true
     } catch (e) {
       console.error('[MODE] 운동 저장 실패', e)
+      return false
     } finally {
       setSaving(false)
       setFormBusy(false)
     }
   }
+
+  useGlobalSaver('activity-episode', canSave, onSave, { label: '운동 기록', order: SAVE_ORDER.event })
 
   return (
     <div className="special-form">

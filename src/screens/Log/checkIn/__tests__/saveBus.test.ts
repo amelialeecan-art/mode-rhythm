@@ -1,5 +1,5 @@
 /* =====================================================================
-   MODE · dirty 집계 + 저장 버스 (플로팅 저장바 로직)
+   MODE · 기록 탭 전역 저장 버스 (FloatingSaveBar 로직)
    ===================================================================== */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -11,46 +11,70 @@ import {
   isSaving,
   saveAllDirty,
   resetDirtyRegistry,
+  SAVE_ORDER,
 } from '../dirtyRegistry'
 
 beforeEach(() => resetDirtyRegistry())
 
-describe('저장바 노출 조건 — saver가 있고 dirty일 때만', () => {
-  it('(12) dirty=false면 노출 안 함', () => {
-    registerSaver('a', () => {})
-    reportDirty('a', false)
-    expect(hasSavableDirty()).toBe(false)
+describe('전역 저장바 노출 조건 — saver가 있고 dirty일 때만', () => {
+  it('(1~9) 각 영역이 dirty로 등록되면 저장바가 뜬다', () => {
+    // 실제 컴포넌트가 쓰는 키/순서를 모사 — 어떤 영역 하나만 dirty여도 노출.
+    for (const [key, order] of [
+      ['checkin-morning', SAVE_ORDER.checkin],
+      ['sleep-episode', SAVE_ORDER.sleep],
+      ['meal-quick', SAVE_ORDER.meal],
+      ['stress-event', SAVE_ORDER.event],
+      ['activity-episode', SAVE_ORDER.event],
+      ['medication-dose', SAVE_ORDER.health],
+      ['health-exception', SAVE_ORDER.health],
+      ['weight-measurement', SAVE_ORDER.health],
+      ['legacy-log', SAVE_ORDER.legacy],
+    ] as const) {
+      resetDirtyRegistry()
+      registerSaver(key, () => true, key, order)
+      reportDirty(key, true)
+      expect(hasSavableDirty(), key).toBe(true)
+    }
   })
-  it('(13) dirty=true면 노출', () => {
-    registerSaver('a', () => {})
-    reportDirty('a', true)
-    expect(hasSavableDirty()).toBe(true)
-  })
-  it('saver 없이 dirty만이면 저장바 노출 안 함(자기 버튼으로 저장)', () => {
-    reportDirty('x', true)
+
+  it('saver 없이 dirty만이면 저장바 노출 안 함(즉시 저장 영역)', () => {
+    reportDirty('atomic-x', true)
     expect(hasSavableDirty()).toBe(false)
   })
 })
 
-describe('(14/15) saveAllDirty — 각 카드의 기존 핸들러 재사용, 중복 저장 없음', () => {
-  it('dirty이고 saver가 있는 카드만, 등록 순서대로 저장', async () => {
+describe('(7) 저장 순서는 등록 순서가 아니라 SAVE_ORDER를 따른다', () => {
+  it('역순 등록해도 checkin→sleep→meal→event→health→legacy 순으로 저장', async () => {
     const calls: string[] = []
-    registerSaver('a', () => { calls.push('a') })
-    registerSaver('b', () => { calls.push('b') })
-    registerSaver('c', () => { calls.push('c') })
-    reportDirty('a', true)
-    reportDirty('b', false) // dirty 아님 → 저장 안 함
-    reportDirty('c', true)
+    registerSaver('legacy-log', () => { calls.push('legacy') }, '이전 방식 기록', SAVE_ORDER.legacy)
+    registerSaver('weight-measurement', () => { calls.push('weight') }, '체중 기록', SAVE_ORDER.health)
+    registerSaver('meal-quick', () => { calls.push('meal') }, '식사 기록', SAVE_ORDER.meal)
+    registerSaver('sleep-episode', () => { calls.push('sleep') }, '수면 기록', SAVE_ORDER.sleep)
+    registerSaver('checkin-morning', () => { calls.push('checkin') }, '아침 상태', SAVE_ORDER.checkin)
+    for (const k of ['legacy-log', 'weight-measurement', 'meal-quick', 'sleep-episode', 'checkin-morning']) reportDirty(k, true)
     await saveAllDirty()
-    expect(calls).toEqual(['a', 'c'])
+    expect(calls).toEqual(['checkin', 'sleep', 'meal', 'weight', 'legacy'])
+  })
+})
+
+describe('(10/14) saveAllDirty — 한 번에 저장, 중복 방지', () => {
+  it('(10) 서로 다른 3개 영역 동시 dirty → 한 번에 세 saver 모두 호출', async () => {
+    const calls: string[] = []
+    registerSaver('checkin-morning', () => { calls.push('a') }, '아침 상태', SAVE_ORDER.checkin)
+    registerSaver('sleep-episode', () => { calls.push('b') }, '수면 기록', SAVE_ORDER.sleep)
+    registerSaver('meal-quick', () => { calls.push('c') }, '식사 기록', SAVE_ORDER.meal)
+    for (const k of ['checkin-morning', 'sleep-episode', 'meal-quick']) reportDirty(k, true)
+    const failed = await saveAllDirty()
+    expect(calls).toEqual(['a', 'b', 'c'])
+    expect(failed).toEqual([])
   })
 
-  it('저장 중 재호출은 무시(중복 save 방지)', async () => {
+  it('(14) 저장 중 재호출 무시(연타 방지)', async () => {
     let resolve!: () => void
     const gate = new Promise<void>((r) => { resolve = r })
-    const saver = vi.fn(() => gate)
-    registerSaver('a', saver)
-    reportDirty('a', true)
+    const saver = vi.fn(async () => { await gate; return true })
+    registerSaver('sleep-episode', saver, '수면 기록', SAVE_ORDER.sleep)
+    reportDirty('sleep-episode', true)
     const first = saveAllDirty()
     expect(isSaving()).toBe(true)
     const second = saveAllDirty() // 진행 중 → 무시
@@ -61,21 +85,47 @@ describe('(14/15) saveAllDirty — 각 카드의 기존 핸들러 재사용, 중
   })
 })
 
-describe('(16) 저장 후 상태', () => {
-  it('카드가 저장 성공 시 자기 dirty를 false로 만들면 저장바가 사라진다', async () => {
-    registerSaver('a', () => { reportDirty('a', false) }) // 카드 onSave가 하는 일
-    reportDirty('a', true)
-    expect(hasSavableDirty()).toBe(true)
+describe('(11/12) 일부 저장 실패 처리', () => {
+  it('한 영역 실패(false 반환/throw) → 실패 라벨 반환, 다른 영역은 정상', async () => {
+    registerSaver('sleep-episode', () => { reportDirty('sleep-episode', false); return true }, '수면 기록', SAVE_ORDER.sleep)
+    registerSaver('activity-episode', () => false, '운동 기록', SAVE_ORDER.event) // 저장 실패
+    registerSaver('checkin-morning', () => { throw new Error('boom') }, '아침 상태', SAVE_ORDER.checkin) // throw도 실패
+    for (const k of ['sleep-episode', 'activity-episode', 'checkin-morning']) reportDirty(k, true)
+    const failed = await saveAllDirty()
+    expect(failed).toContain('운동 기록')
+    expect(failed).toContain('아침 상태')
+    expect(failed).not.toContain('수면 기록')
+  })
+
+  it('(12) 한 영역만 저장되고 다른 dirty가 남으면 저장바는 계속 표시', async () => {
+    // 수면은 저장 성공(자기 dirty 해제), 저녁 상태는 아직 dirty
+    registerSaver('sleep-episode', () => { reportDirty('sleep-episode', false); return true }, '수면 기록', SAVE_ORDER.sleep)
+    registerSaver('checkin-evening', () => false, '저녁 상태', SAVE_ORDER.checkin)
+    reportDirty('sleep-episode', true)
+    reportDirty('checkin-evening', true)
     await saveAllDirty()
+    // 저녁 상태가 여전히 dirty → 바 유지(§9: 한 영역 저장이 다른 영역 dirty를 지우지 않는다)
+    expect(hasSavableDirty()).toBe(true)
+  })
+})
+
+describe('(13) 모두 저장 완료 → 저장바 숨김 / 언마운트 정리', () => {
+  it('모든 영역이 성공하면 dirty 없음', async () => {
+    registerSaver('checkin-morning', () => { reportDirty('checkin-morning', false); return true }, '아침 상태', SAVE_ORDER.checkin)
+    registerSaver('sleep-episode', () => { reportDirty('sleep-episode', false); return true }, '수면 기록', SAVE_ORDER.sleep)
+    reportDirty('checkin-morning', true)
+    reportDirty('sleep-episode', true)
+    const failed = await saveAllDirty()
+    expect(failed).toEqual([])
     expect(hasSavableDirty()).toBe(false)
   })
 
   it('clearDirty(언마운트)는 dirty와 saver를 모두 제거', () => {
-    registerSaver('a', () => {})
+    registerSaver('a', () => true, 'A', 1)
     reportDirty('a', true)
     clearDirty('a')
     expect(hasSavableDirty()).toBe(false)
-    unregisterSaver('a') // 존재하지 않아도 안전
+    unregisterSaver('a')
     expect(hasSavableDirty()).toBe(false)
   })
 })

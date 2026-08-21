@@ -44,8 +44,11 @@ import {
   type AppetiteRatings,
 } from '../../data/services/dailyEntryService'
 import { getTodayISODate, parseISODate, formatMonthDay } from '../../lib/date'
-import { setFormBusy, setFormDirty } from '../../lib/pwaUpdate'
+import { setFormBusy } from '../../lib/pwaUpdate'
 import { serializeForm } from './dirty'
+import { reportDirty, clearDirty, registerSaver, unregisterSaver, SAVE_ORDER } from './checkIn/dirtyRegistry'
+
+const LEGACY_KEY = 'legacy-log'
 import type { EventCategory } from '../../data/types'
 import type { FlowLevel } from '../../data/models'
 import './log.css'
@@ -144,7 +147,7 @@ export function LegacyLogForm() {
       setStatus('idle')
       // 불러온 값이 새 baseline — 단순히 탭에 들어오거나 기존 기록을 여는 것은 dirty가 아니다.
       baselineRef.current = serializeForm(next, nextSymptoms)
-      setFormDirty(false)
+      reportDirty(LEGACY_KEY, false)
     })
     return () => {
       cancelled = true
@@ -152,12 +155,13 @@ export function LegacyLogForm() {
   }, [date])
 
   // 저장하지 않은 입력 감지 — baseline과 현재 폼이 다르면 dirty. 실제 입력 변화가 있을 때만 true.
+  const legacyDirty = serializeForm(draft, symptomsText) !== baselineRef.current
   useEffect(() => {
-    setFormDirty(serializeForm(draft, symptomsText) !== baselineRef.current)
-  }, [draft, symptomsText])
+    reportDirty(LEGACY_KEY, legacyDirty)
+  }, [legacyDirty])
 
   // 화면을 벗어나면 미저장 플래그를 정리한다 (Log 탭 밖에서는 업데이트 보류 사유가 아님).
-  useEffect(() => () => setFormDirty(false), [])
+  useEffect(() => () => clearDirty(LEGACY_KEY), [])
 
   /* ---- draft 업데이트 헬퍼 ---- */
   const toggleInArray = (arr: string[], key: string) =>
@@ -277,7 +281,7 @@ export function LegacyLogForm() {
       eventRelationAfter: d.eventRelationAfter.filter((c) => c !== code),
     }))
 
-  const onSave = async () => {
+  const onSave = async (): Promise<boolean> => {
     setStatus('saving')
     setFormBusy(true) // 저장 중에는 PWA 업데이트(reload)를 보류
     const symptoms = symptomsText
@@ -291,14 +295,24 @@ export function LegacyLogForm() {
       setStatus('success')
       // 저장 성공 → 현재 폼이 새 baseline, dirty 해제.
       baselineRef.current = serializeForm(draft, symptomsText)
-      setFormDirty(false)
+      reportDirty(LEGACY_KEY, false)
+      return true
     } catch (e) {
       console.error('[MODE] 저장 실패', e)
       setStatus('error')
+      return false
     } finally {
       setFormBusy(false)
     }
   }
+
+  // 전역 저장바 연결: 이전 방식 폼도 미저장이면 함께 저장한다(같은 onSave 재사용).
+  const saveRef = useRef(onSave)
+  saveRef.current = onSave
+  useEffect(() => {
+    registerSaver(LEGACY_KEY, () => saveRef.current(), '이전 방식 기록', SAVE_ORDER.legacy)
+    return () => unregisterSaver(LEGACY_KEY)
+  }, [])
 
   const saveLabel =
     status === 'saving' ? '저장 중…' : status === 'success' ? '저장됐어' : status === 'error' ? '저장 실패' : '기록 저장'
