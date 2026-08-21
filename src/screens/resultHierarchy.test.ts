@@ -40,7 +40,7 @@ const rec = (p: Partial<RecoveryActionInsight>): RecoveryActionInsight => ({
   supportCount: 6,
   confidence: 70,
   confidenceTier: 'personal_helper',
-  message: '최근 기록에서 산책은(는) 전후 기록상 도움이 된 편이에요.',
+  message: '최근 기록에서 산책은(는) 전후 기록상 도움이 된 편이야.',
   ...p,
 })
 
@@ -70,9 +70,9 @@ describe('회복 결과 중복 억제', () => {
   })
   it('약한 tier·방어적 메시지 회복 후보는 대표 카드에서 감춘다', () => {
     const recs = [
-      rec({ actionCode: 'walk', confidenceTier: 'personal_helper', message: '전후 기록상 도움이 된 편이에요.' }),
-      rec({ actionCode: 'nap', confidenceTier: 'checking', message: '도움이 된 편이에요.' }),
-      rec({ actionCode: 'tea', confidenceTier: 'some_help', message: '다음날 버거움이 낮게 기록된 편이에요. 아직 표본은 더 필요해요.' }),
+      rec({ actionCode: 'walk', confidenceTier: 'personal_helper', message: '전후 기록상 도움이 된 편이야.' }),
+      rec({ actionCode: 'nap', confidenceTier: 'checking', message: '도움이 된 편이야.' }),
+      rec({ actionCode: 'tea', confidenceTier: 'some_help', message: '다음날 버거움이 낮게 기록된 편이야. 아직 표본은 더 필요해.' }),
     ]
     const out = strongRecoveryInsights(recs)
     expect(out.map((r) => r.actionCode)).toEqual(['walk']) // checking·방어 메시지 제외
@@ -101,9 +101,9 @@ describe('cumulativeExposureSentence (update1)', () => {
     expect(s).not.toContain('하루보다 여러 날 이어졌을 때')
     expect(s).toContain('이어진 기간')
   })
-  it('(11) "편이에요"를 쓰지 않는다', () => {
+  it('(11) "편이야"를 쓰지 않는다', () => {
     for (const m of ['emotional', 'body', 'appetite', 'sleep', 'rhythm'] as const) {
-      expect(cumulativeExposureSentence(mk(m, '늦은 식사'))).not.toContain('편이에요')
+      expect(cumulativeExposureSentence(mk(m, '늦은 식사'))).not.toContain('편이야')
     }
   })
   it('(12) 가능성·추정·경향·신뢰도·근거 횟수 문구가 없다', () => {
@@ -111,8 +111,8 @@ describe('cumulativeExposureSentence (update1)', () => {
     expect(s).not.toMatch(/가능성|추정|경향|신뢰도|근거 \d+회|표본|평균|%/)
   })
   it('결과 영역이 사람말로 표현된다', () => {
-    expect(cumulativeExposureSentence(mk('emotional', '실수'))).toBe('실수가 이어진 기간에는 감정이 더 쉽게 흔들렸어요')
-    expect(cumulativeExposureSentence(mk('body', '늦은 식사'))).toBe('늦은 식사가 이어진 기간에는 몸이 불편한 날도 함께 늘었어요')
+    expect(cumulativeExposureSentence(mk('emotional', '실수'))).toBe('실수가 이어진 기간에는 감정이 더 쉽게 흔들렸어')
+    expect(cumulativeExposureSentence(mk('body', '늦은 식사'))).toBe('늦은 식사가 이어진 기간에는 몸이 불편한 날도 함께 늘었어')
   })
 })
 

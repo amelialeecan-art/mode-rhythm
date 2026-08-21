@@ -60,7 +60,7 @@ function makePatternInsight(id?: number): Record<string, unknown> {
   return {
     ...(id !== undefined ? { id } : {}),
     insightType: 'factor', targetMetric: 'emotional', factorCodes: ['work'], effectSize: 0.4,
-    confidence: 55, supportCount: 6, message: '함께 나타나는 경향이 있어요', createdAt: '2026-07-01T00:00:00.000Z',
+    confidence: 55, supportCount: 6, message: '함께 나타나는 경향이 있어', createdAt: '2026-07-01T00:00:00.000Z',
   }
 }
 function makeUserSettings(id?: number): Record<string, unknown> {
@@ -324,7 +324,7 @@ describe('importAllData — 원자적 전체 교체', () => {
     const insights = await db.patternInsights.toArray()
     // fixture에 넣은 값이 그대로 (엔진 재계산이면 confidence/message가 달라짐)
     expect(scores.find((s) => s.date === '2026-07-05')?.emotionalLoad).toBe(40)
-    expect(insights[0].message).toBe('함께 나타나는 경향이 있어요')
+    expect(insights[0].message).toBe('함께 나타나는 경향이 있어')
     expect(insights[0].confidence).toBe(55)
   })
 

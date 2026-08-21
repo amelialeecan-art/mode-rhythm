@@ -57,7 +57,7 @@ export function DayTimeline({ localDate, reloadToken, onChanged, onEdit }: Props
       </div>
 
       {entries.length === 0 ? (
-        <p className="state-hint" style={{ marginTop: 12 }}>아직 기록이 없어요.</p>
+        <p className="state-hint" style={{ marginTop: 12 }}>아직 기록이 없어.</p>
       ) : (
         <ul className="dtl-list">
           {entries.map((e) => (

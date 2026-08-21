@@ -73,8 +73,8 @@ export function WeightForm({ editRecord, onSaved, onCancelEdit }: Props) {
         </span>
       </label>
 
-      <TriChoice label="숫자를 봤나요?" value={saw} onChange={setSaw} tone="lav" />
-      <p className="state-hint">몸무게 값과 "숫자를 본 것"은 다른 기록이에요. 안 봤으면 "아니오", 자동 측정만 됐으면 그대로 둬요.</p>
+      <TriChoice label="숫자를 봤나?" value={saw} onChange={setSaw} tone="lav" />
+      <p className="state-hint">몸무게 값과 "숫자를 본 것"은 다른 기록이야. 안 봤으면 "아니오", 자동 측정만 됐으면 그대로 둬요.</p>
 
       <div className="meal-form-actions">
         <button className="btn-primary" onClick={onSave} disabled={!canSave || saving}>

@@ -66,6 +66,11 @@ export interface CycleWindowResult {
   observations: number
   /** 개인·cycle baseline 대비 평균 차이(점). "+2.3" */
   baselineDifference: number
+  /** 표시용 실측 평균: 각 cycle 자기 baseline의 across-cycle 평균("평소" 수준). 없으면 NaN.
+   *  ⚠️ 새 통계가 아니라 이미 쓰는 관찰의 descriptive mean이다. windowMean = baselineMean + baselineDifference. */
+  baselineMean: number
+  /** 표시용 실측 평균: window(예: 생리 전) 값의 across-cycle 평균("이때" 수준). 없으면 NaN. */
+  windowMean: number
   /** 표준화 효과크기(cycle 단위 diff의 one-sample d). */
   effectSize: number
   /** 불확실성(cycle 단위 across-cycle). 불가면 null. */
@@ -93,7 +98,7 @@ export interface CycleAlignedOptions {
   minCycleDays?: number // cycle baseline 계산에 필요한 최소 일수(기본 4)
 }
 
-const NOTE = '이미 완료된 주기의 사후 정렬 분석이에요. 원인이라고 단정하지 않아요.'
+const NOTE = '이미 완료된 주기의 사후 정렬 분석이야. 원인이라고 단정하지 않아.'
 
 /**
  * 특정 metric의 cycle window(예: D-7~D-1) 결과.
@@ -119,18 +124,26 @@ export function cycleWindowAssociation(
   }
 
   const perCycleDiffs: number[] = []
+  const perCycleBaselines: number[] = [] // 표시용(각 cycle 자기 평균)
+  const perCycleWindowMeans: number[] = [] // 표시용(각 cycle window 평균)
   let observations = 0
   for (const [, obs] of byCycle) {
     if (obs.length < minCycleDays) continue // 그 cycle에 자료가 너무 적으면 baseline 불안정 → 제외
     const windowVals = obs.filter((o) => o.relativeDay >= window.fromDay && o.relativeDay <= window.toDay).map((o) => o.value)
     if (windowVals.length === 0) continue
     const cycleBaseline = mean(obs.map((o) => o.value)) // 그 cycle 자기 평균
-    perCycleDiffs.push(mean(windowVals) - cycleBaseline)
+    const cycleWindowMean = mean(windowVals)
+    perCycleDiffs.push(cycleWindowMean - cycleBaseline)
+    perCycleBaselines.push(cycleBaseline)
+    perCycleWindowMeans.push(cycleWindowMean)
     observations += windowVals.length
   }
 
   const usableCycleCount = perCycleDiffs.length
   const windowLen = window.toDay - window.fromDay + 1
+  // 표시용 실측 평균(descriptive). 기존 계산값에는 영향 없음. windowMean = baselineMean + baselineDifference.
+  const baselineMean = usableCycleCount > 0 ? mean(perCycleBaselines) : NaN
+  const windowMean = usableCycleCount > 0 ? mean(perCycleWindowMeans) : NaN
 
   const base: CycleWindowResult = {
     status: 'insufficient',
@@ -138,6 +151,8 @@ export function cycleWindowAssociation(
     usableCycleCount,
     observations,
     baselineDifference: NaN,
+    baselineMean,
+    windowMean,
     effectSize: NaN,
     ci: null,
     ciExcludesZero: false,

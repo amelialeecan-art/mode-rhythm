@@ -95,7 +95,7 @@ export function accompliceEffect(
     overlapPenalty: 0,
   })
 
-  const message = `${factorALabel}과(와) ${factorBLabel}이(가) 함께 있던 날에 ${ANALYSIS_METRIC_LABEL[metric]} 점수가 더 높게 기록된 편이에요. 원인을 증명한 결과는 아니에요.`
+  const message = `${factorALabel}과(와) ${factorBLabel}이(가) 함께 있던 날에 ${ANALYSIS_METRIC_LABEL[metric]} 점수가 더 높게 기록된 편이야. 원인을 증명한 결과는 아니야.`
 
   return {
     factorA,
@@ -135,7 +135,7 @@ export interface UnexplainedDayResult {
 }
 
 const UNEXPLAINED_NOTE =
-  '이 날은 저장된 사건과 계산 점수만으로는 충분히 설명되지 않았어요. 이유가 없는 날도 데이터로 보관해요.'
+  '이 날은 저장된 사건과 계산 점수만으로는 충분히 설명되지 않았어. 이유가 없는 날도 데이터로 보관해.'
 
 /**
  * 미제 사건: 고부하인데 사건/주기/수면/몸 설명력이 낮은 날.

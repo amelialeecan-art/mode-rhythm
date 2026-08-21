@@ -28,19 +28,19 @@ const gwa = (w: string) => w + (hasBatchim(w) ? '과' : '와')
 
 /** 선택한 metric의 최근 일주일 비교 문장. 표본 부족이면 안내 문장. */
 export function rhythmCompareSentence(metric: RhythmMetric, cmp: WeekCompareStat): string {
-  if (!cmp.enough) return '아직 최근·평소를 비교하기엔 기록이 조금 적어요.'
+  if (!cmp.enough) return '아직 최근·평소를 비교하기엔 기록이 조금 적어.'
   const label = RHYTHM_METRIC_LABEL[metric]
   const up = cmp.diff >= DIFF_THRESHOLD
   const down = cmp.diff <= -DIFF_THRESHOLD
 
   if (metric === 'recovery') {
-    if (up) return '최근 일주일은 평소보다 회복 행동이 늘었어요.'
-    if (down) return '최근 일주일은 평소보다 회복 행동이 줄었어요.'
-    return '최근 일주일은 평소와 회복 행동이 비슷했어요.'
+    if (up) return '최근 일주일은 평소보다 회복 행동이 늘었어.'
+    if (down) return '최근 일주일은 평소보다 회복 행동이 줄었어.'
+    return '최근 일주일은 평소와 회복 행동이 비슷했어.'
   }
-  if (up) return `최근 일주일은 평소보다 ${iga(label)} 많았어요.`
-  if (down) return `최근 일주일은 평소보다 ${iga(label)} 적었어요.`
-  return '최근 일주일은 평소와 큰 차이가 없었어요.'
+  if (up) return `최근 일주일은 평소보다 ${iga(label)} 많았어.`
+  if (down) return `최근 일주일은 평소보다 ${iga(label)} 적었어.`
+  return '최근 일주일은 평소와 큰 차이가 없었어.'
 }
 
 /* ---- 생리주기별 비교 문장 (9B-2B) ---- */
@@ -52,11 +52,11 @@ const CYCLE_TOPIC: Record<RhythmMetric, string> = {
   recovery: '회복',
 }
 const CYCLE_VERB: Record<RhythmMetric, string> = {
-  emotional: '흔들렸어요',
-  appetite: '요동쳤어요',
-  sleep: '흔들렸어요',
-  body: '나빠졌어요',
-  recovery: '늘었어요',
+  emotional: '흔들렸어',
+  appetite: '요동쳤어',
+  sleep: '흔들렸어',
+  body: '나빠졌어',
+  recovery: '늘었어',
 }
 const CYCLE_COLLAPSE: Record<RhythmMetric, string> = {
   emotional: '멘탈 붕괴',
@@ -91,9 +91,9 @@ export function cycleCompareSentence(metric: RhythmMetric, c: CycleCurvePoints):
 
   if (metric === 'recovery') {
     const d = (preMean(c.recent) ?? 0) - (preMean(c.previous) ?? 0)
-    if (d >= DIFF_THRESHOLD) return '이번 주기는 이전보다 회복 행동이 많았어요.'
-    if (d <= -DIFF_THRESHOLD) return '이번 주기는 이전보다 회복 행동이 적었어요.'
-    return '회복 행동은 이전 주기들과 거의 비슷했어요.'
+    if (d >= DIFF_THRESHOLD) return '이번 주기는 이전보다 회복 행동이 많았어.'
+    if (d <= -DIFF_THRESHOLD) return '이번 주기는 이전보다 회복 행동이 적었어.'
+    return '회복 행동은 이전 주기들과 거의 비슷했어.'
   }
 
   const rPre = preMean(c.recent)
@@ -103,17 +103,17 @@ export function cycleCompareSentence(metric: RhythmMetric, c: CycleCurvePoints):
 
   if (diff >= DIFF_THRESHOLD) {
     if (pPre - c.baseline < DIFF_THRESHOLD) {
-      return `생리 탓만 하기엔 억울해요. 이전 주기에는 같은 시기에도 ${iga(topic)} 비교적 안정적이었어요.`
+      return `생리 탓만 하기엔 억울해. 이전 주기에는 같은 시기에도 ${iga(topic)} 비교적 안정적이었어.`
     }
     const rOn = onset(c.recent)
     const pOn = onset(c.previous)
     if (rOn !== null && pOn !== null && rOn < pOn) {
-      return `이번 주기는 생리 ${-rOn}일 전부터 ${iga(topic)} ${CYCLE_VERB[metric]}. 이전 주기보다 ${pOn - rOn}일쯤 빨랐어요.`
+      return `이번 주기는 생리 ${-rOn}일 전부터 ${iga(topic)} ${CYCLE_VERB[metric]}. 이전 주기보다 ${pOn - rOn}일쯤 빨랐어.`
     }
-    return `이번에는 생리 직전 ${iga(CYCLE_COLLAPSE[metric])} 이전 주기보다 강했어요.`
+    return `이번에는 생리 직전 ${iga(CYCLE_COLLAPSE[metric])} 이전 주기보다 강했어.`
   }
-  if (diff <= -DIFF_THRESHOLD) return `이번 주기는 이전보다 ${iga(topic)} 잠잠했어요.`
-  return `${topic} 변화는 이전 주기들과 거의 비슷했어요.`
+  if (diff <= -DIFF_THRESHOLD) return `이번 주기는 이전보다 ${iga(topic)} 잠잠했어.`
+  return `${topic} 변화는 이전 주기들과 거의 비슷했어.`
 }
 
 /* ---- 최근 흐름 문장 (9D) ---- */
@@ -143,21 +143,21 @@ export function recentFlowSentence(flow: RecentFlow): string {
   const hold = joinDomains(flow.holding, eun)
 
   if (flow.status === 'depleting') {
-    const head = `최근 ${flow.lengthDays}일은 조금씩 소모되는 흐름이에요.`
+    const head = `최근 ${flow.lengthDays}일은 조금씩 소모되는 흐름이야.`
     const first = lead ? ` ${lead} 먼저 내려갔고,` : ''
-    const kept = hold ? ` ${hold} 평소 범위를 유지하고 있어요.` : first ? ' 나머지는 아직 버티고 있어요.' : ''
+    const kept = hold ? ` ${hold} 평소 범위를 유지하고 있어.` : first ? ' 나머지는 아직 버티고 있어.' : ''
     return `${head}${first}${kept}`.trimEnd().replace(/,$/, '.')
   }
   if (flow.status === 'recovering') {
-    const head = `최근 ${flow.lengthDays}일은 조금씩 회복되는 흐름이에요.`
+    const head = `최근 ${flow.lengthDays}일은 조금씩 회복되는 흐름이야.`
     const first = lead ? ` ${lead} 먼저 올라왔고,` : ''
-    const kept = hold ? ` ${hold} 평소 범위를 유지하고 있어요.` : first ? ' 나머지도 천천히 따라오고 있어요.' : ''
+    const kept = hold ? ` ${hold} 평소 범위를 유지하고 있어.` : first ? ' 나머지도 천천히 따라오고 있어.' : ''
     return `${head}${first}${kept}`.trimEnd().replace(/,$/, '.')
   }
   if (flow.status === 'mixed') {
-    return `최근 ${flow.lengthDays}일은 영역마다 방향이 달라요. 어떤 영역은 내려가고 어떤 영역은 올라오는 중이에요.`
+    return `최근 ${flow.lengthDays}일은 영역마다 방향이 달라. 어떤 영역은 내려가고 어떤 영역은 올라오는 중이야.`
   }
-  return '최근에는 큰 변화 없이 안정적인 흐름이에요.'
+  return '최근에는 큰 변화 없이 안정적인 흐름이야.'
 }
 
 /* ---- 나의 반복 흐름 문장 (9H) ---- */
@@ -188,7 +188,7 @@ export function personalRhythmSentence(r: PersonalRhythm): string[] {
   if (seq.length === distinct.length) {
     // 서로 다른 상태만 → 화살표(보기 편하게 stable부터 회전)
     const disp = rotateToStable(seq).map((s) => FLOW_STATE_LABEL[s])
-    out.push(`최근 기록에서는 ${disp.join(' → ')} 흐름이 반복됐어요.`)
+    out.push(`최근 기록에서는 ${disp.join(' → ')} 흐름이 반복됐어.`)
   } else {
     // 같은 상태가 반복(구분자) → 자연스럽게 설명. 구분자=가장 자주 반복(동률이면 stable).
     const count = new Map<FlowState, number>()
@@ -209,7 +209,7 @@ export function personalRhythmSentence(r: PersonalRhythm): string[] {
       others.length <= 1
         ? FLOW_STATE_LABEL[others[0] ?? sep]
         : `${gwa(FLOW_STATE_LABEL[others[0]])} ${FLOW_STATE_LABEL[others[1]]}`
-    out.push(`최근 기록에서는 ${sepPhrase} ${othersPhrase} 흐름이 반복됐어요.`)
+    out.push(`최근 기록에서는 ${sepPhrase} ${othersPhrase} 흐름이 반복됐어.`)
   }
 
   // 기간(보조 줄). min===max면 "약 52일"(52~52일 금지), 아니면 "약 18~22일".
@@ -217,13 +217,13 @@ export function personalRhythmSentence(r: PersonalRhythm): string[] {
     r.typicalLengthMin === r.typicalLengthMax
       ? `약 ${r.typicalLengthMin}일`
       : `약 ${r.typicalLengthMin}~${r.typicalLengthMax}일`
-  out.push(`한 흐름은 ${dur} 이어졌어요.`)
+  out.push(`한 흐름은 ${dur} 이어졌어.`)
 
-  if (r.cycleRelated) out.push('이 흐름은 생리 주기와 함께 돌아요.')
+  if (r.cycleRelated) out.push('이 흐름은 생리 주기와 함께 돌아.')
 
   if (r.currentMatch) {
-    let s = `지금은 반복 흐름 중 ${FLOW_STATE_LABEL[r.currentMatch.currentState]} 구간에 있어요.`
-    if (r.commonLeadingDomains.length > 0) s += ` ${joinDomains(r.commonLeadingDomains, iga)} 먼저 내려갔어요.`
+    let s = `지금은 반복 흐름 중 ${FLOW_STATE_LABEL[r.currentMatch.currentState]} 구간에 있어.`
+    if (r.commonLeadingDomains.length > 0) s += ` ${joinDomains(r.commonLeadingDomains, iga)} 먼저 내려갔어.`
     out.push(s)
   }
   return out
@@ -259,14 +259,14 @@ const MONTHLY_CONTEXT_LABEL: Record<string, string> = {
 function monthlyInsightClause(i: MonthlyComparisonInsight): string {
   if (i.kind === 'context') {
     const label = MONTHLY_CONTEXT_LABEL[i.domain.replace('context:', '')] ?? '생활 맥락'
-    return `${iga(label)} ${i.trend === 'up' ? '늘었어요' : '줄었어요'}`
+    return `${iga(label)} ${i.trend === 'up' ? '늘었어' : '줄었어'}`
   }
   if (i.kind === 'recovery') {
-    return `소모에서 회복까지 걸린 기간이 ${i.trend === 'down' ? '짧아졌어요' : '길어졌어요'}`
+    return `소모에서 회복까지 걸린 기간이 ${i.trend === 'down' ? '짧아졌어' : '길어졌어'}`
   }
   const phrase = MONTHLY_DOMAIN_PHRASE[i.domain] ?? '힘든 날'
   // better=줄었(down), worse=늘었(up) — "힘든 날" 기준.
-  return `${iga(phrase)} ${i.trend === 'down' ? '줄었어요' : '늘었어요'}`
+  return `${iga(phrase)} ${i.trend === 'down' ? '줄었어' : '늘었어'}`
 }
 
 export interface MonthlyComparisonView {

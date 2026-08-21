@@ -37,7 +37,7 @@ export function ClusterCard() {
           </li>
         ))}
       </ul>
-      <p className="state-hint">기록된 상태에서 비슷한 날끼리 묶은 거예요. 진단이 아니라 설명용 이름이에요.</p>
+      <p className="state-hint">기록된 상태에서 비슷한 날끼리 묶은 거야. 진단이 아니라 설명용 이름이야.</p>
     </GlassCard>
   )
 }

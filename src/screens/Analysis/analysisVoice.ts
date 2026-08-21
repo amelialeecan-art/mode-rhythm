@@ -78,12 +78,12 @@ export function factorPhrase(f: FactorVoiceInput): { strength: VoiceStrength; te
   const label = f.title
   if (f.window === 'same_day') {
     // 방향 모름 → 동시 발생만. 인과 단정 금지, 장황한 면책문도 없음.
-    return { strength, text: `${wa(label)} ${iga(METRIC_COLLAPSE[f.metric])} 같은 날 같이 터졌어요.` }
+    return { strength, text: `${wa(label)} ${iga(METRIC_COLLAPSE[f.metric])} 같은 날 같이 터졌어.` }
   }
   if (strength === 'strong') {
-    return { strength, text: `${label} 때문에 ${WINDOW_NAT[f.window]} ${METRIC_STRONG_VERB[f.metric]} 패턴이 반복됐어요.` }
+    return { strength, text: `${label} 때문에 ${WINDOW_NAT[f.window]} ${METRIC_STRONG_VERB[f.metric]} 패턴이 반복됐어.` }
   }
-  return { strength, text: `${label} 뒤 ${METRIC_PAST_DAY[f.metric]} 날이 많았어요.` }
+  return { strength, text: `${label} 뒤 ${METRIC_PAST_DAY[f.metric]} 날이 많았어.` }
 }
 
 /* ---- 에피소드 트리거 한 줄 (유쾌 라벨, 카드당 1회, 강제 아님) ---- */
@@ -97,9 +97,9 @@ export interface EpisodeTriggerInput {
 /** 에피소드 요약 위에 얹는 개인용 유머 트리거 문장. 없으면 null. */
 export function episodeTrigger(inp: EpisodeTriggerInput): string | null {
   const p = inp.precursors.filter(Boolean)
-  if (p.length >= 2) return `이번 정병 트리거는 ${wa(p[0])} ${p[1]} 조합이었어요.`
-  if (p.length === 1) return `이번 정병 트리거는 ${p[0]} 쪽이 컸어요.`
-  if (inp.afters.filter(Boolean).length > 0) return '이번엔 원인이라기보다 무너진 뒤 생긴 후폭풍에 가까워요.'
+  if (p.length >= 2) return `이번 정병 트리거는 ${wa(p[0])} ${p[1]} 조합이었어.`
+  if (p.length === 1) return `이번 정병 트리거는 ${p[0]} 쪽이 컸어.`
+  if (inp.afters.filter(Boolean).length > 0) return '이번엔 원인이라기보다 무너진 뒤 생긴 후폭풍에 가까워.'
   return null
 }
 
@@ -114,13 +114,13 @@ const METRIC_NOUN: Record<AnalysisMetric, string> = {
   event: '기록',
 }
 const METRIC_AFTER_VERB: Record<AnalysisMetric, string> = {
-  emotional: '흔들렸어요',
-  sleep: '망가졌어요',
-  appetite: '요동쳤어요',
-  body: '나빠졌어요',
-  rhythm: '무너졌어요',
-  cycle: '커졌어요',
-  event: '몰렸어요',
+  emotional: '흔들렸어',
+  sleep: '망가졌어',
+  appetite: '요동쳤어',
+  body: '나빠졌어',
+  rhythm: '무너졌어',
+  cycle: '커졌어',
+  event: '몰렸어',
 }
 const RESPONSE_DIFF = 8 // 기존 factor 최소 효과(MIN_FACTOR_EFFECT)와 동일 기준
 
@@ -148,13 +148,13 @@ export function eventResponseSentence(inp: EventCurveInput): string {
   const beforeUp = before !== undefined && before - inp.baseline >= RESPONSE_DIFF
   const day0Up = day0 !== undefined && day0 - inp.baseline >= RESPONSE_DIFF
 
-  if (beforeUp && afterUp) return `${inp.title} 전부터 ${noun} 안 좋았고, 이후에도 이어졌어요.`
+  if (beforeUp && afterUp) return `${inp.title} 전부터 ${noun} 안 좋았고, 이후에도 이어졌어.`
   if (afterUp && day0Up && after !== undefined && (day0 as number) >= after)
     return `${inp.title} 당일과 다음 날 ${noun} 가장 크게 ${verb}`
   if (afterUp) return `${inp.title} 뒤 1~3일 동안 ${noun} 평소보다 더 ${verb}`
   if (day0Up) return `${inp.title} 당일 ${noun} 가장 크게 ${verb}`
-  if (beforeUp) return `${inp.title} 전부터 ${noun} 안 좋았어요.`
-  return '사건 전후로 뚜렷한 변화는 없었어요.'
+  if (beforeUp) return `${inp.title} 전부터 ${noun} 안 좋았어.`
+  return '사건 전후로 뚜렷한 변화는 없었어.'
 }
 
 /* ---- 흐름을 바꾼 누적 요인 문장 (9G) ---- */
@@ -188,7 +188,7 @@ function cleanDriverLabel(label: string): string {
 export function flowDriverSentence(card: FlowDriverCard): string {
   const label = cleanDriverLabel(card.label)
   const lead = joinDomains(card.affectedDomains)
-  const tail = lead ? `${lead} 먼저 내려갔어요.` : '소모 흐름이 시작되는 경우가 반복됐어요.'
+  const tail = lead ? `${lead} 먼저 내려갔어.` : '소모 흐름이 시작되는 경우가 반복됐어.'
   if (card.overlapLabels.length > 0) {
     return `${wa(label)} ${iga(cleanDriverLabel(card.overlapLabels[0]))} 겹친 뒤 ${tail}`
   }
@@ -198,21 +198,21 @@ export function flowDriverSentence(card: FlowDriverCard): string {
   return `${label} 뒤 ${tail}`
 }
 
-/** 결과 영역 → "이어진 기간에" 함께 늘어난 변화(사람말). 단정·"편이에요"·숫자 없음. */
+/** 결과 영역 → "이어진 기간에" 함께 늘어난 변화(사람말). 단정·"편이야"·숫자 없음. */
 const CUMULATIVE_RESULT_PHRASE: Partial<Record<AnalysisMetric, string>> = {
-  emotional: '감정이 더 쉽게 흔들렸어요',
-  body: '몸이 불편한 날도 함께 늘었어요',
-  appetite: '식욕이 더 흔들렸어요',
-  sleep: '잠이 더 불안정했어요',
-  rhythm: '전반적으로 더 버거운 날이 늘었어요',
+  emotional: '감정이 더 쉽게 흔들렸어',
+  body: '몸이 불편한 날도 함께 늘었어',
+  appetite: '식욕이 더 흔들렸어',
+  sleep: '잠이 더 불안정했어',
+  rhythm: '전반적으로 더 버거운 날이 늘었어',
 }
 
 /**
- * 이어진 기간에 함께 커진 변화를 한 문장으로. "하루보다 여러 날 이어졌을 때"·"편이에요"·
+ * 이어진 기간에 함께 커진 변화를 한 문장으로. "하루보다 여러 날 이어졌을 때"·"편이야"·
  * 숫자·표본 수는 쓰지 않는다. 인과는 단정하지 않고 관찰된 동반 변화만 말한다.
  */
 export function cumulativeExposureSentence(card: CumulativeExposureCard): string {
   const label = cleanDriverLabel(card.title)
-  const result = CUMULATIVE_RESULT_PHRASE[card.metric] ?? '함께 나타나는 변화가 늘었어요'
+  const result = CUMULATIVE_RESULT_PHRASE[card.metric] ?? '함께 나타나는 변화가 늘었어'
   return `${iga(label)} 이어진 기간에는 ${result}`
 }

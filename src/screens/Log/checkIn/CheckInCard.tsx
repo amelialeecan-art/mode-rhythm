@@ -167,19 +167,19 @@ export function CheckInCard({ localDate, checkInType, reloadToken, onSaved }: Ch
           </label>
 
           <p className="state-hint">
-            고르지 않은 항목은 "미측정"으로 남아요. 0으로 저장되지 않아요. · {prompted.length}개 중 {answeredCount}개 응답
+            고르지 않은 항목은 "미측정"으로 남아. 0으로 저장되지 않아. · {prompted.length}개 중 {answeredCount}개 응답
           </p>
 
           <button className="btn-primary" onClick={onSave} disabled={status === 'saving'}>
             {status === 'saving'
               ? '저장 중…'
               : status === 'success'
-                ? '저장됐어요'
+                ? '저장됐어'
                 : existing
                   ? `${meta.title} 수정`
                   : `${meta.title} 저장`}
           </button>
-          {status === 'error' && <p className="log-feedback log-feedback--err">저장에 실패했어요. 다시 시도해 주세요.</p>}
+          {status === 'error' && <p className="log-feedback log-feedback--err">저장에 실패했어. 다시 시도해 줘.</p>}
         </div>
       )}
     </GlassCard>

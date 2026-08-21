@@ -261,6 +261,6 @@ describe('C/D. Morning→Evening + event response 구조', () => {
     const res = eventResponseWithinDay(events, states, 480)
     expect(res.supportCount).toBe(2)
     expect(res.meanDelta).toBeGreaterThan(0)
-    expect(res.note).toContain('원인이라고 단정하지 않아요')
+    expect(res.note).toContain('원인이라고 단정하지 않아')
   })
 })

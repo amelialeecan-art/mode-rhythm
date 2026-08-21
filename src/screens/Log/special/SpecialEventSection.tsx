@@ -95,7 +95,7 @@ export function SpecialEventSection({ localDate, reloadToken, onSaved, editTarge
   return (
     <GlassCard>
       <div className="special-head">
-        <SectionHeader title="특별한 일 기록" subtitle="있었던 것만 골라 남겨요 (매일 훑지 않아요)" />
+        <SectionHeader title="특별한 일 기록" subtitle="있었던 것만 골라 남겨요 (매일 훑지 않아)" />
         <button className="special-close" onClick={() => { clearEdits(); setOpen(false) }}>접기</button>
       </div>
 

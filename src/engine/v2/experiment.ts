@@ -44,7 +44,7 @@ export interface ExperimentAnalysis {
   note: string
 }
 
-const NOTE = '실험 구간 비교예요. 짧은 개인 실험은 다른 변화의 영향을 받을 수 있어 참고로만 봐요.'
+const NOTE = '실험 구간 비교야. 짧은 개인 실험은 다른 변화의 영향을 받을 수 있어 참고로만 봐.'
 const MIN_PER_GROUP = 5
 
 /**

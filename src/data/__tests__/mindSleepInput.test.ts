@@ -72,7 +72,7 @@ describe('마음 신호 카탈로그·입력', () => {
     await saveDailyEntry(draft({ mindSignalCodes: ['worrying', 'totally_unknown_code'] }))
     const log = await dailyLogRepository.getByDate(D)
     expect(log?.mindSignalCodes).toEqual(['worrying', 'totally_unknown_code'])
-    expect(mindSignalLabels(log?.mindSignalCodes)).toEqual(['괜히 걱정이 많았어요']) // unknown은 화면 미표시
+    expect(mindSignalLabels(log?.mindSignalCodes)).toEqual(['괜히 걱정이 많았어']) // unknown은 화면 미표시
   })
 })
 
@@ -85,7 +85,7 @@ describe('지난밤 수면 입력 구조', () => {
   })
 
   it('(7) sleep_late 코드는 유지되고 새 라벨을 쓴다', () => {
-    expect(SLEEP_ISSUE_LABEL.get('sleep_late')).toBe('평소보다 늦게 잠들었어요')
+    expect(SLEEP_ISSUE_LABEL.get('sleep_late')).toBe('평소보다 늦게 잠들었어')
     expect(SLEEP_CODE_TO_GROUP.sleep_late).toBe('sleep_schedule')
   })
 
@@ -168,10 +168,10 @@ describe('저장·호환·Calendar', () => {
   it('(16) Calendar 상세에 마음 신호와 수면이 원본으로 노출된다', async () => {
     await saveDailyEntry(draft({ mindSignalCodes: ['thought_loop', 'need_time_alone'], lastNightSleep: { hours: 5, quality: 3, issues: ['phone_sleep_delay', 'sleep_late'] } }))
     const detail = await getCalendarDayDetail(D)
-    expect(mindSignalLabels(detail.dailyLog?.mindSignalCodes)).toEqual(['같은 생각이 계속 맴돌았어요', '혼자 정리할 시간이 필요했어요'])
+    expect(mindSignalLabels(detail.dailyLog?.mindSignalCodes)).toEqual(['같은 생각이 계속 맴돌았어', '혼자 정리할 시간이 필요했어'])
     const sleepLabels = (detail.dailyLog?.lastNightSleep?.issues ?? []).map((c) => SLEEP_ISSUE_LABEL.get(c))
-    expect(sleepLabels).toContain('폰을 보며 잠을 미뤘어요')
-    expect(sleepLabels).toContain('평소보다 늦게 잠들었어요')
+    expect(sleepLabels).toContain('폰을 보며 잠을 미뤘어')
+    expect(sleepLabels).toContain('평소보다 늦게 잠들었어')
   })
 
   it('(17) 마음 신호 미입력 시 라벨이 비어 섹션이 숨는다', async () => {

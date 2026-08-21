@@ -37,7 +37,7 @@ describe('상태칩 개편 (결과값만)', () => {
     await saveDailyEntry(draft({ stateCodes: ['appetite_swing'] }))
     const log = await dailyLogRepository.getByDate(D)
     expect(log!.appetite).toBeGreaterThan(0)
-    // 캘린더 상세 라벨도 복원됨 (사람말: "식욕이 …흔들렸어요")
+    // 캘린더 상세 라벨도 복원됨 (사람말: "식욕이 …흔들렸어")
     const detail = await getCalendarDayDetail(D)
     expect(detail.stateLabels.some((l) => l.includes('식욕'))).toBe(true)
   })

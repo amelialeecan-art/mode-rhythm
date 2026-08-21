@@ -22,9 +22,9 @@ function addDaysISO(date: string, n: number): string {
 /** 실험 결과 한 줄 — 인과("좋아졌어") 금지, 관찰 비교로만. 단정 금지 가드 통과. */
 function resultLine(exp: Experiment, a: ExperimentAnalysis): string {
   if (a.status !== 'ok') {
-    return assertGuard('아직 비교할 기록이 부족해요. 조금 더 쌓이면 여기서 비교해 볼게요.')
+    return assertGuard('아직 비교할 기록이 부족해. 조금 더 쌓이면 여기서 비교해볼 수 있어.')
   }
-  const dir = a.effectDifference >= 0 ? '전보다 조금 높았어요' : '전보다 조금 낮았어요'
+  const dir = a.effectDifference >= 0 ? '전보다 조금 높았어' : '전보다 조금 낮았어'
   return assertGuard(`바꿔본 기간에는 ${CORE_STATE_META[exp.targetMetric].label}이(가) ${dir}.`)
 }
 
@@ -54,10 +54,10 @@ export function ExperimentSection() {
 
   return (
     <GlassCard tint="mint">
-      <SectionHeader title="내 실험" subtitle="생활 습관을 한 번에 하나만 바꿔서 비교해요" star />
+      <SectionHeader title="내 실험" subtitle="생활 습관을 한 번에 하나만 바꿔서 비교해 봐" star />
 
       {items.length === 0 ? (
-        <p className="state-hint" style={{ marginTop: 8 }}>아직 실험이 없어요. 관찰에서 눈에 띈 생활요인을 직접 테스트해볼 수 있어요.</p>
+        <p className="state-hint" style={{ marginTop: 8 }}>아직 실험이 없어. 관찰에서 눈에 띈 생활요인을 직접 테스트해볼 수 있어.</p>
       ) : (
         <ul className="exp-list">
           {items.map(({ experiment, analysis }) => (
@@ -70,7 +70,7 @@ export function ExperimentSection() {
               {analysis.status === 'ok' && (
                 <>
                   {beforeAfter(analysis) && <p className="tmp-num">{beforeAfter(analysis)}</p>}
-                  <p className="exp-meta">분석할 수 있었던 날은 {analysis.usableObservations}일이에요.</p>
+                  <p className="exp-meta">분석할 수 있었던 날은 {analysis.usableObservations}일이야.</p>
                   <details className="tmp-more">
                     <summary>자세히 보기</summary>
                     <p className="tmp-meta">
@@ -99,7 +99,7 @@ export function ExperimentSection() {
       ) : (
         <ExperimentForm onDone={() => { setOpen(false); setReload((r) => r + 1) }} onCancel={() => setOpen(false)} />
       )}
-      <p className="state-hint">약 중단·용량 변경 같은 의료 변경은 실험 대상이 아니에요. 생활 습관만 다뤄요.</p>
+      <p className="state-hint">약 중단·용량 변경 같은 의료 변경은 실험 대상이 아니야. 생활 습관만 다뤄.</p>
     </GlassCard>
   )
 }
@@ -143,19 +143,19 @@ function ExperimentForm({ onDone, onCancel }: { onDone: () => void; onCancel: ()
 
   return (
     <div className="exp-form">
-      <p className="event-group__label">무엇을 바꿔볼까요? (생활 습관)</p>
+      <p className="event-group__label">뭘 바꿔볼까? (생활 습관)</p>
       <ChipGroup label="개입">
         {EXPERIMENT_INTERVENTIONS.map((i) => (
           <Chip key={i.code} label={i.label} tone="mint" selected={code === i.code} onToggle={() => pickCode(i.code)} />
         ))}
       </ChipGroup>
-      <p className="event-group__label" style={{ marginTop: 14 }}>무엇을 관찰할까요?</p>
-      <ChipGroup label="관찰 metric">
+      <p className="event-group__label" style={{ marginTop: 14 }}>뭘 살펴볼까?</p>
+      <ChipGroup label="관찰 항목">
         {meta.suggestedMetrics.map((m) => (
           <Chip key={m} label={CORE_STATE_META[m].label} tone="lav" selected={metric === m} onToggle={() => setMetric(m)} />
         ))}
       </ChipGroup>
-      <p className="state-hint">기준 2주(지난 기록) → 실험 2주(오늘부터)로 비교해요. 나머지는 평소대로 지내요.</p>
+      <p className="state-hint">기준 2주(지난 기록) → 실험 2주(오늘부터)로 비교해. 나머지는 평소대로 지내면 돼.</p>
       <div className="meal-form-actions">
         <button className="btn-primary" onClick={onSave}>실험 시작</button>
         <button className="custom-cancel-btn" onClick={onCancel}>취소</button>

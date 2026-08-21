@@ -63,7 +63,7 @@ export function StressEventForm({ localDate, editRecord, onSaved, onCancelEdit }
 
   return (
     <div className="special-form">
-      <p className="event-group__label">어떤 일이었어요?</p>
+      <p className="event-group__label">어떤 일이었어?</p>
       <ChipGroup label="스트레스 사건 종류">
         {STRESS_CATEGORIES.map((c) => (
           <Chip key={c.code} label={c.label} tone="coral" selected={category === c.code} onToggle={() => setCategory(category === c.code ? null : c.code)} />
@@ -80,7 +80,7 @@ export function StressEventForm({ localDate, editRecord, onSaved, onCancelEdit }
         </span>
       </label>
 
-      <p className="state-hint">전/후(before·after)는 묻지 않아요. 발생 시각으로 앱이 상태와의 선후를 계산해요.</p>
+      <p className="state-hint">전/후(before·after)는 묻지 않아. 발생 시각으로 앱이 상태와의 선후를 계산해.</p>
       <div className="meal-form-actions">
         <button className="btn-primary" onClick={onSave} disabled={!canSave || saving}>
           {saving ? '저장 중…' : editing ? '사건 수정' : '사건 저장'}

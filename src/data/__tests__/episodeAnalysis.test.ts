@@ -138,7 +138,7 @@ describe('조기경보 카드 연결 (Phase 6)', () => {
     const vm = await getAnalysisViewModel({ endDate: END })
     expect(vm.earlyWarning).not.toBeNull()
     expect(vm.earlyWarning!.eligible).toBe(false)
-    expect(vm.earlyWarning!.gatingSentence).toContain('번 더 필요해요')
+    expect(vm.earlyWarning!.gatingSentence).toContain('번 더 필요해')
     expect(vm.earlyWarning!.prevNightSentence).toBe('')
   })
 
@@ -238,7 +238,7 @@ describe('요약 문장 중립 표현 (Phase 5.1 hotfix)', () => {
     await save('2026-06-12', { stateCodes: ['calm'], functionLevel: 2 })
 
     const ep = (await getAnalysisViewModel({ endDate: END })).episodes[0]
-    expect(ep.summary[0]).toContain('다른 날보다 힘들었던 날이에요')
+    expect(ep.summary[0]).toContain('다른 날보다 힘들었던 날이야')
     expect(ep.summary.join(' ')).not.toMatch(/무너/)
     expect(ep.severityLabel).toBe('기능 저하')
   })

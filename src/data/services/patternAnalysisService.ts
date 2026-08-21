@@ -422,27 +422,27 @@ function buildSummary(
   // 요약 문장은 공통 중립 표현으로 통일한다. level 3/4/추정 구분은 카드 배지에서만.
   const status =
     ep.status === 'recovered'
-      ? '이후 회복 흐름이 확인됐어요'
+      ? '이후 회복 흐름이 확인됐어'
       : ep.status === 'recovering'
-        ? '회복 흐름은 아직 뚜렷하지 않아요'
-        : '아직 진행 중이에요'
-  const out: string[] = [`${dateLabel}은 다른 날보다 힘들었던 날이에요, ${status}.`]
+        ? '회복 흐름은 아직 뚜렷하지 않아'
+        : '아직 진행 중이야'
+  const out: string[] = [`${dateLabel}은 다른 날보다 힘들었던 날이야, ${status}.`]
 
   if (early.length > 0) {
     const names = early.slice(0, 2).map((a) => a.label).join('·')
-    out.push(`힘들었던 날 ${maxLagOf(early[0])}일 전부터 ${names} 신호가 함께 있었어요.`)
+    out.push(`힘들었던 날 ${maxLagOf(early[0])}일 전부터 ${names} 신호가 함께 있었어.`)
   } else if (dayBefore.length > 0) {
     const names = dayBefore.slice(0, 2).map((a) => a.label).join('·')
-    out.push(`전날 ${names} 기록이 새로 늘었어요.`)
+    out.push(`전날 ${names} 기록이 새로 늘었어.`)
   } else {
-    out.push('미리 눈에 띈 신호는 뚜렷하지 않았어요.')
+    out.push('미리 눈에 띈 신호는 뚜렷하지 않았어.')
   }
 
   if (cyclePosition) {
-    out.push(`${cyclePosition.phaseLabel}${cyclePosition.detail ? ` (${cyclePosition.detail})` : ''}과 겹친 시기예요.`)
+    out.push(`${cyclePosition.phaseLabel}${cyclePosition.detail ? ` (${cyclePosition.detail})` : ''}과 겹친 시기야.`)
   } else if (after.length > 0) {
     const names = after.slice(0, 2).map((a) => a.label).join('·')
-    out.push(`상태가 나빠진 뒤에는 ${names} 기록이 늘었어요.`)
+    out.push(`상태가 나빠진 뒤에는 ${names} 기록이 늘었어.`)
   }
   return out
 }
@@ -538,7 +538,7 @@ function buildEarlyWarningCard(report: EarlyWarningReport, labelFor: (g: string)
       prevNightSentence: '',
       morningSentence: '',
       balanceSentence: '',
-      gatingSentence: `조기 신호를 확인하려면 비슷한 기록이 ${report.neededMore}번 더 필요해요.`,
+      gatingSentence: `조기 신호를 확인하려면 비슷한 기록이 ${report.neededMore}번 더 필요해.`,
       prevNight: report.prevNight,
       morning: report.morning,
       signalLabelsUsed,
@@ -551,9 +551,9 @@ function buildEarlyWarningCard(report: EarlyWarningReport, labelFor: (g: string)
     reportedEpisodeCount: report.reportedEpisodeCount,
     estimatedExcludedCount: report.estimatedExcludedCount,
     neededMore: 0,
-    prevNightSentence: `과거 힘들었던 날 ${p}번 중 ${report.prevNight.hit}번은 전날 밤 기록에서 먼저 나타난 신호가 있었어요.`,
-    morningSentence: `당일 아침(지난밤 수면 포함)까지 보면 ${p}번 중 ${report.morning.hit}번에서 알아차릴 수 있었던 신호가 있었어요.`,
-    balanceSentence: `다만 같은 신호가 있었는데 괜찮았던 날도 ${report.prevNight.falseAlarm}번 있었어요.`,
+    prevNightSentence: `과거 힘들었던 날 ${p}번 중 ${report.prevNight.hit}번은 전날 밤 기록에서 먼저 나타난 신호가 있었어.`,
+    morningSentence: `당일 아침(지난밤 수면 포함)까지 보면 ${p}번 중 ${report.morning.hit}번에서 알아차릴 수 있었던 신호가 있었어.`,
+    balanceSentence: `다만 같은 신호가 있었는데 괜찮았던 날도 ${report.prevNight.falseAlarm}번 있었어.`,
     prevNight: report.prevNight,
     morning: report.morning,
     signalLabelsUsed,
@@ -581,13 +581,13 @@ const MAX_RECOVERY_ACTIONS_SHOWN = 3
 
 function buildRecoveryComparisonCard(cmp: SimilarRecoveryComparison): RecoveryComparisonCard {
   // 실제 유사도 기준은 기능 저하 강도(peakFunctionLevel)뿐이므로 표현을 과장하지 않는다.
-  const headlineSentence = `기능 저하 강도가 비슷했던 날이 과거 ${cmp.similarCount}번 있었어요.`
+  const headlineSentence = `기능 저하 강도가 비슷했던 날이 과거 ${cmp.similarCount}번 있었어.`
   if (!cmp.enoughSample) {
     return {
       enoughSample: false,
       similarCount: cmp.similarCount,
       headlineSentence,
-      gatingSentence: '아직 기능 저하 강도가 비슷한 사례를 비교하기엔 기록이 적어요. 지금은 자기보고 기준으로만 참고해요.',
+      gatingSentence: '아직 기능 저하 강도가 비슷한 사례를 비교하기엔 기록이 적어. 지금은 자기보고 기준으로만 참고해.',
       positiveActions: [],
       negativeActions: [],
     }
@@ -600,13 +600,13 @@ function buildRecoveryComparisonCard(cmp: SimilarRecoveryComparison): RecoveryCo
     const min = cmp.daysToRecovery[0]
     const max = cmp.daysToRecovery[cmp.daysToRecovery.length - 1]
     const span = min === max ? `${min}일쯤` : `${min}~${max}일쯤`
-    durationSentence = `그 중 ${cmp.recoveredCount}번은 회복 흐름이 확인됐고, 회복까지 대체로 ${span} 걸렸어요.`
+    durationSentence = `그 중 ${cmp.recoveredCount}번은 회복 흐름이 확인됐고, 회복까지 대체로 ${span} 걸렸어.`
   }
   const positiveSentence =
-    pos.length > 0 ? `그때 회복 구간에는 ${pos.map((a) => a.actionLabel).join('·')} 기록이 자주 함께 있었어요.` : undefined
+    pos.length > 0 ? `그때 회복 구간에는 ${pos.map((a) => a.actionLabel).join('·')} 기록이 자주 함께 있었어.` : undefined
   const negativeSentence =
     neg.length > 0
-      ? `안 맞았다고 적은 것도 있었어요. 그날만 그랬을 수 있어요: ${neg.map((a) => a.actionLabel).join('·')}.`
+      ? `안 맞았다고 적은 것도 있었어. 그날만 그랬을 수 있어요: ${neg.map((a) => a.actionLabel).join('·')}.`
       : undefined
 
   return {
@@ -1128,7 +1128,7 @@ async function computeAnalysis(opts: AnalysisOptions): Promise<{ vm: AnalysisVie
       targetMetric: 'rhythm',
       factorCodes: unexplained.map((u) => u.date),
       supportCount: unexplained.length,
-      message: assertGuard('일부 버거움이 컸던 날짜는 현재 기록만으로 충분히 설명되지 않았어요. 이유가 없는 날도 데이터로 보관해요.'),
+      message: assertGuard('일부 버거움이 컸던 날짜는 현재 기록만으로 충분히 설명되지 않았어. 이유가 없는 날도 데이터로 보관해.'),
     })
   }
   for (const r of recoveryEffects) {

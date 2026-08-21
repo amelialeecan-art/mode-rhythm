@@ -87,7 +87,7 @@ describe('composeAnalysisEpisodeCards', () => {
     })
     const matches: MotifMatch[] = [{ motifId: 'm', matchedKeys: ['thought_loop', 'bedtime_delay'], completeMatch: false }]
     const c = composeAnalysisEpisodeCards(snap({ recentEpisode: ep, currentMotifMatches: matches, repeatedMotifs: [motif(['thought_loop', 'bedtime_delay', 'state_daily_tasks_hard'], [{ min: 1, max: 1 }, { min: 1, max: 2 }])] }))
-    expect(c.repeatedFlow!.currentMatch!.subtitle).toBe('이번에도 여기까지 같은 순서였어요')
+    expect(c.repeatedFlow!.currentMatch!.subtitle).toBe('이번에도 여기까지 같은 순서였어')
   })
 
   it('(13) currentMatch가 없으면 보조 영역 없음', () => {
@@ -125,8 +125,8 @@ describe('composeAnalysisEpisodeCards', () => {
       status: 'ongoing',
     })
     const c = composeAnalysisEpisodeCards(snap({ recentEpisode: ep }))
-    expect(c.recentFlow!.status).toContain('확인할 기록이 없어요')
-    expect(c.recentFlow!.status).not.toContain('이어지고 있어요')
+    expect(c.recentFlow!.status).toContain('확인할 기록이 없어')
+    expect(c.recentFlow!.status).not.toContain('이어지고 있어')
   })
 })
 

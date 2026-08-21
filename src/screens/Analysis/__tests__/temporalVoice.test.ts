@@ -37,7 +37,7 @@ const meInsight = (dir: 'increase' | 'decrease'): MorningEveningInsight => ({
 })
 
 const evInsight: EventResponseInsight = {
-  category: 'interpersonal_conflict', categoryLabel: '사람 때문에 스트레스받았어요',
+  category: 'interpersonal_conflict', categoryLabel: '사람 때문에 스트레스받았어',
   metric: 'anxiety', metricLabel: '불안', eventCount: 6,
   result: { supportCount: 6, windowMinutes: 240, meanBefore: 3, meanAfter: 6, meanDelta: 3, ci: null, note: '' },
 }
@@ -61,18 +61,18 @@ describe('temporalVoice — 사람말 + 단정 금지', () => {
     expect(down).toContain('가라앉는')
   })
 
-  it('사건 이후: "뒤에는 ~ 더 높았어요", 통계용어·단정 없음', () => {
+  it('사건 이후: "뒤에는 ~ 더 높았어", 통계용어·단정 없음', () => {
     const s = eventResponseSentence(evInsight)
     expect(s).toContain('뒤에는')
-    expect(s).toContain('더 높았어요')
+    expect(s).toContain('더 높았어')
     expect(s).not.toMatch(STAT_WORDS)
     expect(containsAssertion(s)).toBe(false)
   })
 
-  it('lag: 방향+시점을 사람말로, "패턴이 관찰됐어요" 없음', () => {
+  it('lag: 방향+시점을 사람말로, "패턴이 관찰됐어" 없음', () => {
     const s = laggedSentence(lagInsight({ lag: 1, direction: 'negative' }))
     expect(s).toContain('다음날')
-    expect(s).toContain('더 낮았어요')
+    expect(s).toContain('더 낮았어')
     expect(s).not.toMatch(STAT_WORDS)
     expect(containsAssertion(s)).toBe(false)
   })
@@ -85,13 +85,13 @@ describe('temporalVoice — 사람말 + 단정 금지', () => {
     expect(un).toContain('아직 같이 보지 않은')
   })
 
-  it('기준선 변화: "수준 자체가 올라간/내려간 것 같아요", "baseline/후보/원인" 없음', () => {
+  it('기준선 변화: "수준 자체가 올라간/내려간 것 같아", "baseline/후보/원인" 없음', () => {
     const up = baselineShiftSentence(shiftInsight(true))
     expect(up).toContain('수준 자체가')
-    expect(up).toContain('올라간 것 같아요')
+    expect(up).toContain('올라간 것 같아')
     expect(up).not.toMatch(/원인|바뀌었습니다|baseline|후보/)
     expect(containsAssertion(up)).toBe(false)
     const down = baselineShiftSentence(shiftInsight(false))
-    expect(down).toContain('내려간 것 같아요')
+    expect(down).toContain('내려간 것 같아')
   })
 })

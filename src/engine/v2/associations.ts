@@ -17,7 +17,7 @@ import {
   type PredictorSpec,
 } from './dataset'
 
-const ASSOCIATION_NOTE = '관찰 데이터의 association이에요. 원인이라고 단정하지 않아요.'
+const ASSOCIATION_NOTE = '관찰 데이터의 association이야. 원인이라고 단정하지 않아.'
 
 /* ---------------------------------------------------------------------
    방향 일치(반복성) — 여러 시간 블록에서 같은 방향인지
@@ -299,7 +299,7 @@ export function laggedAdjustedAssociation(input: LaggedAnalysisInput): Associati
     confidence,
     notes: [
       ASSOCIATION_NOTE,
-      includePrevY ? '전날 상태(y(t-1))를 보정했어요.' : '전날 상태 보정 없음.',
+      includePrevY ? '전날 상태(y(t-1))를 보정했어.' : '전날 상태 보정 없음.',
       confounderNames.length ? `보정 변수: ${confounderNames.join(', ')}` : '추가 보정 변수 없음.',
     ],
   }

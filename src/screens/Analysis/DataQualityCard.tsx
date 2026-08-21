@@ -5,7 +5,7 @@ import { getDataQualitySummary, type DataQualitySummary } from '../../data/servi
 /**
  * 분석 화면 상단 "기록 상태(데이터 품질/coverage)" 카드.
  * 통계표를 처음부터 넣지 않고, 분석 가능성을 정직하게 보여준다.
- * 분석 불가일 때 "패턴 없음"이 아니라 "비교 가능한 기록이 아직 부족해요"라고 말한다.
+ * 분석 불가일 때 "패턴 없음"이 아니라 "비교 가능한 기록이 아직 부족해"라고 말한다.
  */
 export function DataQualityCard() {
   const [summary, setSummary] = useState<DataQualitySummary | null>(null)
@@ -46,8 +46,8 @@ export function DataQualityCard() {
       </div>
       <p className="dq-hint">
         {summary.anyMetricReady
-          ? '패턴을 비교할 만큼 기록이 모이고 있어요.'
-          : '비교 가능한 기록이 아직 부족해요. 조금 더 쌓이면 패턴을 비교해 드려요.'}
+          ? '패턴을 비교할 만큼 기록이 모이고 있어.'
+          : '비교할 기록이 아직 부족해. 조금 더 쌓이면 패턴을 비교해볼 수 있어.'}
       </p>
     </GlassCard>
   )

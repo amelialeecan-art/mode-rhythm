@@ -60,16 +60,16 @@ export const DAY_TYPE_SHORT_LABEL: Record<DayTypeCode, string> = {
 
 // 설명 문구 — 단정하지 않는 톤.
 const DAY_TYPE_DESC: Record<DayTypeCode, string> = {
-  stable: '오늘은 비교적 안정적인 흐름으로 기록됐어요.',
-  focus: '에너지와 집중이 괜찮게 기록된 날이에요.',
-  emotion_sensitive: '작은 일에도 마음이 크게 반응할 수 있는 날이에요. 오늘의 판단은 잠시 보류해도 괜찮아요.',
-  appetite_shift: '식욕이 흔들릴 수 있는 날이에요. 미리 챙기면 한결 편해요.',
-  body_load: '몸이 보내는 신호가 큰 날이에요. 무리하지 않아도 괜찮아요.',
-  social_fatigue: '사람과의 일에서 피로가 함께 관찰된 날이에요.',
-  impulse_caution: '충동이 올라올 수 있는 날이에요. 큰 결정은 천천히 가도 좋아요.',
-  recovery_priority: '여러 가지가 함께 높게 계산된 날이에요. 오늘은 회복을 먼저 둬도 좋아요.',
-  unknown_cause: '오늘의 상태는 현재 기록만으로는 충분히 설명되지 않아요. 이유가 없는 날도 데이터예요.',
-  mixed_load: '여러 요인이 겹쳐 보이는 날이에요.',
+  stable: '오늘은 비교적 안정적인 흐름으로 기록됐어.',
+  focus: '에너지와 집중이 괜찮게 기록된 날이야.',
+  emotion_sensitive: '작은 일에도 마음이 크게 반응할 수 있는 날이야. 오늘의 판단은 잠시 보류해도 괜찮아.',
+  appetite_shift: '식욕이 흔들릴 수 있는 날이야. 미리 챙기면 한결 편해.',
+  body_load: '몸이 보내는 신호가 큰 날이야. 무리하지 않아도 괜찮아.',
+  social_fatigue: '사람과의 일에서 피로가 함께 관찰된 날이야.',
+  impulse_caution: '충동이 올라올 수 있는 날이야. 큰 결정은 천천히 가도 좋아.',
+  recovery_priority: '여러 가지가 함께 높게 계산된 날이야. 오늘은 회복을 먼저 둬도 좋아.',
+  unknown_cause: '오늘의 상태는 현재 기록만으로는 충분히 설명되지 않아. 이유가 없는 날도 데이터야.',
+  mixed_load: '여러 요인이 겹쳐 보이는 날이야.',
 }
 
 /** 사람/관계 관련 사건 수. */

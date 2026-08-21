@@ -114,7 +114,7 @@ export function MedicationPanel({ editDose, onSaved, onCancelEdit }: Props) {
         <>
           <p className="event-group__label">약 선택</p>
           {profiles.length === 0 && !registering && (
-            <p className="state-hint" style={{ marginTop: 0 }}>등록된 약이 없어요. 아래에서 먼저 등록해요.</p>
+            <p className="state-hint" style={{ marginTop: 0 }}>등록된 약이 없어. 아래에서 먼저 등록해.</p>
           )}
           <ChipGroup label="등록된 약">
             {profiles.map((p) => (
@@ -153,7 +153,7 @@ export function MedicationPanel({ editDose, onSaved, onCancelEdit }: Props) {
               <button type="button" className="dt-now" onClick={() => setTakenAt(nowDatetimeLocalValue())}>지금</button>
             </span>
           </label>
-          <p className="state-hint">용량을 바꿔도 프로필 기본값은 그대로예요. 이 투여는 timeline에 그대로 남아요.</p>
+          <p className="state-hint">용량을 바꿔도 프로필 기본값은 그대로야. 이 투여는 timeline에 그대로 남아.</p>
           <div className="meal-form-actions">
             <button className="btn-primary" onClick={onSaveDose} disabled={saving}>
               {saving ? '저장 중…' : editing ? '투여 기록 수정' : '투여 기록 저장'}

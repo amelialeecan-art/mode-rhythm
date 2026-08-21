@@ -301,7 +301,7 @@ export function LegacyLogForm() {
   }
 
   const saveLabel =
-    status === 'saving' ? '저장 중…' : status === 'success' ? '저장됐어요' : status === 'error' ? '저장 실패' : '기록 저장'
+    status === 'saving' ? '저장 중…' : status === 'success' ? '저장됐어' : status === 'error' ? '저장 실패' : '기록 저장'
 
   // 지난밤 수면은 "깨어난 날짜"(=date)에 귀속 → "전날 밤 → 오늘 아침"으로 표시.
   const wakeDate = parseISODate(date)
@@ -323,7 +323,7 @@ export function LegacyLogForm() {
   return (
     <>
       <p className="state-hint" style={{ marginBottom: 4 }}>
-        이전 방식 상세 기록이에요. 감정·몸·사건·회복을 칩으로 남겨요. (아침/저녁 체크인과 별개)
+        이전 방식 상세 기록이야. 감정·몸·사건·회복을 칩으로 남겨요. (아침/저녁 체크인과 별개)
       </p>
 
       {/* 날짜 선택 */}
@@ -331,7 +331,7 @@ export function LegacyLogForm() {
         <div className="log-daterow">
           <div>
             <SectionHeader title="날짜" />
-            {hasSaved && <span className="log-saved-badge">이 날짜에 저장된 기록이 있어요</span>}
+            {hasSaved && <span className="log-saved-badge">이 날짜에 저장된 기록이 있어</span>}
           </div>
           <input
             className="log-date-input"
@@ -345,7 +345,7 @@ export function LegacyLogForm() {
 
       {/* 1. 감정 안정감 + 두드러진 감정 + 영향 정도 */}
       <GlassCard>
-        <SectionHeader title="오늘 감정, 어땠어요?" subtitle="안정감과 두드러진 감정을 따로 남겨요" />
+        <SectionHeader title="오늘 감정, 어땠어?" subtitle="안정감과 두드러진 감정을 따로 남겨요" />
         <p className="event-group__label">감정 안정감</p>
         <ChipGroup label="감정 안정감">
           {EMOTION_STABILITY_OPTIONS.map((o) => (
@@ -360,7 +360,7 @@ export function LegacyLogForm() {
         </ChipGroup>
         {draft.emotionCodes.length > 0 && (
           <>
-            <p className="event-group__label" style={{ marginTop: 16 }}>그 감정이 오늘 얼마나 영향을 줬어요?</p>
+            <p className="event-group__label" style={{ marginTop: 16 }}>그 감정이 오늘 얼마나 영향을 줬어?</p>
             <ChipGroup label="영향 정도">
               {EMOTION_IMPACT_OPTIONS.map((o) => (
                 <Chip key={o.code} label={o.label} tone="coral" selected={draft.emotionImpactLevel === o.code} onToggle={() => setEmotionImpact(o.code)} />
@@ -368,7 +368,7 @@ export function LegacyLogForm() {
             </ChipGroup>
           </>
         )}
-        <p className="state-hint">안정감과 감정은 함께 골라도 돼요. 대체로 안정적이지만 잠깐 흔들린 순간도 함께 남길 수 있어요.</p>
+        <p className="state-hint">안정감과 감정은 함께 골라도 돼. 대체로 안정적이지만 잠깐 흔들린 순간도 함께 남길 수 있어.</p>
       </GlassCard>
 
       {/* 2. 몸 에너지·머릿속 여유·집중·사람 대할 여유 (직접 입력) */}
@@ -434,13 +434,13 @@ export function LegacyLogForm() {
       {/* 5. 지난밤 수면 (깨어난 날짜에 귀속 — 일반 사건과 분리) */}
       <GlassCard tint="sky">
         <SectionHeader title="지난밤 수면" subtitle={sleepSpan} />
-        <p className="event-group__label">몇 시간 잤어요?</p>
+        <p className="event-group__label">몇 시간 잤어?</p>
         <ChipGroup label="수면시간">
           {SLEEP_HOUR_BUCKETS.map((b) => (
             <Chip key={b.code} label={b.label} tone="sky" selected={draft.lastNightSleep.hours === b.hours} onToggle={() => setSleepHours(b.hours)} />
           ))}
         </ChipGroup>
-        <p className="event-group__label" style={{ marginTop: 14 }}>잘 잤어요?</p>
+        <p className="event-group__label" style={{ marginTop: 14 }}>잘 잤어?</p>
         <ChipGroup label="수면 만족도">
           {SLEEP_QUALITY_OPTIONS.map((q) => (
             <Chip key={q.value} label={q.label} tone="sky" selected={draft.lastNightSleep.quality === q.value} onToggle={() => setSleepQuality(q.value)} />
@@ -461,7 +461,7 @@ export function LegacyLogForm() {
 
       {/* 6. 오늘 일상 기능 (평소엔 질문 1개, 무너짐일 때만 세부) */}
       <GlassCard>
-        <SectionHeader title="오늘 일상 기능" subtitle="오늘 해야 할 일을 얼마나 할 수 있었어요?" />
+        <SectionHeader title="오늘 일상 기능" subtitle="오늘 해야 할 일을 얼마나 할 수 있었어?" />
         <ChipGroup label="오늘 일상 기능">
           {FUNCTION_LEVELS.map((f) => (
             <Chip key={f.level} label={f.label} tone="lav" selected={draft.functionLevel === f.level} onToggle={() => setFunctionLevel(f.level)} />
@@ -470,7 +470,7 @@ export function LegacyLogForm() {
 
         {showFunctionDetail && (
           <>
-            <p className="event-group__label" style={{ marginTop: 16 }}>무엇을 못 했어요? (여러 개 가능)</p>
+            <p className="event-group__label" style={{ marginTop: 16 }}>무엇을 못 했어? (여러 개 가능)</p>
             <ChipGroup label="기능 저하 항목">
               {FUNCTION_IMPACT_CHIPS.map((o) => (
                 <Chip key={o.code} label={o.label} tone="lav" selected={draft.functionImpactCodes.includes(o.code)} onToggle={() => toggleFunctionImpact(o.code)} />
@@ -491,7 +491,7 @@ export function LegacyLogForm() {
               <button className="custom-add-btn" onClick={addImpactCustom} disabled={!impactCustomText.trim()}>추가</button>
             </div>
 
-            <p className="event-group__label" style={{ marginTop: 16 }}>언제부터 무너졌어요?</p>
+            <p className="event-group__label" style={{ marginTop: 16 }}>언제부터 무너졌어?</p>
             <ChipGroup label="무너짐 시작 시점">
               {FUNCTION_ONSET_OPTIONS.map((o) => (
                 <Chip key={o.code} label={o.label} tone="lav" selected={draft.functionDropOnset === o.code} onToggle={() => setFunctionOnset(o.code)} />
@@ -500,8 +500,8 @@ export function LegacyLogForm() {
 
             {relationEvents.length > 0 && (
               <>
-                <p className="event-group__label" style={{ marginTop: 18 }}>오늘 사건은 언제 있었어요?</p>
-                <p className="state-hint" style={{ marginTop: 4 }}>선택은 참고용이에요. 표시 안 하면 "모름"으로 둬요.</p>
+                <p className="event-group__label" style={{ marginTop: 18 }}>오늘 사건은 언제 있었어?</p>
+                <p className="state-hint" style={{ marginTop: 4 }}>선택은 참고용이야. 표시 안 하면 "모름"으로 둬요.</p>
                 <p className="event-group__label" style={{ marginTop: 12 }}>상태가 나빠지기 전부터 있었던 것</p>
                 <ChipGroup label="나빠지기 전부터">
                   {relationEvents.map((e) => (
@@ -518,7 +518,7 @@ export function LegacyLogForm() {
             )}
           </>
         )}
-        <p className="state-hint">일상 기능은 오늘 하루가 어땠는지 스스로 남기는 기록이에요.</p>
+        <p className="state-hint">일상 기능은 오늘 하루가 어땠는지 스스로 남기는 기록이야.</p>
       </GlassCard>
 
       {/* ---- 상세 기록 토글 (기본은 여기까지, 아래는 열 때만) ---- */}
@@ -534,7 +534,7 @@ export function LegacyLogForm() {
         <>
           {/* 오늘 머릿속과 마음 (감정·머릿속 여유와 별개 · 여러 개 가능) */}
           <GlassCard tint="lav">
-            <SectionHeader title="오늘 머릿속과 마음" subtitle="오늘 실제로 느낀 것만 골라요 (여러 개 가능)" />
+            <SectionHeader title="오늘 머릿속과 마음" subtitle="오늘 실제로 느낀 것만 골라 (여러 개 가능)" />
             {MIND_SIGNAL_GROUPS.map((group) => (
               <div className="event-group" key={group.title}>
                 <p className="event-group__label">{group.title}</p>
@@ -549,7 +549,7 @@ export function LegacyLogForm() {
 
           {/* 7. 몸 신호 */}
           <GlassCard tint="mint">
-            <SectionHeader title="오늘의 몸 신호" subtitle="여러 개 골라도 돼요" />
+            <SectionHeader title="오늘의 몸 신호" subtitle="여러 개 골라도 돼" />
             <ChipGroup label="오늘의 몸 신호">
               {BODY_SIGNAL_OPTIONS.map((o) => (
                 <Chip key={o.code} label={o.label} tone="mint" selected={draft.bodySignalCodes.includes(o.code)} onToggle={() => toggleBodySignal(o.code)} />
@@ -566,12 +566,12 @@ export function LegacyLogForm() {
                 <Chip key={o.code} label={o.label} tone="neutral" selected={draft.rhythmExceptionCodes.includes(o.code)} onToggle={() => toggleRhythmException(o.code)} />
               ))}
             </ChipGroup>
-            <p className="state-hint">예외일은 기록에는 남지만 장기 반복 흐름을 만들 때는 분리해서 봐요.</p>
+            <p className="state-hint">예외일은 기록에는 남지만 장기 반복 흐름을 만들 때는 분리해서 봐.</p>
           </GlassCard>
 
           {/* 9. 오늘 있었던 일 (발생일 = 이 기록의 날짜) */}
           <GlassCard>
-            <SectionHeader title="오늘 있었던 일" subtitle="원인이 아니라 사건·상황 기록이에요" />
+            <SectionHeader title="오늘 있었던 일" subtitle="원인이 아니라 사건·상황 기록이야" />
 
             <p className="event-group__label">사건 강도</p>
             <ChipGroup label="사건 강도">
@@ -647,7 +647,7 @@ export function LegacyLogForm() {
 
           {/* 10. 생리 기록 — 별도 섹션. 원인 칩 아님. */}
           <GlassCard tint="lav">
-            <SectionHeader title="생리 기록" subtitle="생리·주기는 원인이 아니라 사실 기록이에요. 패턴은 앱이 계산해요" />
+            <SectionHeader title="생리 기록" subtitle="생리·주기는 원인이 아니라 사실 기록이야. 패턴은 앱이 계산해" />
             <ChipGroup label="생리 상태">
               <Chip label="생리 시작" tone="rose" selected={draft.cycle.periodStart} onToggle={() => setDraft((d) => ({ ...d, cycle: { ...d.cycle, periodStart: !d.cycle.periodStart } }))} />
               <Chip label="생리 종료" tone="rose" selected={draft.cycle.periodEnd} onToggle={() => setDraft((d) => ({ ...d, cycle: { ...d.cycle, periodEnd: !d.cycle.periodEnd } }))} />
@@ -692,7 +692,7 @@ export function LegacyLogForm() {
                 <Chip key={a.code} label={a.label} tone="coral" selected={draft.recoveryNegativeCodes.includes(a.code)} onToggle={() => toggleRecoveryNegative(a.code)} />
               ))}
             </ChipGroup>
-            <p className="recovery-note">같은 행동도 날에 따라 다르게 작동할 수 있어요. 판단이 아니라 기록이에요.</p>
+            <p className="recovery-note">같은 행동도 날에 따라 다르게 작동할 수 있어. 판단이 아니라 기록이야.</p>
           </GlassCard>
 
           {/* 12. 메모 */}
@@ -709,13 +709,13 @@ export function LegacyLogForm() {
 
       {status === 'success' && (
         <div className="log-feedback log-feedback--ok">
-          저장됐어요. 오늘 화면에서 모드를 확인할 수 있어요.
+          저장됐어. 오늘 화면에서 모드를 확인할 수 있어.
           <button className="log-gohome" onClick={() => navigate('/')}>
             오늘 화면 보기
           </button>
         </div>
       )}
-      {status === 'error' && <p className="log-feedback log-feedback--err">저장에 실패했어요. 잠시 후 다시 시도해 주세요.</p>}
+      {status === 'error' && <p className="log-feedback log-feedback--err">저장에 실패했어. 잠시 후 다시 시도해 줘.</p>}
     </>
   )
 }

@@ -56,7 +56,7 @@ export function HealthExceptionForm({ editRecord, onSaved, onCancelEdit }: Props
 
   return (
     <div className="special-form">
-      <p className="event-group__label">어떤 예외였어요?</p>
+      <p className="event-group__label">어떤 예외였어?</p>
       <ChipGroup label="건강 예외 종류">
         {HEALTH_EXCEPTIONS.map((h) => (
           <Chip key={h.code} label={h.label} tone="neutral" selected={category === h.code} onToggle={() => setCategory(h.code)} />

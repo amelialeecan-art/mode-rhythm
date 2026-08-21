@@ -16,11 +16,11 @@ import { SUPPORTED_IMPORT_VERSIONS, type ModeExportPayload, type ModeExportV2Tab
 
 /** 가져오기 실패 사유 코드 — 사용자 메시지는 UI에서 매핑한다(원문 미노출). */
 export type ImportErrorCode =
-  | 'file-read' // 파일을 읽을 수 없어요 (I/O 또는 JSON 파싱 실패)
+  | 'file-read' // 파일을 읽을 수 없어 (I/O 또는 JSON 파싱 실패)
   | 'too-large' // 파일이 너무 커요
-  | 'not-mode' // MODE 백업 파일이 아니에요
-  | 'unsupported-version' // 이 버전의 백업은 아직 지원하지 않아요
-  | 'invalid-structure' // 백업 파일이 손상됐거나 형식이 달라요
+  | 'not-mode' // MODE 백업 파일이 아니야
+  | 'unsupported-version' // 이 버전의 백업은 아직 지원하지 않아
+  | 'invalid-structure' // 백업 파일이 손상됐거나 형식이 달라
   | 'backup-failed' // 현재 데이터 백업을 만들지 못해 중단
   | 'import-failed' // 교체 도중 실패 (기존 기록 유지)
 

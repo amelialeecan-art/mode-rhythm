@@ -31,7 +31,7 @@ export function findAssertion(text: string): string | null {
   for (const p of ASSERTIVE_FORBIDDEN) {
     if (text.includes(p)) return p
   }
-  // "내일은 ~입니다" 류 확정 예보 차단 (우리 문구는 "가능성이 있어요")
+  // "내일은 ~입니다" 류 확정 예보 차단 (우리 문구는 "가능성이 있어")
   if (/내일은[^.!?\n]*입니다/.test(text)) return '내일은~입니다'
   return null
 }
@@ -63,24 +63,24 @@ export type ToneKey = 'reference' | 'analysisIntro' | 'rhythmIntro' | 'emptyData
 
 const TONE_COPY: Record<ToneKey, Record<ToneModeValue, string>> = {
   reference: {
-    calm: '최근 기록을 바탕으로 조심스럽게 참고해볼 수 있어요. 확정은 아니에요.',
-    witty: '기록상 힌트가 조금 보이고 있어요. 확정은 아니에요.',
-    direct: '최근 기록 기준 참고예요. 확정은 아니에요.',
+    calm: '최근 기록을 바탕으로 조심스럽게 참고해볼 수 있어. 확정은 아니야.',
+    witty: '기록상 힌트가 조금 보이고 있어. 확정은 아니야.',
+    direct: '최근 기록 기준 참고야. 확정은 아니야.',
   },
   analysisIntro: {
-    calm: '저장된 기록에서 반복적으로 함께 나타난 흐름을 차분히 보여드려요. 원인을 확정하거나 진단하지 않아요.',
-    witty: '기록에서 자주 같이 등장한 패턴을 모아봤어요. 원인 확정도 진단도 아니에요.',
-    direct: '저장된 기록의 반복 패턴이에요. 원인 확정이나 진단이 아니에요.',
+    calm: '저장된 기록에서 반복적으로 함께 나타난 흐름을 차분히 보여줄게. 원인을 확정하거나 진단하지 않아.',
+    witty: '기록에서 자주 같이 등장한 패턴을 모아봤어. 원인 확정도 진단도 아니야.',
+    direct: '저장된 기록의 반복 패턴이야. 원인 확정이나 진단이 아니야.',
   },
   rhythmIntro: {
-    calm: '최근 30일 기록을 따라 리듬이 어떻게 움직였는지 차분히 살펴봐요.',
-    witty: '최근 30일 흐름을 한눈에. 실제 기록 기준이에요.',
-    direct: '최근 30일 실제 기록 기준 흐름이에요.',
+    calm: '최근 30일 기록을 따라 리듬이 어떻게 움직였는지 차분히 살펴봐.',
+    witty: '최근 30일 흐름을 한눈에. 실제 기록 기준이야.',
+    direct: '최근 30일 실제 기록 기준 흐름이야.',
   },
   emptyData: {
-    calm: '아직 기록이 적어요. 며칠 더 모이면 더 또렷하게 보여드릴게요.',
-    witty: '아직 기록이 조금 부족해요. 며칠만 더 쌓이면 보여줄게요.',
-    direct: '기록이 부족해요. 며칠 더 기록하면 표시돼요.',
+    calm: '아직 기록이 적어. 며칠 더 모이면 더 또렷하게 보여드릴게.',
+    witty: '아직 기록이 조금 부족해. 며칠만 더 쌓이면 보여줄게.',
+    direct: '기록이 부족해. 며칠 더 기록하면 표시돼.',
   },
 }
 

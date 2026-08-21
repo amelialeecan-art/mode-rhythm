@@ -18,7 +18,7 @@ describe('buildCheckpoint — 조건부 카드', () => {
   it('월경 전 + 수면 악화 조합 문장', () => {
     const c = buildCheckpoint(sig({ cycleNear: true, worsened: { sleep: true, emotional: false, appetite: false, body: false } }))
     expect(c).not.toBeNull()
-    expect(c!.sentences[0]).toBe('생리 예정일이 가까워지고 최근 수면도 흔들렸어요. 멘탈이 같이 터지는지 이틀 정도 봐요.')
+    expect(c!.sentences[0]).toBe('생리 예정일이 가까워지고 최근 수면도 흔들렸어. 멘탈이 같이 터지는지 이틀 정도 봐.')
   })
 
   it('월경 전 단독 → 정병 타이밍', () => {
@@ -30,20 +30,20 @@ describe('buildCheckpoint — 조건부 카드', () => {
     const c = buildCheckpoint(
       sig({ scheduleAhead: true, priorCombo: true, worsened: { sleep: true, emotional: false, appetite: false, body: false } }),
     )
-    expect(c!.sentences[0]).toBe('최근 수면과 다가오는 일정 압박이 겹쳤어요. 예전에 멘헤라 모드가 왔던 조합이에요.')
+    expect(c!.sentences[0]).toBe('최근 수면과 다가오는 일정 압박이 겹쳤어. 예전에 멘헤라 모드가 왔던 조합이야.')
   })
 
   it('일정 압박 + 악화지만 과거 조합 없음 → 부드러운 표현', () => {
     const c = buildCheckpoint(
       sig({ scheduleAhead: true, priorCombo: false, worsened: { sleep: true, emotional: false, appetite: false, body: false } }),
     )
-    expect(c!.sentences[0]).toContain('일정 부담이 겹쳤어요')
+    expect(c!.sentences[0]).toContain('일정 부담이 겹쳤어')
     expect(c!.sentences[0]).not.toContain('멘헤라')
   })
 
   it('일정만 있고 악화 없음 → 컨디션 비슷 안내', () => {
     const c = buildCheckpoint(sig({ scheduleAhead: true }))
-    expect(c!.sentences[0]).toBe('다가오는 일정 부담이 있지만 최근 컨디션은 평소와 비슷해요.')
+    expect(c!.sentences[0]).toBe('다가오는 일정 부담이 있지만 최근 컨디션은 평소와 비슷해.')
   })
 
   it('최근 악화만 — 최대 2개 신호까지', () => {
@@ -51,7 +51,7 @@ describe('buildCheckpoint — 조건부 카드', () => {
       sig({ worsened: { sleep: true, emotional: true, appetite: true, body: true } }),
     )
     // 4개가 켜져도 문장에는 2개(수면·감정)만 언급
-    expect(c!.sentences[0]).toBe('최근 수면과 감정이 같이 흔들렸어요. 이어지는지 며칠 지켜봐요.')
+    expect(c!.sentences[0]).toBe('최근 수면과 감정이 같이 흔들렸어. 이어지는지 며칠 지켜봐.')
     expect(c!.sentences[0]).not.toContain('식욕')
     expect(c!.sentences[0]).not.toContain('몸')
   })

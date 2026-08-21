@@ -430,7 +430,7 @@ function EpisodeRow({ ep }: { ep: EpisodeCard }) {
       <SignalSection title="전날 추가된 신호" section={ep.dayBeforeNew} tone="warn" />
       <SignalSection title="나빠진 뒤 행동" section={ep.afterBehaviors} tone="after" />
 
-      {noSignals && <p className="ep__empty">이 구간엔 앞뒤로 함께 기록된 신호가 뚜렷하지 않아요.</p>}
+      {noSignals && <p className="ep__empty">이 구간엔 앞뒤로 함께 기록된 신호가 뚜렷하지 않아.</p>}
 
       {hasCollapsed && (
         <details className="ep__more">
@@ -525,7 +525,7 @@ function ComboRow({ c }: { c: ComboCard }) {
       <div className="pat__head">
         <span className="pat__name">{c.titleA} + {c.titleB}</span>
       </div>
-      <p className="pat__say">둘이 겹친 날 {c.metricLabel.replace(/ 정도$/, '')}가 유독 더 힘들었어요.</p>
+      <p className="pat__say">둘이 겹친 날 {c.metricLabel.replace(/ 정도$/, '')}가 유독 더 힘들었어.</p>
     </li>
   )
 }

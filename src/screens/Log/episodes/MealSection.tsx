@@ -119,7 +119,7 @@ function MealQuickAdd({ onSaved }: { onSaved: () => void }) {
       <RatingScale label="신체적 배고픔" lowLabel="없음" highLabel="매우 강함" tone="coral" value={hunger} onChange={setHunger} />
       <RatingScale label="음식 craving" lowLabel="없음" highLabel="매우 강함" tone="coral" value={craving} onChange={setCraving} />
       <RatingScale label="폭식 충동" lowLabel="없음" highLabel="매우 강함" tone="coral" value={binge} onChange={setBinge} />
-      <p className="state-hint">먹은 뒤 양·음식 종류는 타임라인에서 이 기록을 열어 추가해요.</p>
+      <p className="state-hint">먹은 뒤 양·음식 종류는 타임라인에서 이 기록을 열어 추가해.</p>
       <div className="meal-form-actions">
         <button className="btn-primary" onClick={onSave} disabled={saving}>{saving ? '저장 중…' : '식사 기록 저장'}</button>
         <button className="custom-cancel-btn" onClick={() => { reset(); setOpen(false) }}>취소</button>
@@ -176,7 +176,7 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
       onSaved()
     } catch (e) {
       console.error('[MODE] 식사 후 기록 실패', e)
-      setError('시각 순서를 확인해 주세요 (시작 → 종료).')
+      setError('시각 순서를 확인해 줘 (시작 → 종료).')
     } finally {
       setSaving(false)
       setFormBusy(false)
@@ -211,7 +211,7 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
         <input type="number" min={0} inputMode="decimal" className="dt-input dt-input--num" placeholder="미입력" value={alcohol} onChange={(e) => setAlcohol(e.target.value)} />
       </label>
 
-      <p className="state-hint">미입력은 "아니오"가 아니에요. 모르면 "모름"을 눌러요.</p>
+      <p className="state-hint">미입력은 "아니오"가 아니야. 모르면 "모름"을 눌러요.</p>
       <button className="btn-primary" onClick={onSave} disabled={saving}>{saving ? '저장 중…' : '식사 후 기록 저장'}</button>
       {error && <p className="log-feedback log-feedback--err">{error}</p>}
     </div>
@@ -277,7 +277,7 @@ export function MealSection({ localDate, reloadToken, onSaved }: MealSectionProp
       <GlassCard>
         <SectionHeader title="오늘 식사 타임라인" subtitle="먹기 직전 상태와 먹은 뒤 기록" />
         {meals.length === 0 ? (
-          <p className="state-hint" style={{ marginTop: 10 }}>아직 식사 기록이 없어요.</p>
+          <p className="state-hint" style={{ marginTop: 10 }}>아직 식사 기록이 없어.</p>
         ) : (
           <div className="meal-list">
             {meals.map((m, i) => (

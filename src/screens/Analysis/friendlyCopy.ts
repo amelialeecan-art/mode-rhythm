@@ -15,7 +15,7 @@ export function approxRating(n: number): string {
 
 /**
  * 평소 → 이때 비교 한 문장. 두 값이 모두 있을 때만.
- * "평소에는 4점 정도였는데 이때는 6점 정도였어요."
+ * "평소에는 4점 정도였는데 이때는 6점 정도였어."
  * before/after 라벨은 상황에 맞게 바꿀 수 있다(기본: 평소/이때).
  */
 export function beforeAfterLine(
@@ -26,18 +26,18 @@ export function beforeAfterLine(
   if (!Number.isFinite(before) || !Number.isFinite(after)) return null
   const bl = opts.beforeLabel ?? '평소에는'
   const al = opts.afterLabel ?? '이때는'
-  return `${bl} ${approxRating(before)}였는데 ${al} ${approxRating(after)}였어요.`
+  return `${bl} ${approxRating(before)}였는데 ${al} ${approxRating(after)}였어.`
 }
 
 /**
  * 반복 횟수를 사람말로. "같은 방향" 같은 통계 표현을 쓰지 않는다.
- * matched===total → "최근 N번 모두 비슷했어요."
- * 아니면 → "비교한 N번 중 M번이 그랬어요."
+ * matched===total → "최근 N번 모두 비슷했어."
+ * 아니면 → "비교한 N번 중 M번이 그랬어."
  */
 export function repetitionPhrase(matched: number, total: number, unit = '번'): string {
   if (total <= 0) return ''
-  if (matched >= total) return `최근 ${total}${unit} 모두 비슷했어요.`
-  return `비교한 ${total}${unit} 중 ${matched}${unit}이 그랬어요.`
+  if (matched >= total) return `최근 ${total}${unit} 모두 비슷했어.`
+  return `비교한 ${total}${unit} 중 ${matched}${unit}이 그랬어.`
 }
 
 /** 월경 주기 상대일(fromDay, 음수=생리 전)을 사람말로. "D-7" 같은 표기를 쓰지 않는다. */
@@ -61,16 +61,26 @@ export function lagWord(lag: number): string {
 export function confidenceWords(conf: V2Confidence): string {
   switch (conf) {
     case 'strong':
-      return '기록도 충분하고 여러 번 반복돼서 꽤 믿을 만해요.'
+      return '기록도 충분하고 여러 번 반복돼서 꽤 믿을 만해.'
     case 'moderate':
-      return '몇 번 반복됐지만 아직 기록이 아주 많지는 않아요.'
+      return '몇 번 반복되긴 했는데 기록이 아주 많진 않아.'
     case 'tentative':
-      return '아직 참고 정도로만 봐주세요.'
+      return '아직 참고 정도로만 봐줘.'
     case 'exploratory':
-      return '아직 살펴보는 중이에요.'
+      return '아직 살펴보는 중이야.'
     default:
-      return '아직 판단하기엔 일러요.'
+      return '아직 몇 번 안 보여서 조금 더 지켜봐야 해.'
   }
+}
+
+/**
+ * 가벼운 생활 패턴에만 붙이는 한마디(§3). 결정론적 · 안전한 종류에만.
+ * ⚠️ 심각한 정신건강/통증/질병/체중/폭식 종류에는 절대 붙이지 않는다 → null.
+ *    수면 같은 일상 패턴에만 데이터 문장 "뒤에" 양념으로 얹는다.
+ */
+export function lightAsideForLagged(key: string): string | null {
+  if (key.startsWith('sleep-')) return '늦게 잔 다음날은 역시 티가 났어. 🫠'
+  return null
 }
 
 /** 상세(자세히 보기)용 짧은 신뢰도 라벨. 메인에는 confidenceWords를 쓴다. */

@@ -107,7 +107,7 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
       onSaved()
     } catch (e) {
       console.error('[MODE] 수면 저장 실패', e)
-      setError('시각 순서를 확인해 주세요 (취침 → 잠듦 → 기상).')
+      setError('시각 순서를 확인해 줘 (취침 → 잠듦 → 기상).')
       setStatus('error')
     } finally {
       setFormBusy(false)
@@ -125,7 +125,7 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
       <button type="button" className="checkin-head" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
         <span className="checkin-head__main">
           <span className="checkin-head__title">지난밤 수면</span>
-          <span className="checkin-head__sub">시각을 남기면 수면시간은 앱이 계산해요</span>
+          <span className="checkin-head__sub">시각을 남기면 수면시간은 앱이 계산해</span>
         </span>
         <span className={`checkin-badge${existing ? ' checkin-badge--done' : ''}`}>{statusText}</span>
       </button>
@@ -176,10 +176,10 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
             <span className="derived-chip">수면시간 {durationText ?? '—'}</span>
             <span className="derived-chip">중간시각 {midIso ? formatClock(midIso) : '—'}</span>
           </div>
-          <p className="state-hint">고르지 않은 항목은 미측정으로 남아요. 0으로 저장되지 않아요.</p>
+          <p className="state-hint">고르지 않은 항목은 미측정으로 남아. 0으로 저장되지 않아.</p>
 
           <button className="btn-primary" onClick={onSave} disabled={status === 'saving'}>
-            {status === 'saving' ? '저장 중…' : status === 'success' ? '저장됐어요' : existing ? '수면 수정' : '수면 저장'}
+            {status === 'saving' ? '저장 중…' : status === 'success' ? '저장됐어' : existing ? '수면 수정' : '수면 저장'}
           </button>
           {status === 'error' && <p className="log-feedback log-feedback--err">{error}</p>}
         </div>

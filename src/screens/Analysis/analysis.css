@@ -1030,3 +1030,10 @@
 .tmp-more > summary { cursor: pointer; font-size: 11.5px; font-weight: 700; color: var(--sky-ink); list-style: none; }
 .tmp-more > summary::-webkit-details-marker { display: none; }
 .tmp-more[open] > summary { margin-bottom: 5px; }
+
+/* 가벼운 한마디(양념) — 데이터 문장 뒤 보조 */
+.tmp-aside { margin: 3px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-3); line-height: 1.5; }
+
+/* 핵심 관계 해석 강조(hunger vs craving 등) */
+.ca-highlight { margin: 12px 0 4px; padding: 12px 13px; border-radius: 14px; background: rgba(169,133,232,0.12); border: 1.4px solid rgba(169,133,232,0.28); }
+.ca-highlight .ca-say { font-weight: 800; }

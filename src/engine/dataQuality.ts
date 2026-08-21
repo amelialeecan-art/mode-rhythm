@@ -172,9 +172,9 @@ export function detectQualityFlags(measurements: StateMeasurement[], opts: Quali
   for (const m of sorted) {
     const t = Date.parse(m.recordedAt)
     if (Number.isNaN(t)) {
-      flags.push({ code: 'chronology_error', severity: 'error', detail: `기록 시각을 해석할 수 없어요.` })
+      flags.push({ code: 'chronology_error', severity: 'error', detail: `기록 시각을 해석할 수 없어.` })
     } else if (t > now) {
-      flags.push({ code: 'future_timestamp', severity: 'error', detail: `미래 시각으로 기록된 항목이 있어요.` })
+      flags.push({ code: 'future_timestamp', severity: 'error', detail: `미래 시각으로 기록된 항목이 있어.` })
     }
   }
 
@@ -193,7 +193,7 @@ export function detectQualityFlags(measurements: StateMeasurement[], opts: Quali
     seen.set(key, (seen.get(key) ?? 0) + 1)
   }
   for (const [key, count] of seen) {
-    if (count > 1) flags.push({ code: 'duplicate_measurement', severity: 'suspicious', detail: `${key} 체크인이 ${count}개 있어요.` })
+    if (count > 1) flags.push({ code: 'duplicate_measurement', severity: 'suspicious', detail: `${key} 체크인이 ${count}개 있어.` })
   }
 
   // 3. schema version change within range
@@ -207,7 +207,7 @@ export function detectQualityFlags(measurements: StateMeasurement[], opts: Quali
     if (classifyProvenance(m.source, m.schemaVersion) !== 'legacy_display_only') continue
     for (const metric of CORE_METRICS) {
       if (m.metrics[metric] === 0) {
-        flags.push({ code: 'legacy_ambiguous_zero', severity: 'suspicious', metric, detail: `legacy 기록의 0은 실제 0인지 불명확해요.` })
+        flags.push({ code: 'legacy_ambiguous_zero', severity: 'suspicious', metric, detail: `legacy 기록의 0은 실제 0인지 불명확해.` })
         break
       }
     }
@@ -231,7 +231,7 @@ export function detectQualityFlags(measurements: StateMeasurement[], opts: Quali
     if (q.firstObservedAt && spanMs > 0) {
       const onsetOffset = Date.parse(q.firstObservedAt) - Date.parse(sorted[0].recordedAt)
       if (onsetOffset / spanMs > lateRatio) {
-        flags.push({ code: 'late_metric_onset', severity: 'info', metric, detail: `이 metric은 기간 후반부터 기록되기 시작했어요.` })
+        flags.push({ code: 'late_metric_onset', severity: 'info', metric, detail: `이 metric은 기간 후반부터 기록되기 시작했어.` })
       }
     }
 
@@ -242,7 +242,7 @@ export function detectQualityFlags(measurements: StateMeasurement[], opts: Quali
       const v = m.metrics[metric]
       if (typeof v === 'number') {
         if (!Number.isInteger(v) || v < 0 || v > 10) {
-          flags.push({ code: 'impossible_numeric', severity: 'error', metric, detail: `0~10 범위 밖 값이 있어요.` })
+          flags.push({ code: 'impossible_numeric', severity: 'error', metric, detail: `0~10 범위 밖 값이 있어.` })
         }
         series.push(v)
       }
@@ -253,7 +253,7 @@ export function detectQualityFlags(measurements: StateMeasurement[], opts: Quali
       if (sd > 0) {
         for (const v of series) {
           if (Math.abs(v - mean) / sd > 3) {
-            flags.push({ code: 'outlier', severity: 'suspicious', metric, detail: `평균에서 크게 벗어난 값이 있어요.` })
+            flags.push({ code: 'outlier', severity: 'suspicious', metric, detail: `평균에서 크게 벗어난 값이 있어.` })
             break
           }
         }
@@ -276,7 +276,7 @@ export function detectQualityFlags(measurements: StateMeasurement[], opts: Quali
   if (hours.length >= 8) {
     const distinctBuckets = new Set(hours.map((h) => Math.floor(h / 4))) // 6개 4시간 버킷
     if (distinctBuckets.size <= 1) {
-      flags.push({ code: 'sampling_time_bias', severity: 'info', detail: `특정 시간대에만 기록하는 경향이 있어요.` })
+      flags.push({ code: 'sampling_time_bias', severity: 'info', detail: `특정 시간대에만 기록하는 경향이 있어.` })
     }
   }
 

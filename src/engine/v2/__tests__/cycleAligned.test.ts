@@ -98,3 +98,32 @@ describe('physicalHunger / craving / bingeUrge 분리', () => {
     expect(cRes.baselineDifference).not.toBe(hRes.baselineDifference)
   })
 })
+
+describe('표시용 실측 평균(baselineMean/windowMean) — 계산값 불변', () => {
+  it('windowMean = baselineMean + baselineDifference (일관성) + 상승 시 windowMean이 더 큼', () => {
+    const starts = [iso(2026, 1, 1), iso(2026, 1, 29), iso(2026, 2, 26), iso(2026, 3, 26)]
+    const series = buildElevated(starts, 4, 2) // base 4, 월경 전 +2
+    const r = cycleWindowAssociation(series, starts, PREMENSTRUAL_WINDOW)
+    expect(r.status).toBe('ok')
+    // 표시용 두 평균은 실제 관찰에서 나온 값(NaN 아님)
+    expect(Number.isFinite(r.baselineMean)).toBe(true)
+    expect(Number.isFinite(r.windowMean)).toBe(true)
+    // 핵심 항등식: 두 평균의 차 = 기존 baselineDifference(계산값 불변)
+    expect(r.windowMean - r.baselineMean).toBeCloseTo(r.baselineDifference, 6)
+    // 월경 전 상승이므로 window 평균이 평소 평균보다 큼
+    expect(r.windowMean).toBeGreaterThan(r.baselineMean)
+    // 평소 평균은 base(4) 근처(잡음 포함)
+    expect(r.baselineMean).toBeGreaterThan(3.5)
+    expect(r.baselineMean).toBeLessThan(6)
+  })
+
+  it('정렬할 완료 주기가 하나도 없으면 means는 NaN', () => {
+    const starts = [iso(2026, 1, 1)] // 시작 1개 → 정렬 가능한 완료 주기 없음
+    const series = buildElevated(starts, 4, 2)
+    const r = cycleWindowAssociation(series, starts, PREMENSTRUAL_WINDOW, { minCycles: 3 })
+    expect(r.status).toBe('insufficient')
+    expect(r.usableCycleCount).toBe(0)
+    expect(Number.isNaN(r.baselineMean)).toBe(true)
+    expect(Number.isNaN(r.windowMean)).toBe(true)
+  })
+})

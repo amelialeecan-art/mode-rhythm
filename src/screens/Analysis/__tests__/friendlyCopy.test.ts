@@ -23,10 +23,10 @@ describe('approxRating', () => {
 
 describe('beforeAfterLine', () => {
   it('두 값이 있으면 평소→이때 비교 문장', () => {
-    expect(beforeAfterLine(4.1, 6.4)).toBe('평소에는 4점 정도였는데 이때는 6점 정도였어요.')
+    expect(beforeAfterLine(4.1, 6.4)).toBe('평소에는 4점 정도였는데 이때는 6점 정도였어.')
   })
   it('라벨을 바꿀 수 있다', () => {
-    expect(beforeAfterLine(3, 5, { beforeLabel: '아침에는', afterLabel: '저녁에는' })).toBe('아침에는 3점 정도였는데 저녁에는 5점 정도였어요.')
+    expect(beforeAfterLine(3, 5, { beforeLabel: '아침에는', afterLabel: '저녁에는' })).toBe('아침에는 3점 정도였는데 저녁에는 5점 정도였어.')
   })
   it('한쪽이라도 없으면 null(문장 만들지 않음)', () => {
     expect(beforeAfterLine(NaN, 5)).toBeNull()
@@ -35,11 +35,11 @@ describe('beforeAfterLine', () => {
 })
 
 describe('repetitionPhrase — "같은 방향" 안 씀', () => {
-  it('전부 일치면 "최근 N번 모두 비슷했어요"', () => {
-    expect(repetitionPhrase(4, 4)).toBe('최근 4번 모두 비슷했어요.')
+  it('전부 일치면 "최근 N번 모두 비슷했어"', () => {
+    expect(repetitionPhrase(4, 4)).toBe('최근 4번 모두 비슷했어.')
   })
-  it('일부면 "비교한 N번 중 M번이 그랬어요"', () => {
-    expect(repetitionPhrase(6, 8)).toBe('비교한 8번 중 6번이 그랬어요.')
+  it('일부면 "비교한 N번 중 M번이 그랬어"', () => {
+    expect(repetitionPhrase(6, 8)).toBe('비교한 8번 중 6번이 그랬어.')
   })
   it('같은 방향 같은 통계 표현이 없다', () => {
     expect(repetitionPhrase(4, 4)).not.toMatch(/같은 방향/)
@@ -71,7 +71,7 @@ describe('lagWord', () => {
 describe('confidenceWords — badge 대신 사람말', () => {
   it('등급별 설명이 자연어', () => {
     expect(confidenceWords('strong')).toContain('믿을 만')
-    expect(confidenceWords('insufficient')).toContain('일러요')
+    expect(confidenceWords('insufficient')).toContain('지켜봐야')
     for (const c of ['strong', 'moderate', 'tentative', 'exploratory', 'insufficient'] as const) {
       expect(confidenceWords(c).length).toBeGreaterThan(0)
     }

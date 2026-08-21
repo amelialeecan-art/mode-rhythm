@@ -64,8 +64,8 @@ describe('Calendar — 상태 미입력 날의 거짓 안정 방지', () => {
     await recalculateDailyScore(D)
     const detail = await getCalendarDayDetail(D)
     expect(detail.hasStateInput).toBe(true)
-    expect(detail.stateLabels).toContain('몸이 쉽게 지쳤어요')
-    expect(detail.stateLabels).toContain('머리가 복잡했어요')
+    expect(detail.stateLabels).toContain('몸이 쉽게 지쳤어')
+    expect(detail.stateLabels).toContain('머리가 복잡했어')
   })
 
   it('직접 상태로 안정적인 날은 안정 라벨을 유지한다', async () => {

@@ -26,8 +26,8 @@ const sleepIssueLabels = (issues?: string[]) => (issues ?? []).map((c) => SLEEP_
 const sleepSummaryLine = (ln?: LastNightSleep): string | undefined => {
   if (!ln) return undefined
   const parts: string[] = []
-  if (ln.hours !== undefined) parts.push(`${ln.hours}시간쯤 잤어요`)
-  if (ln.quality !== undefined) parts.push(ln.quality <= 3 ? '푹 못 잤어요' : ln.quality <= 5 ? '뒤척였어요' : ln.quality <= 7 ? '보통이었어요' : '잘 잤어요')
+  if (ln.hours !== undefined) parts.push(`${ln.hours}시간쯤 잤어`)
+  if (ln.quality !== undefined) parts.push(ln.quality <= 3 ? '푹 못 잤어' : ln.quality <= 5 ? '뒤척였어' : ln.quality <= 7 ? '보통이었어' : '잘 잤어')
   return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
@@ -140,13 +140,13 @@ export function CalendarScreen() {
       {lens === 'recovery' ? (
         <>
           <p className="callegend">
-            회복 렌즈는 회복 행동을 기록한 날과 자기보고 회복 점수를 보여줘요. 색이 진할수록 회복 기록이 강하게 남은 날이에요.
+            회복 렌즈는 회복 행동을 기록한 날과 자기보고 회복 점수를 보여줘. 색이 진할수록 회복 기록이 강하게 남은 날이야.
           </p>
-          <p className="callegend callegend--soft">여기서 진함은 힘든 정도가 아니라 회복 기록이 높음을 뜻해요.</p>
+          <p className="callegend callegend--soft">여기서 진함은 힘든 정도가 아니라 회복 기록이 높음을 뜻해.</p>
         </>
       ) : (
         <p className="callegend">
-          색이 진할수록 해당 렌즈가 높게 기록된 날이에요. 기록이 없는 날은 색을 표시하지 않아요.
+          색이 진할수록 해당 렌즈가 높게 기록된 날이야. 기록이 없는 날은 색을 표시하지 않아.
         </p>
       )}
 
@@ -178,7 +178,7 @@ function DayDetailSheet({
 
         {!detail.hasEntry ? (
           <>
-            <p className="sheet__hint">이 날은 아직 기록이 없어요.</p>
+            <p className="sheet__hint">이 날은 아직 기록이 없어.</p>
             <button className="btn-primary sheet__close" onClick={() => onRecord(detail.date)}>
               이 날짜 기록하기
             </button>
@@ -197,7 +197,7 @@ function DayDetailSheet({
                 </div>
               ) : (
                 // 상태만 없고 사건·몸 신호·회복·생리·메모 등 다른 기록은 있는 날.
-                <p className="sheet__hint">이날은 상태 선택 없이 다른 기록만 남겼어요.</p>
+                <p className="sheet__hint">이날은 상태 선택 없이 다른 기록만 남겼어.</p>
               )}
             </Section>
 

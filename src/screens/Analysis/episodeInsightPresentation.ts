@@ -90,7 +90,7 @@ const SLEEP_SUBJECT: Record<string, string> = {
 /** 남은 변화 주어(수면은 전용 표현, 그 외는 명사 topic). 없으면 null(문장 생략). */
 const subjectFor = (key: string): string | null => SLEEP_SUBJECT[key] ?? topicFor(key)
 /** 종료일이 확인되지 않은 후속의 마무리. 늦은 잠 계열은 "그 뒤에도", 나머지는 "더". */
-const nonObservedTail = (key: string): string => (key === 'sleep_late' || key === 'woke_late' ? '그 뒤에도 이어졌어요.' : '더 이어졌어요.')
+const nonObservedTail = (key: string): string => (key === 'sleep_late' || key === 'woke_late' ? '그 뒤에도 이어졌어.' : '더 이어졌어.')
 
 /** 최근 흐름 첫 신호를 "…기 시작했"으로 자연스럽게 여는 어간(있을 때만). */
 const STARTED: Record<string, string> = {
@@ -116,9 +116,9 @@ const ADNOMINAL: Record<string, string> = {
 function clauseFor(key: string): string | null {
   if (PHRASE[key]?.clause) return PHRASE[key]!.clause!
   const m = MIND_SIGNAL_LABEL.get(key)
-  if (m?.endsWith('어요')) return m.slice(0, -2)
+  if (m?.endsWith('어')) return m.slice(0, -1)
   const s = SLEEP_ISSUE_LABEL.get(key)
-  if (s?.endsWith('어요')) return s.slice(0, -2)
+  if (s?.endsWith('어')) return s.slice(0, -1)
   return null
 }
 const topicFor = (key: string): string | null => PHRASE[key]?.topic ?? null
@@ -204,7 +204,7 @@ function buildRecentFlow(ep: EpisodeTimeline, hasAftereffect: boolean, hasRecove
   }
   for (const group of chunk(reps, 2).slice(0, MAX_LINES)) {
     const parts = group.map(segment)
-    lines.push(parts.length === 2 ? `${parts[0]}고, ${parts[1]}어요.` : `${parts[0]}어요.`)
+    lines.push(parts.length === 2 ? `${parts[0]}고, ${parts[1]}어.` : `${parts[0]}어.`)
   }
 
   // 정보 가치: 서로 다른 날짜 시작 / 여러 날 지속 / 남은 변화 / 회복 중 하나는 있어야 한다.
@@ -232,9 +232,9 @@ function describeRange(start: ISODate, end: ISODate): string {
 function ongoingStatus(ep: EpisodeTimeline, reps: TimelineRun[]): string | undefined {
   if (ep.status !== 'ongoing') return undefined
   const majors = reps.filter((r) => MAJOR_SOURCES.has(r.source))
-  if (majors.some((r) => r.endBoundary === 'range_edge')) return '최근 기록까지 이어졌어요.'
-  if (majors.some((r) => r.endBoundary === 'missing_gap')) return '마지막 기록 뒤에는 흐름이 끝났는지 확인할 기록이 없어요.'
-  if (ep.recovery.recoveryStartDate && !ep.completionConfirmedDate) return '돌아온 뒤 하루까지만 확인됐어요.'
+  if (majors.some((r) => r.endBoundary === 'range_edge')) return '최근 기록까지 이어졌어.'
+  if (majors.some((r) => r.endBoundary === 'missing_gap')) return '마지막 기록 뒤에는 흐름이 끝났는지 확인할 기록이 없어.'
+  if (ep.recovery.recoveryStartDate && !ep.completionConfirmedDate) return '돌아온 뒤 하루까지만 확인됐어.'
   return undefined
 }
 
@@ -250,8 +250,8 @@ function buildAftereffect(ep: EpisodeTimeline): FlowCard | null {
     const ctx = flowDateCtx(ep) // 최근 흐름과 같은 달이면 월을 반복하지 않는다
     const endedVerb = a.sourceKey.startsWith('state') ? '가라앉았' : '줄었'
     const sourcePart = `${topicWithParticle(sSubject)} ${dayText(a.sourceEndDate, ctx)}에 ${endedVerb}지만,`
-    // 후속 종료가 observed일 때만 "N일까지 이어졌어요"로 확정. 아니면 확정하지 않는다.
-    const tail = remainingRun && remainingRun.endBoundary === 'observed' ? `${dayText(a.remainingEndDate, ctx)}까지 이어졌어요.` : `${nonObservedTail(a.remainingKey)}`
+    // 후속 종료가 observed일 때만 "N일까지 이어졌어"로 확정. 아니면 확정하지 않는다.
+    const tail = remainingRun && remainingRun.endBoundary === 'observed' ? `${dayText(a.remainingEndDate, ctx)}까지 이어졌어.` : `${nonObservedTail(a.remainingKey)}`
     lines.push(`${sourcePart} ${topicWithParticle(rSubject)} ${tail}`)
   }
   if (lines.length === 0) return null
@@ -269,16 +269,16 @@ function buildRecovery(ep: EpisodeTimeline): FlowCard | null {
   let sentence = `${dayText(rec.recoveryStartDate, ctx)}에 ${recoveredFor(firstKey)}기 시작했`
   // 완료 확인일이 있으면(안정 2일) 종료 확인 문장을 이어붙인다 — recoveryStartDate와 섞지 않는다.
   if (ep.completionConfirmedDate) {
-    sentence += `고, ${dayText(ep.completionConfirmedDate, ctx)}에 이 흐름이 끝난 것으로 확인됐어요.`
+    sentence += `고, ${dayText(ep.completionConfirmedDate, ctx)}에 이 흐름이 끝난 것으로 확인됐어.`
   } else {
-    sentence += '어요.'
+    sentence += '어.'
   }
   const lines = [sentence]
 
   // 나중에 돌아온 것이 따로 있으면 순서만 한 줄 더(예측/원인 아님).
   const laterKey = rec.laterRecoveredKeys.find((k) => topicFor(k))
   const firstTopic = topicFor(firstKey)
-  if (laterKey && firstTopic) lines.push(`${firstTopic}이 먼저 돌아왔고, ${topicFor(laterKey)}은 그다음이었어요.`)
+  if (laterKey && firstTopic) lines.push(`${firstTopic}이 먼저 돌아왔고, ${topicFor(laterKey)}은 그다음이었어.`)
 
   return { title: '돌아오기 시작한 때', lines }
 }
@@ -300,9 +300,9 @@ function buildRepeatedFlow(motifs: RepeatedEpisodeMotif[]): FlowCard | null {
   if (motif.sequenceKeys.length >= 3) {
     const r1 = motif.typicalLagRanges[1]
     const step2 = r1.min === r1.max ? lagWord(r1.min) : `그 뒤 ${r1.min}~${r1.max}일 안에`
-    body = `${lead} ${clauses[1]}고, ${step2} ${clauses[2]}어요.`
+    body = `${lead} ${clauses[1]}고, ${step2} ${clauses[2]}어.`
   } else {
-    body = `${lead} ${clauses[1]}어요.`
+    body = `${lead} ${clauses[1]}어.`
   }
   return { title: '반복해서 나타난 순서', lines: [`최근 ${cw} 번의 비슷한 흐름에서는 ${body}`] }
 }
@@ -329,9 +329,9 @@ function buildCurrentMatch(matches: MotifMatch[]): FlowCard | null {
   // 2단계면 "…맴돈 뒤 …", 그 이상이면 절 연결로.
   const body =
     best.matchedKeys.length === 2 && adn0
-      ? `${adn0} 뒤 ${clauses[1]}어요.`
-      : clauses.map((c, i) => (i === 0 ? c : `그다음 ${c}`)).join('고, ') + '어요.'
-  return { title: '이번에도 여기까지 같은 순서였어요', lines: [`이번에도 ${body}`] }
+      ? `${adn0} 뒤 ${clauses[1]}어.`
+      : clauses.map((c, i) => (i === 0 ? c : `그다음 ${c}`)).join('고, ') + '어.'
+  return { title: '이번에도 여기까지 같은 순서였어', lines: [`이번에도 ${body}`] }
 }
 
 /**

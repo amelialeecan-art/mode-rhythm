@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { GlassCard, SectionHeader } from '../../design'
 import { getV2TemporalInsights, type V2TemporalInsights } from '../../data/services/v2TemporalAnalysisService'
 import { formatMonthDay, parseISODate } from '../../lib/date'
-import { beforeAfterLine, confidenceWords, lagWord } from './friendlyCopy'
+import { beforeAfterLine, confidenceWords, lagWord, lightAsideForLagged } from './friendlyCopy'
 import {
   morningEveningSentence,
   eventResponseSentence,
@@ -34,25 +34,29 @@ export function V2TemporalCard() {
 
   return (
     <GlassCard tint="sky">
-      <SectionHeader title="시간 순서가 확인된 것들" subtitle="기록된 시각·전후 순서를 맞춰 본 결과예요" star />
+      <SectionHeader title="시간 순서가 확인된 것들" subtitle="기록된 시각·전후 순서를 맞춰 본 거야" star />
 
       {ins.lagged.length > 0 && (
         <div className="tmp-group">
           <h4 className="tmp-h">시간 간격을 둔 흐름</h4>
           <ul className="tmp-list">
-            {ins.lagged.map((l) => (
-              <li className="tmp-item" key={l.key}>
-                <p className="tmp-say">{laggedSentence(l)}</p>
-                <details className="tmp-more">
-                  <summary>자세히 보기</summary>
-                  <p className="tmp-meta">
-                    {l.result.lag > 0 ? `${lagWord(l.result.lag)}까지 비교 · ` : '같은 날 비교 · '}
-                    기록 {l.result.n}회 · {laggedAdjustmentFriendly(l)} · {confidenceWords(l.result.confidence)}
-                    {l.result.ci && ` (범위 ${l.result.ci.lo.toFixed(1)}~${l.result.ci.hi.toFixed(1)})`}
-                  </p>
-                </details>
-              </li>
-            ))}
+            {ins.lagged.map((l) => {
+              const aside = lightAsideForLagged(l.key)
+              return (
+                <li className="tmp-item" key={l.key}>
+                  <p className="tmp-say">{laggedSentence(l)}</p>
+                  {aside && <p className="tmp-aside">{aside}</p>}
+                  <details className="tmp-more">
+                    <summary>자세히 보기</summary>
+                    <p className="tmp-meta">
+                      {l.result.lag > 0 ? `${lagWord(l.result.lag)}까지 비교 · ` : '같은 날 비교 · '}
+                      기록 {l.result.n}회 · {laggedAdjustmentFriendly(l)} · {confidenceWords(l.result.confidence)}
+                      {l.result.ci && ` (범위 ${l.result.ci.lo.toFixed(1)}~${l.result.ci.hi.toFixed(1)})`}
+                    </p>
+                  </details>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
@@ -70,7 +74,7 @@ export function V2TemporalCard() {
                   <details className="tmp-more">
                     <summary>자세히 보기</summary>
                     <p className="tmp-meta">
-                      비교한 건 {e.result.supportCount}번이에요 (기록된 사건 {e.eventCount}회)
+                      비교한 건 {e.result.supportCount}번이야 (기록된 사건 {e.eventCount}회)
                       {e.result.ci && ` · 범위 ${e.result.ci.lo.toFixed(1)}~${e.result.ci.hi.toFixed(1)}`}
                     </p>
                   </details>
@@ -114,9 +118,9 @@ export function V2TemporalCard() {
               return (
                 <li className="tmp-item" key={b.metric}>
                   <p className="tmp-say">{baselineShiftSentence(b)}</p>
-                  {b.shiftDate && <p className="tmp-num">{formatMonthDay(parseISODate(b.shiftDate))} 전후예요.</p>}
+                  {b.shiftDate && <p className="tmp-num">{formatMonthDay(parseISODate(b.shiftDate))} 전후야.</p>}
                   {ba && <p className="tmp-num">{ba}</p>}
-                  <p className="tmp-meta">확실한 건 아니고, 한 번 살펴볼 만한 변화예요.</p>
+                  <p className="tmp-meta">확실한 건 아니고, 한 번 살펴볼 만한 변화야.</p>
                 </li>
               )
             })}
@@ -124,7 +128,7 @@ export function V2TemporalCard() {
         </div>
       )}
 
-      <p className="state-hint">기록된 순서로 함께 나타난 것들이에요. 원인을 확정하거나 진단하지는 않아요.</p>
+      <p className="state-hint">기록된 순서로 함께 나타난 것들이야. 원인을 확정하거나 진단하진 않아.</p>
     </GlassCard>
   )
 }
