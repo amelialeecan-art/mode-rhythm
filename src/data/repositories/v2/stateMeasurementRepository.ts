@@ -39,10 +39,12 @@ export const stateMeasurementRepository = {
 
     const existing = await this.getByDateAndType(input.localDate, input.checkInType)
     if (existing?.id != null) {
+      // 편집 시 recordedAt(측정 시각)은 원래 값을 유지한다 — 수정 시각(updatedAt)과 혼동하지 않는다.
       await db.stateMeasurements.put({
         ...existing,
         ...input,
         id: existing.id,
+        recordedAt: existing.recordedAt,
         createdAt: existing.createdAt,
         updatedAt: now,
       })

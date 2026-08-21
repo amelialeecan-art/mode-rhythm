@@ -102,6 +102,11 @@ export interface StateMeasurement {
   promptedMetrics: CoreMetric[]
   /** 코어 metric 값(0/unknown/null). 안 물어본 metric은 키 자체가 없다. */
   metrics: CoreMetricValues
+  /**
+   * 자유 메모(선택). 남길 수 있으나 core statistical analysis 대상이 아니다.
+   * 비인덱스 optional — 스키마/인덱스 변경 없음.
+   */
+  note?: string
   source: DataSource
   schemaVersion: number
   createdAt: string

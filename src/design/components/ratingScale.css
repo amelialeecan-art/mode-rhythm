@@ -1,0 +1,116 @@
+/* =====================================================================
+   MODE · RatingScale (0~10 + 모름) 스타일
+   토큰(components.css/tokens.css)의 시각 언어를 재사용한다.
+   ===================================================================== */
+.rating {
+  margin-top: 14px;
+}
+.rating__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.rating__label {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.rating__clear {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 4px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rating__clear:active {
+  transform: scale(0.94);
+}
+
+/* 0~10 + 모름 눈금열. 작은 화면에서 줄바꿈 허용. */
+.rating__scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rating__opt {
+  min-width: 34px;
+  height: 38px;
+  padding: 0 4px;
+  border-radius: 12px;
+  border: 1.6px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-clip: padding-box;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease;
+  flex: 1 1 auto;
+}
+.rating__opt:active {
+  transform: scale(0.93);
+}
+.rating__opt--unknown {
+  flex: 1 1 100%;
+  margin-top: 2px;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.rating__opt:focus-visible {
+  outline: 2px solid var(--lav);
+  outline-offset: 2px;
+}
+
+/* 선택 상태: tone별 강조 (Chip과 동일 팔레트) */
+.rating--lav .rating__opt--on {
+  background: rgba(169, 133, 232, 0.18);
+  color: var(--lav-ink);
+  border-color: var(--lav-2);
+  font-weight: 800;
+}
+.rating--coral .rating__opt--on {
+  background: rgba(255, 149, 118, 0.2);
+  color: var(--coral-ink);
+  border-color: var(--coral-2);
+  font-weight: 800;
+}
+.rating--mint .rating__opt--on {
+  background: rgba(91, 199, 158, 0.2);
+  color: var(--mint-ink);
+  border-color: var(--mint-2);
+  font-weight: 800;
+}
+.rating--sky .rating__opt--on {
+  background: rgba(116, 168, 236, 0.2);
+  color: var(--sky-ink);
+  border-color: var(--sky-2);
+  font-weight: 800;
+}
+/* 미지정 tone도 안전하게 라벤더로 강조 */
+.rating__opt--on {
+  background: rgba(169, 133, 232, 0.18);
+  color: var(--lav-ink);
+  border-color: var(--lav-2);
+  font-weight: 800;
+}
+
+.rating__ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
