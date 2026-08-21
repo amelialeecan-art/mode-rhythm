@@ -1,5 +1,5 @@
 /* =====================================================================
-   MODE · V2 temporal 문구 (F) — 단정 금지 가드 통과 + 후보/보정 표현
+   MODE · V2 temporal 문구 (사람말 · 단정 금지 · 통계용어 제거)
    ===================================================================== */
 import { describe, expect, it } from 'vitest'
 import { containsAssertion } from '../../../copy/tone'
@@ -7,11 +7,16 @@ import {
   morningEveningSentence,
   eventResponseSentence,
   laggedSentence,
-  laggedAdjustmentNote,
+  laggedAdjustmentFriendly,
   baselineShiftSentence,
 } from '../temporalVoice'
 import type { AssociationResult } from '../../../engine/v2'
-import type { LaggedInsight } from '../../../data/services/v2TemporalAnalysisService'
+import type {
+  LaggedInsight,
+  MorningEveningInsight,
+  EventResponseInsight,
+  BaselineShiftInsight,
+} from '../../../data/services/v2TemporalAnalysisService'
 
 const rep = (over: Partial<AssociationResult>): AssociationResult => ({
   label: 'x', lag: 1, n: 30, status: 'ok', effectEstimate: 0.3, standardizedEffect: 0.3,
@@ -25,37 +30,68 @@ const lagInsight = (over: Partial<AssociationResult>): LaggedInsight => ({
   result: rep(over), familyOkCount: 3,
 })
 
-describe('temporalVoice — 단정 금지 가드 통과', () => {
-  it('아침→저녁 문구는 단정하지 않는다', () => {
-    const s = morningEveningSentence({ metric: 'anxiety', label: '불안', summary: { n: 16, meanDelta: 1.6, standardizedEffect: 0.5, ci: null, direction: 'increase', note: '' } })
-    expect(s).toContain('평균 1.6점')
+const meInsight = (dir: 'increase' | 'decrease'): MorningEveningInsight => ({
+  metric: 'irritability', label: '짜증·예민함',
+  summary: { n: 16, meanDelta: dir === 'increase' ? 1.6 : -1.6, standardizedEffect: 0.5, ci: null, direction: dir, note: '' },
+  morningMean: 3, eveningMean: 5,
+})
+
+const evInsight: EventResponseInsight = {
+  category: 'interpersonal_conflict', categoryLabel: '사람 때문에 스트레스받았어요',
+  metric: 'anxiety', metricLabel: '불안', eventCount: 6,
+  result: { supportCount: 6, windowMinutes: 240, meanBefore: 3, meanAfter: 6, meanDelta: 3, ci: null, note: '' },
+}
+
+const shiftInsight = (rose: boolean): BaselineShiftInsight => ({
+  metric: 'moodLow', label: '기분 가라앉음',
+  candidate: { isCandidate: true, index: 10, standardizedShift: 1.2, beforeMean: rose ? 3 : 6, afterMean: rose ? 6 : 3 },
+  shiftDate: '2026-08-08',
+})
+
+/** 통계 용어가 메인 문구에서 사라졌는지(§F). */
+const STAT_WORDS = /경향이 있었|관찰됐|association|baseline|같은 방향|변화 후보|effect|coverage/
+
+describe('temporalVoice — 사람말 + 단정 금지', () => {
+  it('아침→저녁: 방향에 맞는 사람말, 통계용어·단정 없음', () => {
+    const up = morningEveningSentence(meInsight('increase'))
+    expect(up).toContain('저녁에')
+    expect(up).not.toMatch(STAT_WORDS)
+    expect(containsAssertion(up)).toBe(false)
+    const down = morningEveningSentence(meInsight('decrease'))
+    expect(down).toContain('가라앉는')
+  })
+
+  it('사건 이후: "뒤에는 ~ 더 높았어요", 통계용어·단정 없음', () => {
+    const s = eventResponseSentence(evInsight)
+    expect(s).toContain('뒤에는')
+    expect(s).toContain('더 높았어요')
+    expect(s).not.toMatch(STAT_WORDS)
     expect(containsAssertion(s)).toBe(false)
   })
 
-  it('사건 이후 문구는 "경향" 표현이며 단정하지 않는다', () => {
-    const s = eventResponseSentence({ category: 'interpersonal_conflict', categoryLabel: '인간관계 갈등', metric: 'anxiety', metricLabel: '불안', eventCount: 6, result: { supportCount: 6, windowMinutes: 240, meanBefore: 2, meanAfter: 7, meanDelta: 5, ci: null, note: '' } })
-    expect(s).toContain('경향이 있었어요')
+  it('lag: 방향+시점을 사람말로, "패턴이 관찰됐어요" 없음', () => {
+    const s = laggedSentence(lagInsight({ lag: 1, direction: 'negative' }))
+    expect(s).toContain('다음날')
+    expect(s).toContain('더 낮았어요')
+    expect(s).not.toMatch(STAT_WORDS)
     expect(containsAssertion(s)).toBe(false)
   })
 
-  it('lagged 문구는 lag/방향을 말하되 원인 단정하지 않는다', () => {
-    const s = laggedSentence(lagInsight({ lag: 1, direction: 'positive' }))
-    expect(s).toContain('패턴이 관찰됐어요')
-    expect(containsAssertion(s)).toBe(false)
-  })
-
-  it('보정 문구: adjusted면 "조정한 뒤에도 같은 방향", unadjusted면 "보정 없이"', () => {
-    const adj = laggedAdjustmentNote(lagInsight({ adjusted: true, adjustedForPrevOutcome: true, confounders: ['weekend'] }))
-    expect(adj).toContain('조정한 뒤에도 같은 방향')
+  it('보정 설명: adjusted면 "같이 봐도 남았다", 아니면 "아직 같이 보지 않은"', () => {
+    const adj = laggedAdjustmentFriendly(lagInsight({ adjusted: true, adjustedForPrevOutcome: true, confounders: ['weekend'] }))
+    expect(adj).toContain('같이 봐도')
     expect(containsAssertion(adj)).toBe(false)
-    const un = laggedAdjustmentNote(lagInsight({ adjusted: false, adjustedForPrevOutcome: false, confounders: [] }))
-    expect(un).toContain('보정 없이')
+    const un = laggedAdjustmentFriendly(lagInsight({ adjusted: false, adjustedForPrevOutcome: false, confounders: [] }))
+    expect(un).toContain('아직 같이 보지 않은')
   })
 
-  it('baseline shift 문구는 "후보" 표현만 쓰고 원인 단정 없음', () => {
-    const s = baselineShiftSentence({ metric: 'moodLow', label: '기분 저하', candidate: { isCandidate: true, index: 10, standardizedShift: 1.2, beforeMean: 3, afterMean: 5 }, shiftDate: '2026-08-08' })
-    expect(s).toContain('후보가 보여요')
-    expect(s).not.toMatch(/원인|바뀌었습니다/)
-    expect(containsAssertion(s)).toBe(false)
+  it('기준선 변화: "수준 자체가 올라간/내려간 것 같아요", "baseline/후보/원인" 없음', () => {
+    const up = baselineShiftSentence(shiftInsight(true))
+    expect(up).toContain('수준 자체가')
+    expect(up).toContain('올라간 것 같아요')
+    expect(up).not.toMatch(/원인|바뀌었습니다|baseline|후보/)
+    expect(containsAssertion(up)).toBe(false)
+    const down = baselineShiftSentence(shiftInsight(false))
+    expect(down).toContain('내려간 것 같아요')
   })
 })

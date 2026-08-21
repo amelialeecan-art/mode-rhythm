@@ -11,6 +11,7 @@ import type { CoreMetric, ExperimentInterventionCode, Experiment } from '../../d
 import type { ExperimentAnalysis } from '../../engine/v2'
 import { getTodayISODate, parseISODate, toISODate } from '../../lib/date'
 import { assertGuard } from '../../copy/tone'
+import { beforeAfterLine, confidenceWords } from './friendlyCopy'
 
 function addDaysISO(date: string, n: number): string {
   const d = parseISODate(date)
@@ -18,21 +19,18 @@ function addDaysISO(date: string, n: number): string {
   return toISODate(d)
 }
 
-const CONF_LABEL: Record<string, string> = { tentative: '참고 수준', moderate: '보통', strong: '강함', exploratory: '탐색', insufficient: '자료 부족' }
-
-/** 실험 결과 한 줄 — "효과 입증" 금지, 관찰 비교로만 표현. 단정 금지 가드 통과. */
+/** 실험 결과 한 줄 — 인과("좋아졌어") 금지, 관찰 비교로만. 단정 금지 가드 통과. */
 function resultLine(exp: Experiment, a: ExperimentAnalysis): string {
   if (a.status !== 'ok') {
-    return assertGuard(`아직 비교할 기록이 부족해요 (기준 ${a.baselineN}회 · 실험 ${a.interventionN}회).`)
+    return assertGuard('아직 비교할 기록이 부족해요. 조금 더 쌓이면 여기서 비교해 볼게요.')
   }
-  const dir = a.effectDifference >= 0 ? '높게' : '낮게'
-  const amt = Math.abs(a.effectDifference).toFixed(1)
-  // ⚠️ "순응도"로 표시하지 않는다 — usableObservations/loggingCoverage는 기록량이지 개입 준수율이 아니다.
-  //    실제 행동 준수(adherence) 데이터가 없으므로 "기록률"로만 노출한다.
-  return assertGuard(
-    `${CORE_STATE_META[exp.targetMetric].label}이(가) 기준 기간보다 평균 ${amt}점 ${dir} 기록됐어요 ` +
-      `(분석 가능한 기록 ${a.usableObservations}일 · 기록률 ${Math.round(a.loggingCoverage * 100)}%).`,
-  )
+  const dir = a.effectDifference >= 0 ? '전보다 조금 높았어요' : '전보다 조금 낮았어요'
+  return assertGuard(`바꿔본 기간에는 ${CORE_STATE_META[exp.targetMetric].label}이(가) ${dir}.`)
+}
+
+/** 실험 전 → 실험 기간 실측 비교(엔진이 준 평균만). 두 값이 있을 때만. */
+function beforeAfter(a: ExperimentAnalysis): string | null {
+  return beforeAfterLine(a.baselineMean, a.interventionMean, { beforeLabel: '실험 전에는', afterLabel: '실험 기간에는' })
 }
 
 /**
@@ -70,10 +68,18 @@ export function ExperimentSection() {
               </div>
               <p className="exp-say">{resultLine(experiment, analysis)}</p>
               {analysis.status === 'ok' && (
-                <p className="exp-meta">
-                  {analysis.ci && `95% 범위 ${analysis.ci.lo.toFixed(1)}~${analysis.ci.hi.toFixed(1)} · `}
-                  신뢰도 {CONF_LABEL[analysis.confidence] ?? '참고'}
-                </p>
+                <>
+                  {beforeAfter(analysis) && <p className="tmp-num">{beforeAfter(analysis)}</p>}
+                  <p className="exp-meta">분석할 수 있었던 날은 {analysis.usableObservations}일이에요.</p>
+                  <details className="tmp-more">
+                    <summary>자세히 보기</summary>
+                    <p className="tmp-meta">
+                      {confidenceWords(analysis.confidence)}
+                      {` 실험 기간 기록률 ${Math.round(analysis.loggingCoverage * 100)}%`}
+                      {analysis.ci && ` · 범위 ${analysis.ci.lo.toFixed(1)}~${analysis.ci.hi.toFixed(1)}`}
+                    </p>
+                  </details>
+                </>
               )}
               <div className="exp-actions">
                 {experiment.status !== 'completed' && (

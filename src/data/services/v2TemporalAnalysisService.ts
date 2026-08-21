@@ -56,6 +56,9 @@ export interface MorningEveningInsight {
   metric: CoreMetric
   label: string
   summary: MorningEveningSummary
+  /** 표시용 실측 평균(아침/저녁) — 엔진 pairs에서 그대로 집계. 없으면 NaN. */
+  morningMean: number
+  eveningMean: number
 }
 
 export interface EventResponseInsight {
@@ -170,7 +173,12 @@ export function buildV2TemporalInsights(bundle: V2AnalysisBundle): V2TemporalIns
   for (const metric of ME_METRICS) {
     const pairs = morningEveningPairs(measurements, metric)
     const summary = morningEveningSummary(pairs)
-    if (gateMorningEvening(summary)) morningEvening.push({ metric, label: label(metric), summary })
+    if (gateMorningEvening(summary)) {
+      // 표시용 실측 평균(엔진이 이미 만든 pairs에서 그대로 집계 — 새 추정 아님).
+      const morningMean = pairs.reduce((s, p) => s + p.morning, 0) / pairs.length
+      const eveningMean = pairs.reduce((s, p) => s + p.evening, 0) / pairs.length
+      morningEvening.push({ metric, label: label(metric), summary, morningMean, eveningMean })
+    }
   }
   morningEvening.sort((a, b) => Math.abs(b.summary.meanDelta) - Math.abs(a.summary.meanDelta))
   const morningEveningTop = morningEvening.slice(0, TEMPORAL_GATES.maxPerCategory)

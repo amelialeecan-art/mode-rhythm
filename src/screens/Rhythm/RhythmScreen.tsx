@@ -363,7 +363,7 @@ function CycleCompareView({
       <details className="cc-more">
         <summary>근거 보기</summary>
         <div className="cc-nums">
-          <span>평소 기준선 {curve.baseline} · 비교 주기 {vm.compareCycles}개</span>
+          <span>평소 수준 {curve.baseline} · 비교한 주기 {vm.compareCycles}개</span>
           {curve.recent.map((p) => {
             const prev = curve.previous.find((q) => q.rel === p.rel)
             const label = p.rel === 0 ? '생리 시작' : p.rel < 0 ? `${-p.rel}일 전` : `${p.rel}일 후`

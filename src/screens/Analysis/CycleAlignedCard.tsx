@@ -2,29 +2,29 @@ import { useEffect, useState } from 'react'
 import { GlassCard, SectionHeader } from '../../design'
 import { getCycleAlignedInsights, type CycleAlignedInsights, type CycleAlignedEntry } from '../../data/services/longAnalysisService'
 import { assertGuard } from '../../copy/tone'
-import type { V2Confidence } from '../../engine/v2'
+import { cycleWindowPhrase, repetitionPhrase, confidenceWords } from './friendlyCopy'
 
-const CONF_LABEL: Partial<Record<V2Confidence, string>> = {
-  tentative: '참고 수준',
-  moderate: '보통',
-  strong: '강함',
-}
-
-/** "월경 시작 7일 전 이내에는 craving이 평소보다 평균 2.1점 높게 기록됐어요. …" (단정 금지 가드 통과) */
+/** "생리하기 일주일 전쯤에는 음식이 당기는 정도가 평소보다 더 높았어요." (사람말 · 단정 금지) */
 function sentence(e: CycleAlignedEntry): string {
   const r = e.result
-  const days = Math.abs(r.window.fromDay)
-  const amount = Math.abs(r.baselineDifference).toFixed(1)
-  const dir = r.baselineDifference >= 0 ? '높게' : '낮게'
-  return assertGuard(
-    `월경 시작 ${days}일 전 이내에는 ${e.label}이(가) 평소보다 평균 ${amount}점 ${dir} 기록됐어요. ` +
-      `완료된 ${r.usableCycleCount}개 주기 중 ${r.sameDirectionCycleCount}개에서 같은 방향이었어요.`,
-  )
+  const dir = r.baselineDifference >= 0 ? '더 높았어요' : '더 낮았어요'
+  return assertGuard(`${cycleWindowPhrase(r.window.fromDay)} ${e.label}이(가) 평소보다 ${dir}.`)
 }
 
-function dataLine(e: CycleAlignedEntry): string {
+/** 평소 대비 차이(실측) + 반복을 사람말로. "같은 방향" 같은 표현을 쓰지 않는다. */
+function numLine(e: CycleAlignedEntry): string {
   const r = e.result
-  return `${r.usableCycleCount} cycles · ${r.observations} observations · coverage ${Math.round(r.coverageRate * 100)}%`
+  const amount = Math.abs(r.baselineDifference).toFixed(1)
+  return `평소보다 ${amount}점쯤 차이가 났고, ${repetitionPhrase(r.sameDirectionCycleCount, r.usableCycleCount)}`
+}
+
+/** 자세히 보기용 — 숫자·범위·보정을 사람말 라벨로. */
+function detailLine(e: CycleAlignedEntry): string {
+  const r = e.result
+  const base = `완료된 주기 ${r.usableCycleCount}개 · 관찰 ${r.observations}회 · 기록 비율 ${Math.round(r.coverageRate * 100)}%`
+  const ci = r.ci ? ` · 범위 ${r.ci.lo.toFixed(1)}~${r.ci.hi.toFixed(1)}` : ''
+  const adj = r.adjusted ? ' · 개인 평소 수준 대비로 봤어요' : ''
+  return `${base}${ci}${adj}`
 }
 
 /**
@@ -67,18 +67,15 @@ export function CycleAlignedCard() {
         {shown.map((e) => (
           <li className="ca-item" key={e.metric}>
             <p className="ca-say">{sentence(e)}</p>
-            <div className="ca-meta">
-              <span className="ca-data">자료: {dataLine(e)}</span>
-              <span className={`ca-conf ca-conf--${e.result.confidence}`}>
-                신뢰도 {CONF_LABEL[e.result.confidence] ?? '참고'}
-                {e.result.ci && ` · 95% 범위 ${e.result.ci.lo.toFixed(1)}~${e.result.ci.hi.toFixed(1)}`}
-                {e.result.adjusted ? ' · 개인 baseline 보정' : ''}
-              </span>
-            </div>
+            <p className="tmp-num">{numLine(e)}</p>
+            <details className="tmp-more">
+              <summary>자세히 보기</summary>
+              <p className="tmp-meta">{confidenceWords(e.result.confidence)} {detailLine(e)}</p>
+            </details>
           </li>
         ))}
       </ul>
-      <p className="state-hint">이미 지나간 주기들의 사후 정렬이에요. 원인이라고 단정하지 않아요.</p>
+      <p className="state-hint">이미 지나간 주기들을 겹쳐 본 거예요. 원인이라고 단정하지 않아요.</p>
     </GlassCard>
   )
 }
