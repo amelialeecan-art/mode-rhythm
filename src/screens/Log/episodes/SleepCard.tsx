@@ -3,9 +3,19 @@ import { GlassCard, RatingScale } from '../../../design'
 import { sleepEpisodeRepository } from '../../../data/repositories'
 import type { RatingValue, SleepEpisode } from '../../../data/modelsV2'
 import { sleepDuration, sleepMidpoint, formatSleepDuration } from '../../../engine/sleepDerived'
+import { validateSleepChronology } from '../../../data/v2Validation'
 import { setFormBusy } from '../../../lib/pwaUpdate'
-import { reportDirty, clearDirty } from '../checkIn/dirtyRegistry'
-import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue, formatClock } from './time'
+import { reportDirty, clearDirty, registerSaver, unregisterSaver } from '../checkIn/dirtyRegistry'
+import { formatClock } from './time'
+import {
+  clockFromIso,
+  composeSleepTimes,
+  initialSleepTime,
+  formatKoreanClock,
+  type SleepField,
+  type SleepTimes,
+} from './sleepTime'
+import { TimePickerSheet } from './TimePickerSheet'
 
 interface SleepCardProps {
   localDate: string
@@ -17,7 +27,7 @@ type SaveStatus = 'idle' | 'saving' | 'success' | 'error'
 const DIRTY_KEY = 'sleep-episode'
 
 interface SleepForm {
-  bed: string // datetime-local 값
+  bed: string // 'HH:MM' (날짜는 저장 시 앱이 rollover로 조합)
   onset: string
   wake: string
   awakenings: string // 숫자 문자열 ('' = 미입력)
@@ -26,11 +36,17 @@ interface SleepForm {
 
 const EMPTY: SleepForm = { bed: '', onset: '', wake: '', awakenings: '', satisfaction: null }
 
+const FIELD_LABEL: Record<SleepField, string> = {
+  bed: '잠자리에 든 시각',
+  onset: '실제로 잠든 시각',
+  wake: '마지막으로 일어난 시각',
+}
+
 function fromEpisode(ep: SleepEpisode): SleepForm {
   return {
-    bed: toDatetimeLocalValue(ep.wentToBedAt),
-    onset: toDatetimeLocalValue(ep.sleepOnsetAt),
-    wake: toDatetimeLocalValue(ep.wakeAt),
+    bed: clockFromIso(ep.wentToBedAt),
+    onset: clockFromIso(ep.sleepOnsetAt),
+    wake: clockFromIso(ep.wakeAt),
     awakenings: ep.awakenings === undefined || ep.awakenings === null ? '' : String(ep.awakenings),
     satisfaction: ep.satisfaction ?? null,
   }
@@ -40,10 +56,16 @@ function serialize(f: SleepForm): string {
   return JSON.stringify(f)
 }
 
+function nowClock(): string {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 /**
  * 지난밤 수면 (V2 SleepEpisode). 깨어난 날짜(localDate)에 1행 upsert.
- * - 시각 3개는 datetime-local(자정 넘김 안전) · 수면시간/중간시각은 파생으로 표시(입력 아님).
- * - 미입력은 저장 안 함(null 유지) — 0으로 채우지 않는다.
+ * - 시각 3개는 '시간만' 입력(달력 없음) — 자정 rollover는 composeSleepTimes가 처리.
+ * - picker는 기존 값 → 앞 필드 값 → 00:00 순으로 시작(현재 시각에서 시작하지 않음).
+ * - 수면시간/중간시각은 파생 표시(입력 아님). 미입력은 저장 안 함(null 유지).
  */
 export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
   const [expanded, setExpanded] = useState(false)
@@ -51,6 +73,7 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
   const [existing, setExisting] = useState<SleepEpisode | undefined>()
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string>('')
+  const [openField, setOpenField] = useState<SleepField | null>(null)
   const baselineRef = useRef<string>(serialize(EMPTY))
 
   useEffect(() => {
@@ -79,13 +102,30 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
 
   const patch = (p: Partial<SleepForm>) => setForm((f) => ({ ...f, ...p }))
 
-  // 라이브 파생값 (저장 아님)
-  const onsetIso = fromDatetimeLocalValue(form.onset)
-  const wakeIso = fromDatetimeLocalValue(form.wake)
-  const durationText = formatSleepDuration(sleepDuration({ sleepOnsetAt: onsetIso, wakeAt: wakeIso }))
-  const midIso = sleepMidpoint({ sleepOnsetAt: onsetIso, wakeAt: wakeIso })
+  // 라이브 파생값 (저장 아님) — 시각만으로 rollover 조합 후 계산.
+  const times: SleepTimes = { bed: form.bed, onset: form.onset, wake: form.wake }
+  const composed = composeSleepTimes(localDate, times)
+  const durationText = formatSleepDuration(sleepDuration({ sleepOnsetAt: composed.sleepOnsetAt, wakeAt: composed.wakeAt }))
+  const midIso = sleepMidpoint({ sleepOnsetAt: composed.sleepOnsetAt, wakeAt: composed.wakeAt })
 
   const onSave = async () => {
+    const iso = composeSleepTimes(localDate, times)
+    // §7 사람말 chronology 안내(rollover 반영 후 절대 시각 기준).
+    const errs = validateSleepChronology(iso)
+    if (errs.includes('sleep-chronology')) {
+      const bedT = iso.wentToBedAt ? Date.parse(iso.wentToBedAt) : undefined
+      const onsetT = iso.sleepOnsetAt ? Date.parse(iso.sleepOnsetAt) : undefined
+      const wakeT = iso.wakeAt ? Date.parse(iso.wakeAt) : undefined
+      if (bedT !== undefined && onsetT !== undefined && onsetT < bedT) {
+        setError('잠든 시간이 잠자리에 누운 시간보다 빨라. 시간을 한 번 확인해줘.')
+      } else if (onsetT !== undefined && wakeT !== undefined && wakeT < onsetT) {
+        setError('일어난 시간이 잠든 시간보다 빨라. 시간을 한 번 확인해줘.')
+      } else {
+        setError('시간 순서가 맞는지 한 번 확인해줘.')
+      }
+      setStatus('error')
+      return
+    }
     setStatus('saving')
     setError('')
     setFormBusy(true)
@@ -93,9 +133,9 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
       const awakeningsNum = form.awakenings.trim() === '' ? null : Number(form.awakenings)
       await sleepEpisodeRepository.upsertByDate({
         localDate,
-        wentToBedAt: fromDatetimeLocalValue(form.bed),
-        sleepOnsetAt: fromDatetimeLocalValue(form.onset),
-        wakeAt: fromDatetimeLocalValue(form.wake),
+        wentToBedAt: iso.wentToBedAt,
+        sleepOnsetAt: iso.sleepOnsetAt,
+        wakeAt: iso.wakeAt,
         awakenings: awakeningsNum,
         satisfaction: form.satisfaction,
         source: 'manual',
@@ -107,12 +147,20 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
       onSaved()
     } catch (e) {
       console.error('[MODE] 수면 저장 실패', e)
-      setError('시각 순서를 확인해 줘 (취침 → 잠듦 → 기상).')
+      setError('저장하지 못했어. 시간을 한 번 확인해줘.')
       setStatus('error')
     } finally {
       setFormBusy(false)
     }
   }
+
+  // 플로팅 저장바가 이 카드의 canonical save를 그대로 호출하도록 등록(중복 저장 로직 없음).
+  const saveRef = useRef(onSave)
+  saveRef.current = onSave
+  useEffect(() => {
+    registerSaver(DIRTY_KEY, () => saveRef.current())
+    return () => unregisterSaver(DIRTY_KEY)
+  }, [])
 
   const statusText = existing?.wakeAt
     ? `${formatClock(existing.wakeAt)} 기상`
@@ -120,35 +168,37 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
       ? '기록됨'
       : '아직 기록 안 함'
 
+  const renderTimeRow = (field: SleepField, withNow = false) => (
+    <div className="dt-field" key={field}>
+      <span className="dt-field__label">{FIELD_LABEL[field]}</span>
+      <span className="dt-with-now">
+        <button type="button" className={`time-value${form[field] ? '' : ' time-value--empty'}`} onClick={() => setOpenField(field)}>
+          {formatKoreanClock(form[field]) ?? '시간 선택'}
+        </button>
+        {withNow && (
+          <button type="button" className="dt-now" onClick={() => patch({ wake: nowClock() })}>
+            지금
+          </button>
+        )}
+      </span>
+    </div>
+  )
+
   return (
     <GlassCard tint="sky">
       <button type="button" className="checkin-head" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
         <span className="checkin-head__main">
           <span className="checkin-head__title">지난밤 수면</span>
-          <span className="checkin-head__sub">시각을 남기면 수면시간은 앱이 계산해</span>
+          <span className="checkin-head__sub">시각만 남기면 날짜·수면시간은 앱이 계산해</span>
         </span>
         <span className={`checkin-badge${existing ? ' checkin-badge--done' : ''}`}>{statusText}</span>
       </button>
 
       {expanded && (
         <div className="checkin-body">
-          <label className="dt-field">
-            잠자리에 든 시각
-            <input type="datetime-local" className="dt-input" value={form.bed} onChange={(e) => patch({ bed: e.target.value })} />
-          </label>
-          <label className="dt-field">
-            실제 잠든 시각
-            <input type="datetime-local" className="dt-input" value={form.onset} onChange={(e) => patch({ onset: e.target.value })} />
-          </label>
-          <label className="dt-field">
-            최종 기상 시각
-            <span className="dt-with-now">
-              <input type="datetime-local" className="dt-input" value={form.wake} onChange={(e) => patch({ wake: e.target.value })} />
-              <button type="button" className="dt-now" onClick={() => patch({ wake: nowDatetimeLocalValue() })}>
-                지금
-              </button>
-            </span>
-          </label>
+          {renderTimeRow('bed')}
+          {renderTimeRow('onset')}
+          {renderTimeRow('wake', true)}
 
           <label className="dt-field">
             밤중 깬 횟수
@@ -184,6 +234,17 @@ export function SleepCard({ localDate, reloadToken, onSaved }: SleepCardProps) {
           {status === 'error' && <p className="log-feedback log-feedback--err">{error}</p>}
         </div>
       )}
+
+      <TimePickerSheet
+        open={openField !== null}
+        title={openField ? FIELD_LABEL[openField] : ''}
+        value={openField ? initialSleepTime(openField, times) : '00:00'}
+        onConfirm={(hhmm) => {
+          if (openField) patch({ [openField]: hhmm } as Partial<SleepForm>)
+          setOpenField(null)
+        }}
+        onCancel={() => setOpenField(null)}
+      />
     </GlassCard>
   )
 }

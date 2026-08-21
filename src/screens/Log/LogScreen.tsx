@@ -8,6 +8,7 @@ import { SleepCard } from './episodes/SleepCard'
 import { MealSection } from './episodes/MealSection'
 import { SpecialEventSection, type EditTarget } from './special/SpecialEventSection'
 import { LegacyLogForm } from './LegacyLogForm'
+import { FloatingSaveBar } from './FloatingSaveBar'
 import './log.css'
 import './checkIn/checkIn.css'
 import './episodes/episodes.css'
@@ -94,6 +95,10 @@ export function LogScreen() {
       </button>
 
       {showLegacy && <LegacyLogForm />}
+
+      {/* 저장바가 마지막 콘텐츠를 가리지 않도록 여백 확보 */}
+      <div className="save-bar-spacer" aria-hidden="true" />
+      <FloatingSaveBar />
     </>
   )
 }

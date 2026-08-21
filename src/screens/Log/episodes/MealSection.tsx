@@ -5,7 +5,7 @@ import type { MealAmount, MealEpisode, RatingValue, TriBoolean } from '../../../
 import { computeMealIntervals, formatSleepDuration } from '../../../engine'
 import { toISODate } from '../../../lib/date'
 import { setFormBusy } from '../../../lib/pwaUpdate'
-import { reportDirty, clearDirty } from '../checkIn/dirtyRegistry'
+import { reportDirty, clearDirty, registerSaver, unregisterSaver } from '../checkIn/dirtyRegistry'
 import { TriChoice } from './TriChoice'
 import { toDatetimeLocalValue, fromDatetimeLocalValue, nowDatetimeLocalValue, formatClock } from './time'
 
@@ -98,6 +98,13 @@ function MealQuickAdd({ onSaved }: { onSaved: () => void }) {
     }
   }
 
+  const saveRef = useRef(onSave)
+  saveRef.current = onSave
+  useEffect(() => {
+    registerSaver(DIRTY_KEY, () => saveRef.current())
+    return () => unregisterSaver(DIRTY_KEY)
+  }, [])
+
   if (!open) {
     return (
       <button className="meal-add-btn" onClick={() => { setStartedAt(nowDatetimeLocalValue()); setOpen(true) }}>
@@ -182,6 +189,13 @@ function MealPostEditor({ meal, onSaved }: { meal: MealEpisode; onSaved: () => v
       setFormBusy(false)
     }
   }
+
+  const saveRef = useRef(onSave)
+  saveRef.current = onSave
+  useEffect(() => {
+    registerSaver(DIRTY_KEY, () => saveRef.current())
+    return () => unregisterSaver(DIRTY_KEY)
+  }, [DIRTY_KEY])
 
   return (
     <div className="meal-post">

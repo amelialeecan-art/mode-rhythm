@@ -5,7 +5,7 @@ import { CORE_STATE_META, promptedMetricsFor } from '../../../data/catalog/coreS
 import { stateMeasurementRepository } from '../../../data/repositories'
 import type { RatingValue, StateMeasurement } from '../../../data/modelsV2'
 import { setFormBusy } from '../../../lib/pwaUpdate'
-import { reportDirty, clearDirty } from './dirtyRegistry'
+import { reportDirty, clearDirty, registerSaver, unregisterSaver } from './dirtyRegistry'
 import {
   buildMeasurementInput,
   currentTimezoneOffsetMinutes,
@@ -116,6 +116,14 @@ export function CheckInCard({ localDate, checkInType, reloadToken, onSaved }: Ch
       setFormBusy(false)
     }
   }
+
+  // 플로팅 저장바가 이 카드의 canonical save를 호출하도록 등록(중복 저장 로직 없음).
+  const saveRef = useRef(onSave)
+  saveRef.current = onSave
+  useEffect(() => {
+    registerSaver(dirtyKey, () => saveRef.current())
+    return () => unregisterSaver(dirtyKey)
+  }, [dirtyKey])
 
   const answeredCount = prompted.filter((m) => {
     const v = values[m]
