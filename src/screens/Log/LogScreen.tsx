@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { GlassCard, SectionHeader } from '../../design'
 import { getTodayISODate } from '../../lib/date'
-import { TodayTimeline } from './checkIn/TodayTimeline'
+import { DayTimeline } from './timeline/DayTimeline'
 import { CheckInCard } from './checkIn/CheckInCard'
 import { SleepCard } from './episodes/SleepCard'
 import { MealSection } from './episodes/MealSection'
+import { SpecialEventSection, type EditTarget } from './special/SpecialEventSection'
 import { LegacyLogForm } from './LegacyLogForm'
 import './log.css'
 import './checkIn/checkIn.css'
@@ -33,6 +34,8 @@ export function LogScreen() {
   // 저장/날짜 변경 시 타임라인·카드가 다시 로드하도록 하는 토큰.
   const [reloadToken, setReloadToken] = useState(0)
   const [showLegacy, setShowLegacy] = useState(false)
+  // 타임라인에서 "수정"을 누른 특별한 일 레코드(스트레스/운동/약/예외/체중).
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
 
   const bumpReload = () => setReloadToken((t) => t + 1)
 
@@ -57,8 +60,17 @@ export function LogScreen() {
         </div>
       </GlassCard>
 
-      {/* 오늘 타임라인 + 완료 여부 */}
-      <TodayTimeline localDate={date} reloadToken={reloadToken} />
+      {/* 오늘 타임라인(모든 기록) + 완료 여부 + 항목별 수정/삭제 */}
+      <DayTimeline localDate={date} reloadToken={reloadToken} onChanged={bumpReload} onEdit={setEditTarget} />
+
+      {/* 특별한 일: 스트레스 · 운동 · 약 · 예외 · 체중 */}
+      <SpecialEventSection
+        localDate={date}
+        reloadToken={reloadToken}
+        onSaved={bumpReload}
+        editTarget={editTarget}
+        onEditHandled={() => setEditTarget(null)}
+      />
 
       {/* 지난밤 수면 (SleepEpisode) */}
       <SleepCard localDate={date} reloadToken={reloadToken} onSaved={bumpReload} />

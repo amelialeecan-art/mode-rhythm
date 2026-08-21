@@ -21,6 +21,23 @@ export {
 export { recalculateDailyScore, getTodaySummary } from './services/dailyScoreService'
 export { resolveDailySleep, hasV2Sleep, type ResolvedSleep, type SleepSource } from './services/sleepResolveService'
 export {
+  buildDayTimeline,
+  deleteTimelineEntry,
+  sortTimelineEntries,
+  type TimelineEntry,
+  type TimelineKind,
+  type TimelineTone,
+} from './services/dayTimelineService'
+export {
+  STRESS_CATEGORIES,
+  STRESS_CATEGORY_CODES,
+  STRESS_CATEGORY_META,
+  buildStressEventInput,
+  isV2StressEvent,
+  type StressCategoryCode,
+} from './catalog/stressEvents'
+export { legacyFactorGroupToCanonicalStress, LEGACY_FACTORGROUP_TO_CANONICAL_STRESS } from './catalog/factorGroupMapping'
+export {
   getCalendarMonth,
   getCalendarDayDetail,
   shiftMonthISO,

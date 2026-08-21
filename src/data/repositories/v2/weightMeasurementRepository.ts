@@ -25,6 +25,21 @@ export const weightMeasurementRepository = {
     return db.weightMeasurements.where('localDate').between(start, end, true, true).sortBy('measuredAt')
   },
 
+  async getById(id: number): Promise<WeightMeasurement | undefined> {
+    return db.weightMeasurements.get(id)
+  },
+
+  /** 단일 체중 부분 수정(merge). createdAt 보존. weightKg 유효성 재검증. */
+  async update(id: number, patch: Partial<WeightMeasurementInput>): Promise<void> {
+    const existing = await db.weightMeasurements.get(id)
+    if (!existing) return
+    const merged = { ...existing, ...patch }
+    if (!(typeof merged.weightKg === 'number' && Number.isFinite(merged.weightKg) && merged.weightKg > 0)) {
+      throw new V2ValidationError('rating-range', 'weightKg must be a positive number')
+    }
+    await db.weightMeasurements.put({ ...merged, id, createdAt: existing.createdAt, updatedAt: new Date().toISOString() })
+  },
+
   async deleteById(id: number): Promise<void> {
     await db.weightMeasurements.delete(id)
   },

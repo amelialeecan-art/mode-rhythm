@@ -28,6 +28,24 @@ export const activityEpisodeRepository = {
     return db.activityEpisodes.where('localDate').between(start, end, true, true).sortBy('startedAt')
   },
 
+  async getById(id: number): Promise<ActivityEpisode | undefined> {
+    return db.activityEpisodes.get(id)
+  },
+
+  /** 단일 운동 부분 수정(merge). createdAt 보존. duration/rpe 재검증. */
+  async update(id: number, patch: Partial<ActivityEpisodeInput>): Promise<void> {
+    const existing = await db.activityEpisodes.get(id)
+    if (!existing) return
+    const merged = { ...existing, ...patch }
+    const errors: V2ValidationCode[] = []
+    if (!(Number.isFinite(merged.durationMinutes) && merged.durationMinutes >= 0)) errors.push('duration-negative')
+    if (merged.rpe !== undefined && merged.rpe !== null && merged.rpe !== 'unknown') {
+      if (!(Number.isInteger(merged.rpe) && merged.rpe >= 0 && merged.rpe <= 10)) errors.push('rating-range')
+    }
+    assertNoErrors(errors)
+    await db.activityEpisodes.put({ ...merged, id, createdAt: existing.createdAt, updatedAt: new Date().toISOString() })
+  },
+
   async deleteById(id: number): Promise<void> {
     await db.activityEpisodes.delete(id)
   },

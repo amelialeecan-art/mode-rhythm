@@ -62,6 +62,24 @@ export const medicationRepository = {
     return db.medicationDoses.where('localDate').between(start, end, true, true).sortBy('takenAt')
   },
 
+  async getDose(id: number): Promise<MedicationDose | undefined> {
+    return db.medicationDoses.get(id)
+  },
+
+  /**
+   * 용량 기록 부분 수정(merge). createdAt 보존.
+   * 용량 변경은 이 dose 레코드를 고치는 게 아니라 보통 새 dose로 남기지만,
+   * 오타 정정 등 단일 dose 편집도 지원한다.
+   */
+  async updateDose(id: number, patch: Partial<MedicationDoseInput>): Promise<void> {
+    const existing = await db.medicationDoses.get(id)
+    if (!existing) return
+    if (patch.takenAt !== undefined && !isValidTimestamp(patch.takenAt)) {
+      throw new V2ValidationError('timestamp-invalid')
+    }
+    await db.medicationDoses.put({ ...existing, ...patch, id, createdAt: existing.createdAt, updatedAt: new Date().toISOString() })
+  },
+
   async deleteDose(id: number): Promise<void> {
     await db.medicationDoses.delete(id)
   },

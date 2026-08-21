@@ -20,6 +20,17 @@ export const healthExceptionRepository = {
     return db.healthExceptions.where('localDate').between(start, end, true, true).sortBy('localDate')
   },
 
+  async getById(id: number): Promise<HealthException | undefined> {
+    return db.healthExceptions.get(id)
+  },
+
+  /** 단일 예외 부분 수정(merge). createdAt 보존. */
+  async update(id: number, patch: Partial<HealthExceptionInput>): Promise<void> {
+    const existing = await db.healthExceptions.get(id)
+    if (!existing) return
+    await db.healthExceptions.put({ ...existing, ...patch, id, createdAt: existing.createdAt, updatedAt: new Date().toISOString() })
+  },
+
   async deleteById(id: number): Promise<void> {
     await db.healthExceptions.delete(id)
   },
