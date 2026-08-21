@@ -9,7 +9,7 @@
        · version(1) 사용자는 재방문 시 자동으로 신규 테이블만 추가된 채 열린다.
    ===================================================================== */
 import Dexie, { type Table } from 'dexie'
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2 } from './schema'
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from './schema'
 import type {
   DailyLog,
   EventLog,
@@ -29,6 +29,7 @@ import type {
   HealthException,
   ScreenMetric,
   WeightMeasurement,
+  Experiment,
 } from './modelsV2'
 
 export class ModeLocalDB extends Dexie {
@@ -52,12 +53,16 @@ export class ModeLocalDB extends Dexie {
   screenMetrics!: Table<ScreenMetric, number>
   weightMeasurements!: Table<WeightMeasurement, number>
 
+  // V3 (version 3) — N-of-1 실험
+  experiments!: Table<Experiment, number>
+
   constructor() {
     super(DB_NAME)
-    // 버전을 순서대로 선언한다. Dexie가 version(1)→version(2) 업그레이드 경로를 잇는다.
+    // 버전을 순서대로 선언한다. Dexie가 version(1)→version(2)→version(3) 경로를 잇는다.
     this.version(1).stores(SCHEMA_V1)
     // 비파괴: 신규 테이블만 추가, upgrade 콜백 없음(기존 데이터 변환/삭제 안 함).
     this.version(2).stores(SCHEMA_V2)
+    this.version(3).stores(SCHEMA_V3)
   }
 }
 
@@ -86,6 +91,7 @@ export const V2_TABLES = [
   'healthExceptions',
   'screenMetrics',
   'weightMeasurements',
+  'experiments',
 ] as const
 
 /** 모든 테이블 핸들 (seed/reset에서 일괄 처리용). */

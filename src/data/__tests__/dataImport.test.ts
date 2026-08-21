@@ -265,7 +265,7 @@ describe('importAllData — 원자적 전체 교체', () => {
       dailyLogs: 2, eventLogs: 1, cycleLogs: 1, recoveryLogs: 1,
       dailyScores: 2, patternInsights: 1, userSettings: 1,
       stateMeasurements: 0, sleepEpisodes: 0, mealEpisodes: 0, activityEpisodes: 0,
-      medicationProfiles: 0, medicationDoses: 0, healthExceptions: 0, screenMetrics: 0, weightMeasurements: 0,
+      medicationProfiles: 0, medicationDoses: 0, healthExceptions: 0, screenMetrics: 0, weightMeasurements: 0, experiments: 0,
     })
     // 옛 레코드(1999)는 사라지고 백업 날짜만 남는다
     const dates = (await db.dailyLogs.toArray()).map((d) => d.date).sort()
@@ -342,7 +342,7 @@ describe('기존 export JSON 구조 불변', () => {
       [
         'cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings',
         'stateMeasurements', 'sleepEpisodes', 'mealEpisodes', 'activityEpisodes',
-        'medicationProfiles', 'medicationDoses', 'healthExceptions', 'screenMetrics', 'weightMeasurements',
+        'medicationProfiles', 'medicationDoses', 'healthExceptions', 'screenMetrics', 'weightMeasurements', 'experiments',
       ].sort(),
     )
     expect(payload.app).toBe('MODE')
@@ -353,9 +353,9 @@ describe('기존 export JSON 구조 불변', () => {
     for (const v of Object.values(payload.tables)) expect(Array.isArray(v)).toBe(true)
   })
 
-  it('빈 DB에서도 16테이블(V1 7 + V2 9) 배열 구조를 유지한다', async () => {
+  it('빈 DB에서도 17테이블(V1 7 + V2 10) 배열 구조를 유지한다', async () => {
     const payload = await buildExportPayload()
-    expect(Object.keys(payload.tables)).toHaveLength(16)
+    expect(Object.keys(payload.tables)).toHaveLength(17)
     for (const v of Object.values(payload.tables)) expect(Array.isArray(v)).toBe(true)
   })
 
@@ -386,7 +386,7 @@ describe('기존 export JSON 구조 불변', () => {
 describe('금지 사항 / 불변', () => {
   it('18. DB_NAME/DB_VERSION/SCHEMA_V1 불변', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(2)
+    expect(DB_VERSION).toBe(3)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
   })
 
@@ -401,6 +401,6 @@ describe('금지 사항 / 불변', () => {
   it('20. EXPORT_FORMAT_VERSION은 DB_VERSION과 별개 상수다', () => {
     // 값은 같아도 개념이 분리되어 있어야 한다(별도 export)
     expect(EXPORT_FORMAT_VERSION).toBe(2) // V2(6단계): 백업 포맷 v2 (import은 v1도 계속 허용)
-    expect(DB_VERSION).toBe(2)
+    expect(DB_VERSION).toBe(3)
   })
 })

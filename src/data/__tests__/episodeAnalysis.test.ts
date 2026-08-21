@@ -119,7 +119,7 @@ describe('에피소드 분석 연결 (Phase 5)', () => {
 
   it('DB_NAME/DB_VERSION/SCHEMA_V1 불변', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(2)
+    expect(DB_VERSION).toBe(3)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
   })
 })

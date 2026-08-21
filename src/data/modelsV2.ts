@@ -282,6 +282,44 @@ export interface WeightMeasurement {
 }
 
 /* ---------------------------------------------------------------------
+   13) Experiment — 개인 N-of-1 실험 (생활요인만, 한 번에 하나)
+   ⚠️ 의료 치료 변경(약 중단/용량 변경)은 실험 과제로 제안/생성하지 않는다.
+   ---------------------------------------------------------------------
+   구조화된 interventionCode를 쓰고, 자유 텍스트(title/note)는 표시용 보조다. */
+export type ExperimentInterventionCode =
+  | 'reduce_prebed_screen' // 취침 전 화면 사용 줄이기
+  | 'consistent_bedtime' // 일정한 취침 시각
+  | 'morning_light' // 아침 빛 노출
+  | 'protein_with_meals' // 식사에 단백질 포함
+  | 'avoid_late_caffeine' // 특정 시간대 카페인 피하기
+  | 'daily_walk' // 매일 걷기
+  | 'custom_lifestyle' // 기타 생활 습관(표시용 title 사용)
+
+export type ExperimentStatus = 'planned' | 'baseline' | 'intervention' | 'completed' | 'abandoned'
+
+export interface Experiment {
+  id?: number
+  /** 표시용 제목(보조). 분석은 interventionCode/targetMetric으로 한다. */
+  title: string
+  /** 관찰할 결과 metric(코어 12 중 하나). */
+  targetMetric: CoreMetric
+  /** 구조화된 개입 코드(생활요인). */
+  interventionCode: ExperimentInterventionCode
+  baselineStart: ISODate
+  baselineEnd: ISODate
+  interventionStart: ISODate
+  interventionEnd: ISODate
+  status: ExperimentStatus
+  /** 표시용 자유 메모(분석 제외). */
+  note?: string
+  source: DataSource
+  schemaVersion: number
+  createdAt: string
+  updatedAt: string
+}
+export type ExperimentInput = Omit<Experiment, 'id' | 'createdAt' | 'updatedAt'>
+
+/* ---------------------------------------------------------------------
    생리 관련 V2 확장값(기존 CycleLog에 optional 비인덱스로 추가 — models.ts).
    --------------------------------------------------------------------- */
 export type LhTestResult = 'positive' | 'negative' | 'unknown'

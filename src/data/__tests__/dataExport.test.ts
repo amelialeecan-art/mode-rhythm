@@ -21,7 +21,7 @@ describe('exportAllData', () => {
       [
         'cycleLogs', 'dailyLogs', 'dailyScores', 'eventLogs', 'patternInsights', 'recoveryLogs', 'userSettings',
         'stateMeasurements', 'sleepEpisodes', 'mealEpisodes', 'activityEpisodes',
-        'medicationProfiles', 'medicationDoses', 'healthExceptions', 'screenMetrics', 'weightMeasurements',
+        'medicationProfiles', 'medicationDoses', 'healthExceptions', 'screenMetrics', 'weightMeasurements', 'experiments',
       ].sort(),
     )
   })

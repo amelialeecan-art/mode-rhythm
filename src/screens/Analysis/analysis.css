@@ -1001,3 +1001,16 @@
 .cl-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1.4px solid rgba(255,255,255,0.65); }
 .cl-label { font-size: 14px; font-weight: 700; color: var(--ink); }
 .cl-share { font-size: 13px; font-weight: 800; color: var(--deep-2); font-variant-numeric: tabular-nums; }
+
+/* ---------- 개인 실험 카드 ---------- */
+.exp-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.exp-item { padding: 12px 13px; border-radius: 14px; background: rgba(255,255,255,0.5); border: 1.4px solid rgba(255,255,255,0.65); }
+.exp-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.exp-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+.exp-status { font-size: 11px; font-weight: 700; color: var(--ink-3); background: rgba(120,90,180,0.08); border-radius: var(--pill); padding: 3px 9px; white-space: nowrap; }
+.exp-status--intervention { color: var(--mint-ink); background: rgba(91,199,158,0.16); }
+.exp-status--completed { color: var(--deep-2); }
+.exp-say { margin: 8px 0 0; font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.5; }
+.exp-meta { margin: 6px 0 0; font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+.exp-actions { margin-top: 10px; display: flex; gap: 6px; }
+.exp-form { margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(120,90,180,0.16); }

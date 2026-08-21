@@ -2,7 +2,7 @@
    MODE · data 계층 공개 API
    ===================================================================== */
 export { db, ModeLocalDB, ALL_TABLES, V1_TABLES, V2_TABLES } from './db'
-export { DB_NAME, DB_VERSION, SCHEMA_V1, SCHEMA_V2 } from './schema'
+export { DB_NAME, DB_VERSION, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from './schema'
 export * from './v2Validation'
 export { seedDemoData } from './seed'
 export { resetDatabase } from './reset'
@@ -21,6 +21,17 @@ export {
 export { recalculateDailyScore, getTodaySummary } from './services/dailyScoreService'
 export { resolveDailySleep, hasV2Sleep, type ResolvedSleep, type SleepSource } from './services/sleepResolveService'
 export {
+  registerHealthProvider,
+  clearHealthProvider,
+  getHealthProvider,
+  hasHealthProvider,
+  type HealthDataProvider,
+  type HealthSampleBundle,
+  type HealthProviderCapabilities,
+} from './health/healthProvider'
+export { resolveBySourcePriority, SOURCE_PRIORITY, type SourceCandidate, type ResolvedValue } from './health/sourceResolver'
+export { ingestHealthBundle, type IngestCounts } from './services/healthIngestService'
+export {
   getDataQualitySummary,
   getStateQualityReport,
   type DataQualitySummary,
@@ -33,6 +44,8 @@ export {
   type CycleAlignedInsights,
   type CycleAlignedEntry,
 } from './services/longAnalysisService'
+export { analyzeExperimentById, getExperimentsWithAnalysis } from './services/experimentService'
+export { EXPERIMENT_INTERVENTIONS, INTERVENTION_LABEL, type InterventionMeta } from './catalog/experiments'
 export {
   buildDayTimeline,
   deleteTimelineEntry,
@@ -123,4 +136,5 @@ export {
   healthExceptionRepository,
   screenMetricRepository,
   weightMeasurementRepository,
+  experimentRepository,
 } from './repositories'

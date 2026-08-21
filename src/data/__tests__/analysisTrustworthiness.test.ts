@@ -262,7 +262,7 @@ describe('생리 데이터 표시 (27~28)', () => {
 describe('불변/결합 (29~30)', () => {
   it('29. DB_NAME/DB_VERSION/SCHEMA_V1 불변', () => {
     expect(DB_NAME).toBe('MODELocalDB')
-    expect(DB_VERSION).toBe(2)
+    expect(DB_VERSION).toBe(3)
     expect(Object.keys(SCHEMA_V1)).toHaveLength(7)
     // (참고) db 인스턴스는 V1 7테이블 + V2 신규 테이블. V1 인덱스는 그대로 유지된다.
     const tableNames = db.tables.map((t) => t.name)

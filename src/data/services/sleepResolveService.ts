@@ -10,6 +10,7 @@ import type { ISODate } from '../models'
 import type { SleepEpisode } from '../modelsV2'
 import { sleepDuration, sleepMidpoint } from '../../engine/sleepDerived'
 import { sleepEpisodeRepository } from '../repositories'
+import { resolveBySourcePriority } from '../health/sourceResolver'
 
 export type SleepSource = 'v2' | 'legacy'
 
@@ -25,11 +26,17 @@ export interface ResolvedSleep {
 
 /**
  * 해당 wakeDate(localDate)의 canonical 수면을 해석한다.
- * V2 SleepEpisode가 있으면 우선, 없으면 legacy로 표시한다.
+ * 같은 날 여러 source(manual/healthkit) 기록이 있으면 우선순위 규칙으로 canonical을
+ * 고르되, 원본 episode들은 DB에 그대로 보존한다(overwrite 없음).
+ * V2 기록이 없으면 legacy 신호를 준다.
  */
 export async function resolveDailySleep(localDate: ISODate): Promise<ResolvedSleep> {
-  const episode = await sleepEpisodeRepository.getByDate(localDate)
-  if (episode) {
+  const episodes = await sleepEpisodeRepository.listByDate(localDate)
+  if (episodes.length > 0) {
+    const resolved = resolveBySourcePriority(
+      episodes.map((e) => ({ source: e.source, at: e.updatedAt, value: e })),
+    )
+    const episode = resolved!.chosen.value
     return {
       source: 'v2',
       episode,

@@ -124,6 +124,11 @@ const TABLE_REQUIRED_V2: Record<keyof ModeExportV2Tables, Record<string, FieldKi
   healthExceptions: { localDate: 'date', category: 'str', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
   screenMetrics: { localDate: 'date', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
   weightMeasurements: { measuredAt: 'str', localDate: 'date', weightKg: 'num', source: 'str', schemaVersion: 'num', createdAt: 'str', updatedAt: 'str' },
+  experiments: {
+    title: 'str', targetMetric: 'str', interventionCode: 'str', baselineStart: 'date', baselineEnd: 'date',
+    interventionStart: 'date', interventionEnd: 'date', status: 'str', source: 'str', schemaVersion: 'num',
+    createdAt: 'str', updatedAt: 'str',
+  },
 }
 const V2_TABLE_NAMES = Object.keys(TABLE_REQUIRED_V2) as (keyof ModeExportV2Tables)[]
 
@@ -290,6 +295,7 @@ export interface ImportResultCounts {
   healthExceptions: number
   screenMetrics: number
   weightMeasurements: number
+  experiments: number
 }
 
 /**
@@ -312,11 +318,12 @@ export async function importAllData(payload: ModeExportPayload): Promise<ImportR
     healthExceptions: t.healthExceptions ?? [],
     screenMetrics: t.screenMetrics ?? [],
     weightMeasurements: t.weightMeasurements ?? [],
+    experiments: t.experiments ?? [],
   }
   const v1Handles = [db.dailyLogs, db.eventLogs, db.cycleLogs, db.recoveryLogs, db.dailyScores, db.patternInsights, db.userSettings]
   const v2Handles = [
     db.stateMeasurements, db.sleepEpisodes, db.mealEpisodes, db.activityEpisodes,
-    db.medicationProfiles, db.medicationDoses, db.healthExceptions, db.screenMetrics, db.weightMeasurements,
+    db.medicationProfiles, db.medicationDoses, db.healthExceptions, db.screenMetrics, db.weightMeasurements, db.experiments,
   ]
   return db.transaction('rw', [...v1Handles, ...v2Handles], async () => {
     await Promise.all([...v1Handles, ...v2Handles].map((tbl) => tbl.clear()))
@@ -339,6 +346,7 @@ export async function importAllData(payload: ModeExportPayload): Promise<ImportR
     await db.healthExceptions.bulkAdd(v2.healthExceptions)
     await db.screenMetrics.bulkAdd(v2.screenMetrics)
     await db.weightMeasurements.bulkAdd(v2.weightMeasurements)
+    await db.experiments.bulkAdd(v2.experiments)
 
     // 설정 없이 남지 않도록 같은 트랜잭션 안에서 기본 설정 생성.
     if (t.userSettings.length === 0) {
@@ -363,6 +371,7 @@ export async function importAllData(payload: ModeExportPayload): Promise<ImportR
       healthExceptions: await db.healthExceptions.count(),
       screenMetrics: await db.screenMetrics.count(),
       weightMeasurements: await db.weightMeasurements.count(),
+      experiments: await db.experiments.count(),
     }
 
     // 개수 검증 — 하나라도 어긋나면 throw → 전체 롤백.
@@ -383,7 +392,8 @@ export async function importAllData(payload: ModeExportPayload): Promise<ImportR
       counts.medicationDoses === v2.medicationDoses.length &&
       counts.healthExceptions === v2.healthExceptions.length &&
       counts.screenMetrics === v2.screenMetrics.length &&
-      counts.weightMeasurements === v2.weightMeasurements.length
+      counts.weightMeasurements === v2.weightMeasurements.length &&
+      counts.experiments === v2.experiments.length
     if (!okCounts) throw new Error('import-count-mismatch')
 
     return counts

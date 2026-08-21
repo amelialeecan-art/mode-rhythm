@@ -60,10 +60,22 @@ export function LogScreen() {
         </div>
       </GlassCard>
 
-      {/* 오늘 타임라인(모든 기록) + 완료 여부 + 항목별 수정/삭제 */}
+      {/* ── 최종 우선순위: 1) 아침(수면+상태) 2) 식사 3) 저녁 4) 타임라인 5) +특별한 일 6) 추가 기록 ── */}
+
+      {/* 1. 아침 — 지난밤 수면 + 아침 상태 (1분) */}
+      <SleepCard localDate={date} reloadToken={reloadToken} onSaved={bumpReload} />
+      <CheckInCard localDate={date} checkInType="morning" reloadToken={reloadToken} onSaved={bumpReload} />
+
+      {/* 2. 식사/간식 (10초) */}
+      <MealSection localDate={date} reloadToken={reloadToken} onSaved={bumpReload} />
+
+      {/* 3. 저녁 상태 (1분) */}
+      <CheckInCard localDate={date} checkInType="evening" reloadToken={reloadToken} onSaved={bumpReload} />
+
+      {/* 4. 오늘 타임라인(모든 기록) + 완료 여부 + 항목별 수정/삭제 */}
       <DayTimeline localDate={date} reloadToken={reloadToken} onChanged={bumpReload} onEdit={setEditTarget} />
 
-      {/* 특별한 일: 스트레스 · 운동 · 약 · 예외 · 체중 */}
+      {/* 5. 특별한 일이 있을 때만: 스트레스 · 운동 · 약 · 예외 · 체중 */}
       <SpecialEventSection
         localDate={date}
         reloadToken={reloadToken}
@@ -72,25 +84,13 @@ export function LogScreen() {
         onEditHandled={() => setEditTarget(null)}
       />
 
-      {/* 지난밤 수면 (SleepEpisode) */}
-      <SleepCard localDate={date} reloadToken={reloadToken} onSaved={bumpReload} />
-
-      {/* 아침 상태 */}
-      <CheckInCard localDate={date} checkInType="morning" reloadToken={reloadToken} onSaved={bumpReload} />
-
-      {/* 식사/간식: 빠른 기록 + 오늘 식사 타임라인 */}
-      <MealSection localDate={date} reloadToken={reloadToken} onSaved={bumpReload} />
-
-      {/* 저녁 상태 */}
-      <CheckInCard localDate={date} checkInType="evening" reloadToken={reloadToken} onSaved={bumpReload} />
-
-      {/* 이전 방식 상세 기록 (레거시 호환) */}
+      {/* 6. 추가 기록 — 이전 방식 상세 기록 (레거시 호환, 새 입력에는 미사용) */}
       <button
         className="log-detail-toggle"
         aria-expanded={showLegacy}
         onClick={() => setShowLegacy((v) => !v)}
       >
-        {showLegacy ? '이전 방식 상세 기록 접기 ▲' : '이전 방식 상세 기록 열기 ▼'}
+        {showLegacy ? '추가 기록 접기 ▲' : '추가 기록 (이전 방식) 열기 ▼'}
       </button>
 
       {showLegacy && <LegacyLogForm />}

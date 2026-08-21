@@ -38,8 +38,16 @@ export const SCHEMA_V2: Record<string, string> = {
   weightMeasurements: '++id, localDate, measuredAt',
 }
 
+/**
+ * 스키마 v3: N-of-1 experiments 테이블 추가(비파괴 — 신규 테이블만).
+ * upgrade 콜백 없음 → 기존 V1/V2 데이터 변환/삭제 안 함.
+ */
+export const SCHEMA_V3: Record<string, string> = {
+  experiments: '++id, status, targetMetric, interventionCode',
+}
+
 /** 현재 DB 버전. 스키마 변경 시 새 버전을 추가하고 마이그레이션을 단다. */
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 /** IndexedDB 데이터베이스 이름. */
 export const DB_NAME = 'MODELocalDB'

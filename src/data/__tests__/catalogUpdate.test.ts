@@ -107,6 +107,6 @@ describe('사건 가중치 하향 (상태=결과 중심)', () => {
   })
 
   it('DB schema version은 그대로다', () => {
-    expect(DB_VERSION).toBe(2)
+    expect(DB_VERSION).toBe(3)
   })
 })

@@ -19,6 +19,7 @@ import { EventResponseChart } from './EventResponseChart'
 import { DataQualityCard } from './DataQualityCard'
 import { CycleAlignedCard } from './CycleAlignedCard'
 import { ClusterCard } from './ClusterCard'
+import { ExperimentSection } from './ExperimentSection'
 import { getEpisodeInsightSnapshot } from '../../data/services/episodeInsightService'
 import { createEpisodeCardLoader, type AnalysisEpisodeCards, type CardSubsection, type EpisodeCardLoader } from './analysisEpisodeCards'
 import './analysis.css'
@@ -108,14 +109,11 @@ export function AnalysisScreen() {
         </GlassCard>
       ) : (
         <>
-          {/* ===== 기록 상태(데이터 품질/coverage) — 분석 전에 데이터 신뢰도부터 ===== */}
+          {/* ===== 최종 계층: 1) 데이터 품질 2) 최근 흐름 3) 시간순서 반복 패턴 4) cycle 5) 장기 상태 6) 실험 ===== */}
+          {/* 1. 데이터 품질 */}
           <DataQualityCard />
 
-          {/* ===== 장기 자료 기반: 주기 정렬 사후 분석 · 상태 군집 (충분+안정할 때만) ===== */}
-          <CycleAlignedCard />
-          <ClusterCard />
-
-          {/* ===== 0. 최근에 이어진 흐름 · 반복해서 나타난 순서 (있으면 맨 위) ===== */}
+          {/* 2. 최근에 이어진 흐름 · 반복해서 나타난 순서 */}
           <EpisodeFlowCards cards={episodeCards} />
 
           {/* ===== 1. 흐름을 바꾼 누적 요인 (없으면 섹션 전체 숨김) ===== */}
@@ -219,7 +217,16 @@ export function AnalysisScreen() {
             <RecoveryComparisonCardView rc={vm.recoveryComparison} shownActions={strongRecs} />
           )}
 
-          {/* ===== 6. 그 밖의 기록 (초기 빈도 · 미제) — 결과 있을 때만 노출 ===== */}
+          {/* 4. cycle 패턴 (완료된 3+ 주기, 충분할 때만) */}
+          <CycleAlignedCard />
+
+          {/* 5. 장기 상태 패턴 (충분+안정할 때만) */}
+          <ClusterCard />
+
+          {/* 6. 개인 실험 (N-of-1) */}
+          <ExperimentSection />
+
+          {/* ===== 그 밖의 기록 (초기 빈도 · 미제) — 결과 있을 때만 노출 ===== */}
           {((!showComparison && vm.eventFrequency.length > 0) || vm.unexplained.length > 0) && (
             <details className="more more--block">
               <summary className="more__sum">그 밖의 기록</summary>

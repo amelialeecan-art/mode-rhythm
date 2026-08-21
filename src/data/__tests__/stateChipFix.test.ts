@@ -77,7 +77,7 @@ describe('상태칩 저장/반영 버그픽스', () => {
   })
 
   it('8. DB schema version/인덱스는 변경되지 않았다', () => {
-    expect(DB_VERSION).toBe(2)
+    expect(DB_VERSION).toBe(3)
     expect(SCHEMA_V1.dailyLogs).toBe('++id, &date') // 인덱스 그대로 (메타는 비인덱스)
   })
 })

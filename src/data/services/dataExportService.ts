@@ -23,6 +23,7 @@ import type {
   HealthException,
   ScreenMetric,
   WeightMeasurement,
+  Experiment,
 } from '../modelsV2'
 
 /**
@@ -45,6 +46,7 @@ export interface ModeExportV2Tables {
   healthExceptions: HealthException[]
   screenMetrics: ScreenMetric[]
   weightMeasurements: WeightMeasurement[]
+  experiments: Experiment[]
 }
 
 export interface ModeExportPayload {
@@ -90,6 +92,7 @@ export async function buildExportPayload(): Promise<ModeExportPayload> {
     db.screenMetrics.toArray(),
     db.weightMeasurements.toArray(),
   ])
+  const experiments = await db.experiments.toArray()
 
   return {
     app: 'MODE',
@@ -99,6 +102,7 @@ export async function buildExportPayload(): Promise<ModeExportPayload> {
       dailyLogs, eventLogs, cycleLogs, recoveryLogs, dailyScores, patternInsights, userSettings,
       stateMeasurements, sleepEpisodes, mealEpisodes, activityEpisodes,
       medicationProfiles, medicationDoses, healthExceptions, screenMetrics, weightMeasurements,
+      experiments,
     },
   }
 }
