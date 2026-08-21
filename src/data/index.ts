@@ -25,6 +25,7 @@ export {
   getStateQualityReport,
   type DataQualitySummary,
 } from './services/dataQualityService'
+export { getV2AnalysisBundle, type V2AnalysisBundle } from './services/analysisDatasetService'
 export {
   buildDayTimeline,
   deleteTimelineEntry,
