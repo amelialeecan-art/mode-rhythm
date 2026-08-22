@@ -15,18 +15,29 @@ beforeEach(async () => {
 })
 
 describe('getRhythmViewModel', () => {
-  it('범위 길이만큼 days를 만들고 점수 있는 날만 hasScore', async () => {
+  it('그래프 시작을 첫 데이터 날짜로 당긴다(오른쪽 압축 방지 §19~21)', async () => {
+    // 첫 데이터가 06-10인데 범위(14일)는 06-07부터 → 06-10부터만 그린다(빈 앞구간 제거).
     for (let i = 0; i < 8; i++) {
       await saveDailyEntry(draft(addDaysISO('2026-06-10', i), { stateCodes: ['anxious'], overallIntensity: 'much' }))
     }
     const vm = await getRhythmViewModel({ endDate: END, days: 14 })
-    expect(vm.days).toHaveLength(14)
+    expect(vm.startDate).toBe('2026-06-10')
+    expect(vm.days).toHaveLength(11) // 06-10 ~ 06-20
     expect(vm.dayCount).toBe(8)
     expect(vm.hasData).toBe(true)
     const scored = vm.days.filter((d) => d.hasScore)
     expect(scored.every((d) => d.emotional !== undefined)).toBe(true)
-    // today(실제 오늘)는 범위 밖 → -1
     expect(vm.todayIndex).toBe(-1)
+  })
+
+  it('데이터가 범위보다 오래되면 범위 시작에서 자른다(§21)', async () => {
+    // 데이터가 범위(14일=06-07부터)보다 이른 06-01에도 있음 → 범위 시작(06-07) 유지, 전체 14일.
+    for (const d of ['2026-06-01', '2026-06-08', '2026-06-20']) {
+      await saveDailyEntry(draft(d, { stateCodes: ['anxious'], overallIntensity: 'much' }))
+    }
+    const vm = await getRhythmViewModel({ endDate: END, days: 14 })
+    expect(vm.startDate).toBe('2026-06-07')
+    expect(vm.days).toHaveLength(14)
   })
 
   it('생리 기록이 있으면 주기 구간 오버레이가 계산된다', async () => {
@@ -47,20 +58,23 @@ describe('getRhythmViewModel', () => {
 
 describe('getRhythmViewModel — 7일 집계(장기)', () => {
   it('week 집계: 결측일을 0으로 세지 않고 실제 기록만 평균', async () => {
-    // 마지막 주(06-14~06-20)에 이틀만 기록(같은 상태 → 같은 점수)
-    await saveDailyEntry(draft('2026-06-19', { stateCodes: ['anxious'], overallIntensity: 'much' }))
-    await saveDailyEntry(draft('2026-06-20', { stateCodes: ['anxious'], overallIntensity: 'much' }))
-    const vm = await getRhythmViewModel({ endDate: END, days: 14, bucket: 'week' })
+    // 첫 데이터 06-01(범위 21일=05-31부터 안쪽 → 도메인 시작) + 마지막 주에 이틀.
+    // 가운데 주는 완전히 비어 결측이어야 한다(0으로 희석 금지).
+    for (const d of ['2026-06-01', '2026-06-19', '2026-06-20']) {
+      await saveDailyEntry(draft(d, { stateCodes: ['anxious'], overallIntensity: 'much' }))
+    }
+    const vm = await getRhythmViewModel({ endDate: END, days: 21, bucket: 'week' })
     expect(vm.bucketMode).toBe('week')
-    expect(vm.buckets).toHaveLength(2) // 14일 / 7
-    const last = vm.buckets[1]
+    expect(vm.startDate).toBe('2026-06-01')
+    expect(vm.buckets).toHaveLength(3) // 06-01 ~ 06-20 = 20일 / 7 → 3
+    const last = vm.buckets[vm.buckets.length - 1]
     const dayVal = vm.days.find((d) => d.date === '2026-06-20')!.emotional!
     // 7일 중 2일만 기록 → 평균이 2일 값과 같아야(=/7로 희석되지 않음)
     expect(last.emotional).toBe(dayVal)
     expect(last.hasData).toBe(true)
-    // 기록 없는 이전 주 → undefined(선 끊김), hasData false
-    expect(vm.buckets[0].emotional).toBeUndefined()
-    expect(vm.buckets[0].hasData).toBe(false)
+    // 가운데 완전 결측 주 → undefined(선 끊김), hasData false
+    expect(vm.buckets[1].emotional).toBeUndefined()
+    expect(vm.buckets[1].hasData).toBe(false)
   })
 
   it('weekCompare: 최근 7일 vs 이전 28일, 표본 수 집계', async () => {

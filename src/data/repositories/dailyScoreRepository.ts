@@ -28,4 +28,10 @@ export const dailyScoreRepository = {
     const all = await db.dailyScores.orderBy('date').reverse().limit(days).toArray()
     return all.reverse()
   },
+
+  /** 가장 이른 점수 날짜(표시용 — 그래프 도메인 시작 계산). 없으면 undefined. */
+  async firstDate(): Promise<ISODate | undefined> {
+    const first = await db.dailyScores.orderBy('date').first()
+    return first?.date
+  },
 }

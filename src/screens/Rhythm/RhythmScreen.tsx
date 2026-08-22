@@ -21,17 +21,16 @@ import { presentRhythmRepeatedFlow, type RepeatedFlowCard } from './rhythmRepeat
 import { CycleCompareChart } from './CycleCompareChart'
 import { buildCheckpoint, type CheckpointCard } from './checkpoint'
 import {
-  METRIC_ORDER,
+  OVERLAY_METRICS,
+  DEFAULT_RANGE_KEY,
   METRIC_LABEL,
   METRIC_COLOR,
-  METRIC_EXPLAIN,
-  PRESETS,
-  isNeutral,
   toDisplayValue,
   pickTickIndices,
   formatTickDate,
-  formatTooltipDate,
+  formatDetailDate,
 } from './rhythmOverlay'
+import { buildDaySummary, type OverlayDisplay } from './rhythmDaySummary'
 import './rhythm.css'
 
 const RANGES = [
@@ -40,9 +39,6 @@ const RANGES = [
   { key: '6m', label: '6개월', days: 180, bucket: 'week' as const },
   { key: '1y', label: '1년', days: 365, bucket: 'week' as const },
 ]
-
-const NAMED_PRESETS = PRESETS.filter((p) => p.key !== 'custom')
-const DEFAULT_METRICS: RhythmMetric[] = ['emotional', 'appetite', 'sleep', 'recovery', 'body']
 
 const PHASE_LABEL: Record<CyclePhase, string> = {
   period: '생리 중',
@@ -57,16 +53,14 @@ const PHASE_COLOR: Record<CyclePhase, string> = {
 
 type ViewMode = 'long' | 'cycle'
 
-function sameSet(a: RhythmMetric[], b: RhythmMetric[]): boolean {
-  return a.length === b.length && a.every((m) => b.includes(m))
-}
-
 export function RhythmScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('long')
-  const [rangeKey, setRangeKey] = useState('30d')
-  // 겹쳐보기: 선택된 지표 집합(항상 METRIC_ORDER 순서 유지, 최소 1개).
-  const [selectedMetrics, setSelectedMetrics] = useState<RhythmMetric[]>(DEFAULT_METRICS)
-  // 주기 비교는 본질적으로 단일 곡선 → 별도 단일 선택.
+  const [rangeKey, setRangeKey] = useState(DEFAULT_RANGE_KEY)
+  // 겹쳐보기: 켜져 있는 지표(기본 4개 모두 ON, 최소 1개). 이 버튼이 곧 legend다.
+  const [selectedMetrics, setSelectedMetrics] = useState<RhythmMetric[]>([...OVERLAY_METRICS])
+  // 탭한 날짜(버킷 인덱스). 손 떼도 유지.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  // 주기 비교는 단일 곡선.
   const [cycleMetric, setCycleMetric] = useState<RhythmMetric>('emotional')
   const [vm, setVm] = useState<RhythmViewModel | null>(null)
   const [cycleVm, setCycleVm] = useState<CycleCompareViewModel | null>(null)
@@ -79,17 +73,13 @@ export function RhythmScreen() {
   const [cycleLoading, setCycleLoading] = useState(false)
 
   const range = RANGES.find((r) => r.key === rangeKey) ?? RANGES[0]
-  const activePresetKey = NAMED_PRESETS.find((p) => sameSet(p.metrics, selectedMetrics))?.key ?? 'custom'
-
-  const applyPreset = (metrics: RhythmMetric[]) =>
-    setSelectedMetrics(METRIC_ORDER.filter((m) => metrics.includes(m)))
 
   const toggleMetric = (m: RhythmMetric) =>
     setSelectedMetrics((prev) => {
       const has = prev.includes(m)
       if (has && prev.length === 1) return prev // 최소 1개 유지
       const next = has ? prev.filter((x) => x !== m) : [...prev, m]
-      return METRIC_ORDER.filter((x) => next.includes(x))
+      return OVERLAY_METRICS.filter((x) => next.includes(x))
     })
 
   useEffect(() => {
@@ -98,6 +88,8 @@ export function RhythmScreen() {
     void getRhythmViewModel({ days: range.days, bucket: range.bucket }).then((v) => {
       if (!cancelled) {
         setVm(v)
+        // 기본 선택 = 가장 최근 버킷(오늘 쪽). 기간 바꾸면 다시 최근으로.
+        setSelectedIndex(v.buckets.length > 0 ? v.buckets.length - 1 : null)
         setLoading(false)
       }
     })
@@ -152,24 +144,35 @@ export function RhythmScreen() {
     }
   }, [viewMode, cycleVm])
 
-  // 겹쳐보기 시리즈: 선택된 각 지표를 방향 통일된 표시값으로. 원본 값은 raw로(툴팁용).
+  // 겹쳐보기 시리즈: 선택된 각 지표를 방향 통일된 표시값으로.
   const series: RhythmSeries[] = vm
     ? selectedMetrics.map((m) => ({
         key: m,
-        label: METRIC_LABEL[m],
         color: METRIC_COLOR[m],
-        neutral: isNeutral(m),
         values: vm.buckets.map((b) => toDisplayValue(m, b[m])),
-        raw: vm.buckets.map((b) => b[m]),
       }))
     : []
   const xTicks = vm
     ? pickTickIndices(vm.buckets.length, 6).map((i) => ({ index: i, label: formatTickDate(vm.buckets[i].endDate) }))
     : []
-  const tooltipDates = vm ? vm.buckets.map((b) => formatTooltipDate(b.endDate)) : []
   const presentPhases = vm
     ? (['period', 'premenstrual', 'ovulation'] as CyclePhase[]).filter((p) => vm.buckets.some((b) => b.cyclePhase === p))
     : []
+
+  // 선택한 날짜 상세
+  const selectedDetail = (() => {
+    if (!vm || selectedIndex === null) return null
+    const b = vm.buckets[selectedIndex]
+    if (!b) return null
+    const isSingleDay = b.startDate === b.endDate
+    const displays: OverlayDisplay[] = selectedMetrics
+      .map((m) => ({ metric: m, value: toDisplayValue(m, b[m]) }))
+      .filter((d): d is OverlayDisplay => d.value !== undefined)
+    const detail = isSingleDay ? vm.detailByDate.get(b.endDate) : undefined
+    const summary = buildDaySummary({ displays, detail })
+    const dateLabel = isSingleDay ? formatDetailDate(b.endDate) : `${formatTickDate(b.startDate)}~${formatTickDate(b.endDate)}`
+    return { summary, dateLabel, hasData: b.hasData }
+  })()
 
   return (
     <>
@@ -195,8 +198,8 @@ export function RhythmScreen() {
       {viewMode === 'cycle' ? (
         <>
           {/* 주기 비교는 한 번에 한 지표 */}
-          <div className="rhythm-metrics" role="tablist" aria-label="항목 선택">
-            {METRIC_ORDER.map((m) => {
+          <div className="rhythm-metrics rhythm-metrics--4" role="tablist" aria-label="항목 선택">
+            {OVERLAY_METRICS.map((m) => {
               const on = m === cycleMetric
               return (
                 <button
@@ -242,7 +245,7 @@ export function RhythmScreen() {
             </GlassCard>
           ) : (
             <>
-              {/* 1. 최근 흐름 (최근 며칠~2주 방향) — 약하면 카드 숨김 */}
+              {/* 최근 흐름 (그대로 유지) */}
               {recentFlow && (
                 <GlassCard tint="mint">
                   <SectionHeader title="최근 흐름" />
@@ -250,7 +253,7 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 1-2. 반복해서 나타난 큰 흐름 (여러 번 되풀이된 순서) — 없으면 섹션 전체 숨김 */}
+              {/* 반복해서 나타난 큰 흐름 — 없으면 섹션 전체 숨김 */}
               {repeatedFlowCards.length > 0 && (
                 <GlassCard tint="sky">
                   <SectionHeader title="반복해서 나타난 큰 흐름" />
@@ -263,7 +266,7 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 2. 나의 반복 흐름 (장기 반복 구조) — 없으면 카드 전체 숨김 */}
+              {/* 나의 반복 흐름 — 없으면 카드 전체 숨김 */}
               {personalRhythm && (
                 <GlassCard tint="lav">
                   <SectionHeader title="나의 반복 흐름" />
@@ -275,29 +278,12 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 3. 겹쳐보기 그래프 — 여러 지표를 같은 날짜축 위에서 겹쳐 본다 */}
+              {/* 겹쳐보기 — 제목 + 버튼 4개 + 그래프 + (탭하면) 날짜 상세 */}
               <GlassCard>
                 <SectionHeader title="겹쳐보기" />
-                <p className="rhythm-overlay-help">보고 싶은 조합을 골라. 위로 갈수록 편안, 아래로 갈수록 힘듦이야. 식욕은 중립(많고 적음)이라 방향을 매기지 않아.</p>
 
-                {/* 프리셋 */}
-                <div className="rhythm-presets" role="group" aria-label="겹쳐볼 조합">
-                  {NAMED_PRESETS.map((p) => (
-                    <button
-                      key={p.key}
-                      className={`rhythm-preset${activePresetKey === p.key ? ' rhythm-preset--on' : ''}`}
-                      aria-pressed={activePresetKey === p.key}
-                      onClick={() => applyPreset(p.metrics)}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* 직접 고르기 (범례 겸 켜기/끄기) */}
-                <p className="rhythm-pick-label">직접 고르기</p>
-                <div className="rhythm-metrics" role="group" aria-label="지표 켜고 끄기">
-                  {METRIC_ORDER.map((m) => {
+                <div className="rhythm-metrics rhythm-metrics--4" role="group" aria-label="선 켜고 끄기">
+                  {OVERLAY_METRICS.map((m) => {
                     const on = selectedMetrics.includes(m)
                     return (
                       <button
@@ -320,21 +306,25 @@ export function RhythmScreen() {
                   phases={vm.buckets.map((b) => b.cyclePhase)}
                   todayIndex={vm.todayBucketIndex}
                   xTicks={xTicks}
-                  tooltipDates={tooltipDates}
-                  baselineLabel="평소"
-                  showDirection
+                  selectedIndex={selectedIndex}
+                  onSelect={setSelectedIndex}
                 />
 
-                {/* 선택 지표가 무엇을 모은 값인지 */}
-                <ul className="rhythm-explain">
-                  {selectedMetrics.map((m) => (
-                    <li className="rhythm-explain__item" key={m}>
-                      <span className="rhythm-explain__dot" style={{ background: METRIC_COLOR[m] }} />
-                      <span className="rhythm-explain__name">{METRIC_LABEL[m]}</span>
-                      <span className="rhythm-explain__desc">{METRIC_EXPLAIN[m]}</span>
-                    </li>
-                  ))}
-                </ul>
+                {selectedDetail && (
+                  <div className="rhythm-day">
+                    <p className="rhythm-day__date">{selectedDetail.dateLabel}</p>
+                    {selectedDetail.hasData ? (
+                      <>
+                        <p className="rhythm-day__say">{selectedDetail.summary.headline}</p>
+                        {selectedDetail.summary.facts.length > 0 && (
+                          <p className="rhythm-day__facts">{selectedDetail.summary.facts.join(' · ')}</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="rhythm-day__say">이 날은 기록이 없어.</p>
+                    )}
+                  </div>
+                )}
 
                 {presentPhases.length > 0 && (
                   <div className="rhythm-phases">
@@ -348,7 +338,7 @@ export function RhythmScreen() {
                 )}
               </GlassCard>
 
-              {/* 5. 월간 비교 (달 단위 생활 변화) — 결과 없으면 제목·카드 전체 숨김 */}
+              {/* 월간 비교 — 결과 없으면 카드 전체 숨김 */}
               {monthly && (
                 <GlassCard tint="coral">
                   <SectionHeader title="월간 비교" />
@@ -370,7 +360,7 @@ export function RhythmScreen() {
                 </GlassCard>
               )}
 
-              {/* 6. 최근 일주일 (선택한 지표별 · 보조) */}
+              {/* 최근 일주일 (선택한 지표별 · 보조) */}
               <GlassCard tint="lav">
                 <SectionHeader title="최근 일주일" />
                 {selectedMetrics.map((m) => {

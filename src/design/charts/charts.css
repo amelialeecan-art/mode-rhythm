@@ -1,76 +1,16 @@
 /* =====================================================================
    MODE · 리듬 다중 선그래프 (RhythmChart)
+   물리적 크기는 기간과 무관하게 고정 — viewBox 고정 + width 100%.
    ===================================================================== */
-.rhythm-wrap {
-  position: relative;
-  width: 100%;
-  touch-action: pan-y; /* 세로 스크롤은 살리고 가로 포인터는 툴팁에 */
-}
 .rhythm {
   width: 100%;
   height: auto;
   display: block;
   margin-top: 6px;
+  touch-action: pan-y; /* 세로 스크롤은 살리고 탭은 날짜 선택에 */
 }
-
-/* 축·기준선 라벨 */
 .rhythm-x-t {
   font-size: 8.5px;
   font-weight: 700;
   fill: var(--ink-3);
-}
-.rhythm-baseline-t {
-  font-size: 8.5px;
-  font-weight: 700;
-  fill: var(--ink-3);
-  opacity: 0.8;
-}
-.rhythm-dir-t {
-  font-size: 8px;
-  font-weight: 700;
-  fill: var(--ink-3);
-  opacity: 0.65;
-}
-
-/* 툴팁 (원본 값) */
-.rhythm-tip {
-  position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
-  min-width: 96px;
-  max-width: 160px;
-  padding: 7px 9px;
-  border-radius: 10px;
-  background: rgba(30, 22, 54, 0.92);
-  color: #fff;
-  pointer-events: none;
-  z-index: 3;
-  box-shadow: 0 4px 14px rgba(30, 22, 54, 0.28);
-}
-.rhythm-tip__date {
-  font-size: 11px;
-  font-weight: 700;
-  margin-bottom: 4px;
-  opacity: 0.9;
-}
-.rhythm-tip__row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.5;
-}
-.rhythm-tip__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex: none;
-}
-.rhythm-tip__name {
-  flex: 1;
-}
-.rhythm-tip__val {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
 }

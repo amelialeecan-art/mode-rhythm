@@ -79,6 +79,22 @@ export interface WeekCompareStat {
   enough: boolean
 }
 
+/** 날짜를 탭했을 때 사람말 요약에 쓰는 그날의 원본 값(0~10, 수면시간은 시간). */
+export interface RhythmDayDetail {
+  hunger?: number // 실제 배고픔 (appetite)
+  craving?: number // 음식 당김 (단·짠 중 강한 쪽)
+  bingeUrge?: number
+  fatigue?: number
+  pain?: number
+  bloating?: number
+  bodyDiscomfort?: number
+  moodLow?: number
+  anxiety?: number
+  irritability?: number
+  sleepHours?: number
+  sleepQuality?: number
+}
+
 export interface RhythmViewModel {
   startDate: ISODate
   endDate: ISODate
@@ -92,6 +108,8 @@ export interface RhythmViewModel {
   dayCount: number
   hasData: boolean
   weekCompare: Record<RhythmMetric, WeekCompareStat>
+  /** 날짜별 원본 값(하루 버킷일 때 상세 요약용). */
+  detailByDate: Map<ISODate, RhythmDayDetail>
 }
 
 export interface RhythmOptions {
@@ -187,21 +205,48 @@ function compareStat(recent: (number | undefined)[], prev: (number | undefined)[
 /** 리듬 화면 ViewModel. 예측 없음 — 저장 점수의 시계열 집계 + 주기 오버레이. */
 export async function getRhythmViewModel(opts: RhythmOptions = {}): Promise<RhythmViewModel> {
   const endDate = opts.endDate ?? getTodayISODate()
-  const span = opts.days ?? DEFAULT_DAYS
-  const bucketMode: 'day' | 'week' = opts.bucket ?? (span <= 30 ? 'day' : 'week')
-  const rangeStart = addDaysISO(endDate, -(span - 1))
+  const requestedSpan = opts.days ?? DEFAULT_DAYS
+  const bucketMode: 'day' | 'week' = opts.bucket ?? (requestedSpan <= 30 ? 'day' : 'week')
+  const rangeStart = addDaysISO(endDate, -(requestedSpan - 1))
   const today = getTodayISODate()
+
+  // 그래프가 오른쪽으로 쪼그라들지 않도록: 선택 기간은 "최대 조회 범위"로 해석하고,
+  // 실제로 그리는 시작은 max(기간 시작, 첫 데이터 날짜)로 당긴다(§19~21).
+  const firstDataDate = await dailyScoreRepository.firstDate()
+  const displayStart =
+    firstDataDate && firstDataDate > rangeStart ? firstDataDate : rangeStart
+  const span = Math.max(1, Math.round((Date.parse(endDate) - Date.parse(displayStart)) / 86400000) + 1)
 
   // 최근/이전 비교는 최근 35일이 필요 — range와 별개로 넉넉히 조회
   const compareStart = addDaysISO(endDate, -(COMPARE_RECENT + COMPARE_PREV - 1))
-  const fetchStart = rangeStart < compareStart ? rangeStart : compareStart
+  const fetchStart = displayStart < compareStart ? displayStart : compareStart
 
-  const [scores, cycleLogs, settings] = await Promise.all([
+  const [scores, logs, cycleLogs, settings] = await Promise.all([
     dailyScoreRepository.listByDateRange(fetchStart, endDate),
+    dailyLogRepository.listByDateRange(fetchStart, endDate),
     cycleLogRepository.listByDateRange(CYCLE_HISTORY_FLOOR, endDate),
     userSettingsRepository.get(),
   ])
   const byDate = new Map<ISODate, DailyScore>(scores.map((s) => [s.date, s]))
+
+  // 날짜별 원본 값(상세 요약용) — 원본 dailyLog에서 그대로. 계산/변형 없음.
+  const detailByDate = new Map<ISODate, RhythmDayDetail>()
+  for (const l of logs) {
+    detailByDate.set(l.date, {
+      hunger: l.appetite,
+      craving: Math.max(l.sweetCraving, l.saltyCraving),
+      bingeUrge: l.bingeUrge,
+      fatigue: l.fatigue,
+      pain: l.pain,
+      bloating: l.bloating,
+      bodyDiscomfort: l.bodyDiscomfort,
+      moodLow: l.moodLow,
+      anxiety: l.anxiety,
+      irritability: l.irritability,
+      sleepHours: l.lastNightSleep?.hours ?? l.sleepHours,
+      sleepQuality: l.lastNightSleep?.quality ?? l.sleepQuality,
+    })
+  }
 
   const toDay = (date: ISODate, i: number): RhythmDay => {
     const s = byDate.get(date)
@@ -220,9 +265,9 @@ export async function getRhythmViewModel(opts: RhythmOptions = {}): Promise<Rhyt
     }
   }
 
-  // 표시 범위(days)
+  // 표시 범위(days) — 그리는 시작(displayStart)부터 endDate까지.
   const days: RhythmDay[] = []
-  for (let i = 0; i < span; i++) days.push(toDay(addDaysISO(rangeStart, i), i))
+  for (let i = 0; i < span; i++) days.push(toDay(addDaysISO(displayStart, i), i))
 
   const size = bucketMode === 'week' ? 7 : 1
   const buckets = buildBuckets(days, size, today)
@@ -251,7 +296,7 @@ export async function getRhythmViewModel(opts: RhythmOptions = {}): Promise<Rhyt
   }
 
   return {
-    startDate: rangeStart,
+    startDate: displayStart,
     endDate,
     bucketMode,
     days,
@@ -261,6 +306,7 @@ export async function getRhythmViewModel(opts: RhythmOptions = {}): Promise<Rhyt
     dayCount: scored.length,
     hasData: scored.length >= 2,
     weekCompare,
+    detailByDate,
   }
 }
 
