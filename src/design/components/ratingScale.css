@@ -3,14 +3,14 @@
    토큰(components.css/tokens.css)의 시각 언어를 재사용한다.
    ===================================================================== */
 .rating {
-  margin-top: 14px;
+  margin-top: 11px;
 }
 .rating__head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .rating__label {
   font-size: 14.5px;
@@ -34,22 +34,23 @@
   transform: scale(0.94);
 }
 
-/* 0~10 + 모름 눈금열. 작은 화면에서 줄바꿈 허용. */
+/* 0~10 + 모름을 한 줄에. 모든 metric이 세로 공간을 최소로 쓰도록 grid로 균등 배치.
+   0~10은 11칸, '모름'은 살짝 넓은 1칸(글자가 들어가야 함). 컨테이너 폭에 맞춰 줄어든다. */
 .rating__scale {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr)) 1.55fr;
+  gap: 4px;
 }
 .rating__opt {
-  min-width: 34px;
-  height: 38px;
-  padding: 0 4px;
-  border-radius: 12px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 1px;
+  border-radius: 10px;
   border: 1.6px solid rgba(255, 255, 255, 0.72);
   background: rgba(255, 255, 255, 0.5);
   color: var(--ink-2);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   -webkit-appearance: none;
@@ -57,14 +58,12 @@
   background-clip: padding-box;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.1s ease;
-  flex: 1 1 auto;
 }
 .rating__opt:active {
-  transform: scale(0.93);
+  transform: scale(0.9);
 }
 .rating__opt--unknown {
-  flex: 1 1 100%;
-  margin-top: 2px;
+  font-size: 11.5px;
   color: var(--ink-3);
   font-weight: 700;
 }
@@ -109,8 +108,8 @@
 .rating__ends {
   display: flex;
   justify-content: space-between;
-  margin-top: 6px;
-  font-size: 11px;
+  margin-top: 4px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--ink-3);
 }
